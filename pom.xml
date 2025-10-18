@@ -10,7 +10,7 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>My Group Project</name>
+    <name>MTCAiQuizArea</name>
     <description>A simple Maven project for team development</description>
     <url>https://github.com/tuliakov84/QuizAI</url>
 
