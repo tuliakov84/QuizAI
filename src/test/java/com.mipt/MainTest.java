@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class MainTest {
 
   @Test
-  void testMainExists() {
-    // Просто проверка, что тестовая среда работает
-    assertTrue(true);
+  void testClass() {
+    var example = new testClass();
+    assertEquals(30, example.testMethodSum(20));
   }
 }
