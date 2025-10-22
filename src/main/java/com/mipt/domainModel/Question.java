@@ -2,6 +2,7 @@ package com.mipt.domainModel;
 
 public class Question {
   int questionId;
+  Game game;
 
   String questionText;
   String answer1;
