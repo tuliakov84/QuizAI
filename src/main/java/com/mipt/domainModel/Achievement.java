@@ -1,4 +1,4 @@
-package com.mipt;
+package com.mipt.domainModel;
 
 public class Achievement {
   int achievementId;
