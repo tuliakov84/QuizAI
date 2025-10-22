@@ -6,7 +6,6 @@ public class Game {
   int gameId;
   int authorId;
   int topicId;
-  int[] questionsIds;
 
   byte status;
   Date gameStartTime;
@@ -14,4 +13,11 @@ public class Game {
   boolean isPrivate;
   int difficulty;
   int numberOfParticipants;
+
+  int currentQuestionId;
+
+  String question;
+  String[] answerOptions;
+  int rightAnswerIndex;
+  int points;
 }
