@@ -33,7 +33,8 @@ public class Game implements IGame {
     HARD
   }
 
-  public Game() {}
+  public Game() {
+  }
 
   public Game(int gameId, User author, Topic topic, LevelDifficulty levelDifficulty) {
     this.gameId = gameId;

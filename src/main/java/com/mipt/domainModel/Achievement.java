@@ -2,7 +2,7 @@ package com.mipt.domainModel;
 
 import com.mipt.domainModel.Interfaces.IAchievement;
 
-public class Achievement implements  IAchievement {
+public class Achievement implements IAchievement {
   private int achievementId;
   private String name;
   private boolean profilePicNeeded;
