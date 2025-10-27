@@ -4,11 +4,12 @@ import java.sql.*;
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.mipt.domainModel.*;
 import org.json.JSONObject;
+import org.json.JSONArray;
 import java.time.Instant;
 
 
 public class DbService {
-  private Connection connect() {
+  private static Connection connect() {
     // establishes connection to the database
     String url = "jdbc:postgresql://localhost:5432/my";
     String user = "postgresql";
@@ -21,38 +22,39 @@ public class DbService {
     }
   }
 
-  private final Connection conn = connect();
+  private static final Connection conn = connect();
 
-  public class DbUser {
-    public Integer checkLoggedIn(String session) throws SQLException {
+  public static class DbUser {
+    public static Integer checkLoggedIn(String session) throws SQLException {
       // must be completed every query to check user authenticated to perform actions
       PreparedStatement selId = conn.prepareStatement("SELECT id FROM users WHERE session = ?");
       selId.setString(1, session);
+
       ResultSet rsSelId = selId.executeQuery();
-      return rsSelId.getInt(1); // returns userId if logged in, null if not logged
+      return rsSelId != null ? rsSelId.getInt(1) : null; // returns userId if logged in, null if not logged
     }
 
-    private boolean checkUserExists(String username) throws SQLException {
+    public static boolean checkUserExists(String username) throws SQLException {
       PreparedStatement selExists = conn.prepareStatement("SELECT * FROM users WHERE username = ?");
       selExists.setString(1, username);
       ResultSet rsSelExists = selExists.executeQuery();
       return rsSelExists != null; // true if user already exists, false if not exists
     }
 
-    public boolean register(String username, String password) throws SQLException {
+    public static boolean register(String username, String password) throws SQLException {
       // creates an account for a new user
       if (checkUserExists(username)) {
         return false; // false if user already exists
       }
       String hashedPassword = BCrypt.withDefaults().hashToString(12, password.toCharArray());
-      PreparedStatement inpData = conn.prepareStatement("INSERT INTO users (username, password, pic_id) VALUES (?, ?, 0)");
+      PreparedStatement inpData = conn.prepareStatement("INSERT INTO users (username, password, pic_id, description, games_played_number, global_points, global_possible_points) VALUES (?, ?, 0, '', 0, 0, 0)");
       inpData.setString(1, username);
       inpData.setString(2, hashedPassword);
       inpData.executeUpdate();
       return true; // done
     }
 
-    public boolean authorize(String username, String password, String session) throws SQLException {
+    public static boolean authorize(String username, String password, String session) throws SQLException {
       // authorizes user
       PreparedStatement selExists = conn.prepareStatement("SELECT password FROM users WHERE username = ?");
       selExists.setString(1, username);
@@ -62,6 +64,12 @@ public class DbService {
       }
       BCrypt.Result result = BCrypt.verifyer().verify(password.toCharArray(), rsSelExists.getString(1));
       if (result.verified) {
+        PreparedStatement selSession = conn.prepareStatement("SELECT session FROM users");
+        selSession.setString(1, session);
+        ResultSet rsSession = selSession.executeQuery();
+        if (rsSession != null) {
+          return false; // session key is not unique and already exists in database
+        }
         PreparedStatement updData = conn.prepareStatement("UPDATE users SET session = ?");
         updData.setString(1, session);
         updData.executeUpdate();
@@ -71,13 +79,13 @@ public class DbService {
       }
     }
 
-    public Achievement checkAchievement(String session) {
+    public static Achievement checkAchievement(String session) {
       // checks and returns achievement, if got
       // FEATURE: will be developed later
       return null;
     }
 
-    public void changePassword(String session, String newPassword) throws SQLException {
+    public static void changePassword(String session, String newPassword) throws SQLException {
       // sets new hashed password for user in database
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET password = ? WHERE session = ?");
       String hashedPassword = BCrypt.withDefaults().hashToString(12, newPassword.toCharArray());
@@ -87,7 +95,7 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    public void changeProfilePic(String session, int picId) throws SQLException {
+    public static void changeProfilePic(String session, int picId) throws SQLException {
       // changes profile picture. default picture id is 0
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET pic_id = ? WHERE session = ?");
       updData.setInt(1, picId);
@@ -95,7 +103,15 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    public void changeDescription(String session, String description) throws SQLException {
+    public static int getProfilePic(String session) throws SQLException {
+      // gets profile picture id
+      PreparedStatement selPic = conn.prepareStatement("SELECT pic_id FROM users WHERE session = ?");
+      selPic.setString(1, session);
+      ResultSet rsSession = selPic.executeQuery();
+      return rsSession != null ? rsSession.getInt(1) : 0;
+    }
+
+    public static void changeDescription(String session, String description) throws SQLException {
       // changes description. default description is null
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET description = ? WHERE session = ?");
       updData.setString(1, description);
@@ -103,7 +119,15 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    private void setLastActivity(String session, Instant time) throws SQLException {
+    public static String getDescription(String session) throws SQLException {
+      // gets profile picture id
+      PreparedStatement selDescription = conn.prepareStatement("SELECT description FROM users WHERE session = ?");
+      selDescription.setString(1, session);
+      ResultSet rsDescription = selDescription.executeQuery();
+      return rsDescription != null ? rsDescription.getString(1) : "";
+    }
+
+    public static void setLastActivity(String session, Instant time) throws SQLException {
       // sets last activity according to the last game played. used by addGamePlayed
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET last_activity = ? WHERE session = ?");
       updData.setTimestamp(1, Timestamp.from(time));
@@ -111,7 +135,15 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    public void setCurrentGame(String session, int gameId) throws SQLException {
+    public static Timestamp getLastActivity(String session) throws SQLException {
+      // gets last activity
+      PreparedStatement selLastActivity = conn.prepareStatement("SELECT last_activity FROM users WHERE session = ?");
+      selLastActivity.setString(1, session);
+      ResultSet rsLastActivity = selLastActivity.executeQuery();
+      return rsLastActivity != null ? rsLastActivity.getTimestamp(1) : null;
+    }
+
+    public static void setCurrentGame(String session, int gameId) throws SQLException {
       // sets current game. used by DbGame.createGame while creating, public used while joining
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_id = ? WHERE session = ?");
       updData.setInt(1, gameId);
@@ -119,7 +151,15 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    public void addGamePlayed(String session, Game game) throws SQLException {
+    public static Integer getCurrentGame(String session) throws SQLException {
+      // gets current game
+      PreparedStatement selCurrentGame = conn.prepareStatement("SELECT current_game_id FROM users WHERE session = ?");
+      selCurrentGame.setString(1, session);
+      ResultSet rsCurrentGame = selCurrentGame.executeQuery();
+      return rsCurrentGame != null ? rsCurrentGame.getInt(1) : null;
+    }
+
+    public static void addGamePlayed(String session, Game game) throws SQLException {
       // adds a new game played
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET games_played_number = games_played_number + 1 WHERE session = ?");
       updData.setString(1, session);
@@ -127,7 +167,11 @@ public class DbService {
       // FEATURE: the structure will be reformatted later (JSON games_played_ids, achievement_ids -> TABLES)
     }
 
-    public void addGlobalPoints(String session, int points) throws SQLException {
+    public static void getGamesPlayed(String session) throws SQLException {
+      // FEATURE
+    }
+
+    public static void addGlobalPoints(String session, int points) throws SQLException {
       // adds global points to the user's statistics data
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET global_points = global_points + ? WHERE session = ?");
       updData.setInt(1, points);
@@ -135,7 +179,15 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    public void addGlobalPossiblePoints(String session, int possiblePoints) throws SQLException {
+    public static Integer getGlobalPoints(String session) throws SQLException {
+      // gets global points
+      PreparedStatement selGlobalPoints = conn.prepareStatement("SELECT global_points FROM users WHERE session = ?");
+      selGlobalPoints.setString(1, session);
+      ResultSet rsGlobalPoints = selGlobalPoints.executeQuery();
+      return rsGlobalPoints != null ? rsGlobalPoints.getInt(1) : null;
+    }
+
+    public static void addGlobalPossiblePoints(String session, int possiblePoints) throws SQLException {
       // adds global possible points to the user's statistics data
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET global_possible_points = global_possible_points + ? WHERE session = ?");
       updData.setInt(1, possiblePoints);
@@ -143,7 +195,15 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    public void addCurrentGamePoints(String session, int points) throws SQLException {
+    public static Integer getGlobalPossiblePoints(String session) throws SQLException {
+      // gets global possible points
+      PreparedStatement selGlobalPossiblePoints = conn.prepareStatement("SELECT global_possible_points FROM users WHERE session = ?");
+      selGlobalPossiblePoints.setString(1, session);
+      ResultSet rsGlobalPossiblePoints = selGlobalPossiblePoints.executeQuery();
+      return rsGlobalPossiblePoints != null ? rsGlobalPossiblePoints.getInt(1) : null;
+    }
+
+    public static void addCurrentGamePoints(String session, int points) throws SQLException {
       // adds current game points to the user's statistics data
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_points = current_game_points + ? WHERE session = ?");
       updData.setInt(1, points);
@@ -151,7 +211,15 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    public void logOut(String session) throws SQLException {
+    public static Integer getCurrentGamePoints(String session) throws SQLException {
+      // gets current game points
+      PreparedStatement selCurrentGamePoints = conn.prepareStatement("SELECT global_possible_points FROM users WHERE session = ?");
+      selCurrentGamePoints.setString(1, session);
+      ResultSet rsCurrentGamePoints = selCurrentGamePoints.executeQuery();
+      return rsCurrentGamePoints != null ? rsCurrentGamePoints.getInt(1) : null;
+    }
+
+    public static void logOut(String session) throws SQLException {
       // erases the session info in the users data
       // adds global points to the user's statistics data
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET session = NULL WHERE session = ?");
@@ -160,8 +228,8 @@ public class DbService {
     }
   }
 
-  public class DbGame {
-    public Integer createGame(int authorId, int levelDifficulty, int numberOfQuestions, int participantsNumber, int topicId) throws SQLException {
+  public static class DbGame {
+    public static Integer createGame(int authorId, int levelDifficulty, int numberOfQuestions, int participantsNumber, int topicId) throws SQLException {
       // creates the game room, returns gameId
       // needs author, topic, numberOfQuestions, levelDifficulty, participantsNumber to initialize
       // default is_private = true
@@ -178,7 +246,11 @@ public class DbService {
       return rsInpGame.getInt(1); // gameId
     }
 
-    private void setStatus(int gameId, int status) throws SQLException {
+    public static void checkGameExists(int gameId) {
+      // FEATURE
+    }
+
+    private static void setStatus(int gameId, int status) throws SQLException {
       // sets status for the game
       // 0 - pending, 1 - paused, 2 - active, 3 - ended
       PreparedStatement updData = conn.prepareStatement("UPDATE games SET status = ? WHERE id = ?");
@@ -187,7 +259,11 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    private void setGameStartTime(int gameId, Instant gameStartTime) throws SQLException {
+    public static void getStatus(int gameId) {
+      // FEATURE
+    }
+
+    private static void setGameStartTime(int gameId, Instant gameStartTime) throws SQLException {
       // sets the time of starting for the game
       PreparedStatement updData = conn.prepareStatement("UPDATE games SET game_start_time = ? WHERE id = ?");
       updData.setTimestamp(1, Timestamp.from(gameStartTime));
@@ -195,7 +271,11 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    public void setPrivate(int gameId, boolean isPrivate) throws SQLException {
+    public static void getGameStartTime(int gameId) {
+      // FEATURE
+    }
+
+    public static void setPrivate(int gameId, boolean isPrivate) throws SQLException {
       // sets the private option for the game
       // sets the time of creating for the game
       PreparedStatement updData = conn.prepareStatement("UPDATE games SET isPrivate = ? WHERE id = ?");
@@ -204,7 +284,11 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    private void setGameEndTime(int gameId, Instant gameEndTime) throws SQLException {
+    public static void getPrivate(int gameId) {
+      // FEATURE
+    }
+
+    private static void setGameEndTime(int gameId, Instant gameEndTime) throws SQLException {
       // sets the time of ending for the game
       PreparedStatement updData = conn.prepareStatement("UPDATE games SET game_end_time = ? WHERE id = ?");
       updData.setTimestamp(1, Timestamp.from(gameEndTime));
@@ -212,23 +296,27 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    public void startGame(int gameId) throws SQLException {
+    public static void getGameEndTime(int gameId) {
+      // FEATURE
+    }
+
+    public static void startGame(int gameId) throws SQLException {
       // starts the game
       setStatus(gameId, 2);
       setGameStartTime(gameId, Instant.now());
     }
 
-    public void pauseGame(int gameId) throws SQLException {
+    public static void pauseGame(int gameId) throws SQLException {
       // pauses the game
       setStatus(gameId, 1);
     }
 
-    public void resumeGame(int gameId) throws SQLException {
+    public static void resumeGame(int gameId) throws SQLException {
       // pauses the game
       setStatus(gameId, 2);
     }
 
-    public void stopGame(int gameId) throws SQLException {
+    public static void stopGame(int gameId) throws SQLException {
       // stops the game in Games table, must be used with DbUser.addGamePlayed
       setStatus(gameId, 3);
       setGameEndTime(gameId, Instant.now());
@@ -238,14 +326,14 @@ public class DbService {
       updData.executeUpdate();
     }
 
-    public void deleteGame(int gameId) throws SQLException {
+    public static void deleteGame(int gameId) throws SQLException {
       // deletes the game
       PreparedStatement updData = conn.prepareStatement("DELETE FROM games WHERE id = ?");
       updData.setInt(1, gameId);
       updData.executeUpdate();
     }
 
-    public Question nextQuestion(int gameId) throws SQLException {
+    public static Question nextQuestion(int gameId) throws SQLException {
       // returns a new object of next question
       PreparedStatement updData = conn.prepareStatement("UPDATE games SET current_question_number = current_question_number + 1 WHERE id = ?");
       updData.setInt(1, gameId);
@@ -272,7 +360,7 @@ public class DbService {
       return questionObj;
     }
 
-    public boolean validateAnswer(int gameId, int questionNumber, int submittedAnswerIndex) throws SQLException {
+    public static boolean validateAnswer(int gameId, int questionNumber, int submittedAnswerIndex) throws SQLException {
       // validates submitted answer
       PreparedStatement selRightAnswer = conn.prepareStatement("SELECT right_answer_index FROM questions WHERE question_number = ? AND game_id = ?");
       selRightAnswer.setInt(1, questionNumber);
@@ -281,31 +369,55 @@ public class DbService {
       return submittedAnswerIndex == rsRightAnswer.getInt(1);
     }
 
-    public void loadQuestions(JSONObject json) {
+    public static void loadQuestions(int gameId, JSONArray jsonArr) throws SQLException {
       // example of json argument is described in the documentation catalog
-      // FEATURE: will be developed later
+      // loads questions data from json and commits it into the database
+      final int ANSWER_AMOUNT = 4;
+
+      for (int i = 0; i < jsonArr.length(); i++) {
+        JSONObject itemObject = jsonArr.getJSONObject(i);
+        int questionNumber = itemObject.getInt("question_number");
+        String questionText = itemObject.getString("question_text");
+        int rightAnswerNumber = itemObject.getInt("right_answer_number");
+        PreparedStatement inpQuestion = conn.prepareStatement("INSERT INTO questions (game_id, question_number, question_text, right_answer_number, answer1, answer2, answer3, answer4) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        inpQuestion.setInt(1, gameId);
+        inpQuestion.setInt(2, questionNumber);
+        inpQuestion.setString(3, questionText);
+        inpQuestion.setInt(4, rightAnswerNumber);
+
+        JSONArray availableAnswersArr = itemObject.getJSONArray("available_answers");
+        for (int j = 0; j < ANSWER_AMOUNT; j++) {
+          JSONObject answerObj = availableAnswersArr.getJSONObject(j);
+          int answerIndex = answerObj.getInt("index");
+          String answer = answerObj.getString("answer");
+          inpQuestion.setString(4 + answerIndex, answer);
+        }
+        inpQuestion.executeUpdate();
+      }
     }
   }
 
-  public class DbAchievement {
-    public void add(Achievement achievement) {
-      // creates a new achievement
+  public static class DbAchievement {
+    public static Integer add(Achievement achievement) throws SQLException {
+      // creates a new achievement, returns id of it
       // FEATURE
+      return null;
     }
 
-    public void remove(Achievement achievement) {
+    public static void remove(Achievement achievement) {
       // removes an existing achievement
       // FEATURE
     }
   }
 
-  public class DbTopic {
-    public void add(Topic topic) {
+  public static class DbTopic {
+    public static Integer add(Topic topic) {
       // creates a new topic
       // FEATURE
+      return null;
     }
 
-    public void remove(Topic topic) {
+    public static void remove(Topic topic) {
       // removes an existing topic
       // FEATURE
     }
