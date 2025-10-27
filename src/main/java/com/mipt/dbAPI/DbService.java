@@ -12,8 +12,8 @@ public class DbService {
   private static Connection connect() {
     // establishes connection to the database
     String url = "jdbc:postgresql://localhost:5432/my";
-    String user = "postgresql";
-    String password = "postgresql";
+    String user = "postgres";
+    String password = "postgres";
 
     try {
       return DriverManager.getConnection(url, user, password);
@@ -31,14 +31,18 @@ public class DbService {
       selId.setString(1, session);
 
       ResultSet rsSelId = selId.executeQuery();
-      return rsSelId != null ? rsSelId.getInt(1) : null; // returns userId if logged in, null if not logged
+      if (rsSelId.next()) {
+        return !rsSelId.isBeforeFirst() ? rsSelId.getInt(1) : null; // returns userId if logged in, null if not logged
+      } else {
+        return null; // null if session is not exists
+      }
     }
 
     public static boolean checkUserExists(String username) throws SQLException {
       PreparedStatement selExists = conn.prepareStatement("SELECT * FROM users WHERE username = ?");
       selExists.setString(1, username);
       ResultSet rsSelExists = selExists.executeQuery();
-      return rsSelExists != null; // true if user already exists, false if not exists
+      return rsSelExists.isBeforeFirst(); // true if user already exists, false if not exists
     }
 
     public static boolean register(String username, String password) throws SQLException {
@@ -47,7 +51,7 @@ public class DbService {
         return false; // false if user already exists
       }
       String hashedPassword = BCrypt.withDefaults().hashToString(12, password.toCharArray());
-      PreparedStatement inpData = conn.prepareStatement("INSERT INTO users (username, password, pic_id, description, games_played_number, global_points, global_possible_points) VALUES (?, ?, 0, '', 0, 0, 0)");
+      PreparedStatement inpData = conn.prepareStatement("INSERT INTO users (username, password, pic_id, description, games_played_number, global_points, global_possible_points, current_game_points) VALUES (?, ?, 0, '', 0, 0, 0, 0)");
       inpData.setString(1, username);
       inpData.setString(2, hashedPassword);
       inpData.executeUpdate();
@@ -59,23 +63,26 @@ public class DbService {
       PreparedStatement selExists = conn.prepareStatement("SELECT password FROM users WHERE username = ?");
       selExists.setString(1, username);
       ResultSet rsSelExists = selExists.executeQuery();
-      if (rsSelExists == null) {
-        return false; // if user not exists
-      }
-      BCrypt.Result result = BCrypt.verifyer().verify(password.toCharArray(), rsSelExists.getString(1));
-      if (result.verified) {
-        PreparedStatement selSession = conn.prepareStatement("SELECT session FROM users");
-        selSession.setString(1, session);
-        ResultSet rsSession = selSession.executeQuery();
-        if (rsSession != null) {
-          return false; // session key is not unique and already exists in database
+      if (rsSelExists.next()) {
+        String dbPassword = rsSelExists.getString(1);
+        BCrypt.Result result = BCrypt.verifyer().verify(password.toCharArray(), dbPassword);
+        if (result.verified) {
+          PreparedStatement selSession = conn.prepareStatement("SELECT * FROM users WHERE session = ?");
+          selSession.setString(1, session);
+          ResultSet rsSession = selSession.executeQuery();
+          if (rsSession.next()) {
+            return false; // session key is not unique and already exists in database
+          } else {
+            PreparedStatement updData = conn.prepareStatement("UPDATE users SET session = ?");
+            updData.setString(1, session);
+            updData.executeUpdate();
+            return true; // done
+          }
+        } else {
+          return false; // password is wrong
         }
-        PreparedStatement updData = conn.prepareStatement("UPDATE users SET session = ?");
-        updData.setString(1, session);
-        updData.executeUpdate();
-        return true; // done
       } else {
-        return false; // password is wrong
+        return false; // if user not exists
       }
     }
 
@@ -108,7 +115,11 @@ public class DbService {
       PreparedStatement selPic = conn.prepareStatement("SELECT pic_id FROM users WHERE session = ?");
       selPic.setString(1, session);
       ResultSet rsSession = selPic.executeQuery();
-      return rsSession != null ? rsSession.getInt(1) : 0;
+      if (rsSession.next()) {
+        return rsSession.getInt(1);
+      } else {
+        return 0;
+      }
     }
 
     public static void changeDescription(String session, String description) throws SQLException {
@@ -124,7 +135,11 @@ public class DbService {
       PreparedStatement selDescription = conn.prepareStatement("SELECT description FROM users WHERE session = ?");
       selDescription.setString(1, session);
       ResultSet rsDescription = selDescription.executeQuery();
-      return rsDescription != null ? rsDescription.getString(1) : "";
+      if (rsDescription.next()) {
+        return rsDescription.getString(1);
+      } else {
+        return "";
+      }
     }
 
     public static void setLastActivity(String session, Instant time) throws SQLException {
@@ -140,7 +155,11 @@ public class DbService {
       PreparedStatement selLastActivity = conn.prepareStatement("SELECT last_activity FROM users WHERE session = ?");
       selLastActivity.setString(1, session);
       ResultSet rsLastActivity = selLastActivity.executeQuery();
-      return rsLastActivity != null ? rsLastActivity.getTimestamp(1) : null;
+      if (rsLastActivity.next()) {
+        return rsLastActivity.getTimestamp(1);
+      } else {
+        return null;
+      }
     }
 
     public static void setCurrentGame(String session, int gameId) throws SQLException {
@@ -156,7 +175,16 @@ public class DbService {
       PreparedStatement selCurrentGame = conn.prepareStatement("SELECT current_game_id FROM users WHERE session = ?");
       selCurrentGame.setString(1, session);
       ResultSet rsCurrentGame = selCurrentGame.executeQuery();
-      return rsCurrentGame != null ? rsCurrentGame.getInt(1) : null;
+      if (rsCurrentGame.next()) {
+        int currentGameId = rsCurrentGame.getInt(1);
+        if (currentGameId == 0) {
+          return null;
+        } else {
+          return currentGameId;
+        }
+      } else {
+        return null;
+      }
     }
 
     public static void addGamePlayed(String session, Game game) throws SQLException {
@@ -184,7 +212,11 @@ public class DbService {
       PreparedStatement selGlobalPoints = conn.prepareStatement("SELECT global_points FROM users WHERE session = ?");
       selGlobalPoints.setString(1, session);
       ResultSet rsGlobalPoints = selGlobalPoints.executeQuery();
-      return rsGlobalPoints != null ? rsGlobalPoints.getInt(1) : null;
+      if (rsGlobalPoints.next()) {
+        return rsGlobalPoints.getInt(1);
+      } else {
+        return null;
+      }
     }
 
     public static void addGlobalPossiblePoints(String session, int possiblePoints) throws SQLException {
@@ -200,7 +232,11 @@ public class DbService {
       PreparedStatement selGlobalPossiblePoints = conn.prepareStatement("SELECT global_possible_points FROM users WHERE session = ?");
       selGlobalPossiblePoints.setString(1, session);
       ResultSet rsGlobalPossiblePoints = selGlobalPossiblePoints.executeQuery();
-      return rsGlobalPossiblePoints != null ? rsGlobalPossiblePoints.getInt(1) : null;
+      if (rsGlobalPossiblePoints.next()) {
+        return rsGlobalPossiblePoints.getInt(1);
+      } else {
+        return null;
+      }
     }
 
     public static void addCurrentGamePoints(String session, int points) throws SQLException {
@@ -213,10 +249,15 @@ public class DbService {
 
     public static Integer getCurrentGamePoints(String session) throws SQLException {
       // gets current game points
-      PreparedStatement selCurrentGamePoints = conn.prepareStatement("SELECT global_possible_points FROM users WHERE session = ?");
+      // FIX
+      PreparedStatement selCurrentGamePoints = conn.prepareStatement("SELECT current_game_points FROM users WHERE session = ?");
       selCurrentGamePoints.setString(1, session);
       ResultSet rsCurrentGamePoints = selCurrentGamePoints.executeQuery();
-      return rsCurrentGamePoints != null ? rsCurrentGamePoints.getInt(1) : null;
+      if (rsCurrentGamePoints.next()) {
+        return rsCurrentGamePoints.getInt(1);
+      } else {
+        return null;
+      }
     }
 
     public static void logOut(String session) throws SQLException {
@@ -335,6 +376,7 @@ public class DbService {
 
     public static Question nextQuestion(int gameId) throws SQLException {
       // returns a new object of next question
+      // FIX
       PreparedStatement updData = conn.prepareStatement("UPDATE games SET current_question_number = current_question_number + 1 WHERE id = ?");
       updData.setInt(1, gameId);
       updData.executeUpdate();
@@ -362,6 +404,7 @@ public class DbService {
 
     public static boolean validateAnswer(int gameId, int questionNumber, int submittedAnswerIndex) throws SQLException {
       // validates submitted answer
+      // FIX
       PreparedStatement selRightAnswer = conn.prepareStatement("SELECT right_answer_index FROM questions WHERE question_number = ? AND game_id = ?");
       selRightAnswer.setInt(1, questionNumber);
       selRightAnswer.setInt(2, gameId);

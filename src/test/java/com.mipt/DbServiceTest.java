@@ -1,7 +1,11 @@
 package com.mipt;
 
 import com.mipt.dbAPI.DbService;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+
 
 import java.sql.*;
 import java.time.Instant;
@@ -9,10 +13,12 @@ import java.time.Instant;
 import static org.junit.jupiter.api.Assertions.*;
 
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class DbServiceTest {
   // DbService.DbUsers TEST UNITS
 
   @Test
+  @Order(1)
   void testRegisterAndCheckUserExists() throws SQLException {
     assertFalse(DbService.DbUser.checkUserExists("testUser"));
     assertTrue(DbService.DbUser.register("testUser", "12345"));
@@ -21,6 +27,7 @@ public class DbServiceTest {
   }
 
   @Test
+  @Order(2)
   void testAuthorizeAndCheckedLoggedIn() throws SQLException {
     assertNull(DbService.DbUser.checkLoggedIn("SESSION"));
     assertFalse(DbService.DbUser.authorize("notExistingTestUser", "1234", "SESSION"));
@@ -33,6 +40,7 @@ public class DbServiceTest {
   }
 
   @Test
+  @Order(3)
   void testLogOut() throws SQLException {
     assertNotNull(DbService.DbUser.checkLoggedIn("SESSION"));
     DbService.DbUser.logOut("SESSION");
@@ -41,6 +49,7 @@ public class DbServiceTest {
   }
 
   @Test
+  @Order(4)
   void testChangePassword() throws SQLException {
     DbService.DbUser.changePassword("SESSION", "12345new");
     DbService.DbUser.logOut("SESSION");
