@@ -249,7 +249,6 @@ public class DbService {
 
     public static Integer getCurrentGamePoints(String session) throws SQLException {
       // gets current game points
-      // FIX
       PreparedStatement selCurrentGamePoints = conn.prepareStatement("SELECT current_game_points FROM users WHERE session = ?");
       selCurrentGamePoints.setString(1, session);
       ResultSet rsCurrentGamePoints = selCurrentGamePoints.executeQuery();
