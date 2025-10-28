@@ -1,0 +1,43 @@
+[
+    {
+        "question_number": 1,
+        "question_text": "What the Aglet is?",
+        "available_answers": 
+        [
+            {
+                "index": 1,
+                "answer": "American audit company"
+            },
+            {
+                "index": 2,
+                "answer": "Programming language"
+            },
+            {
+                "index": 3,
+                "answer": "Lace tip"
+            }
+        ],
+        "right_answer_number": 3
+    },
+    {
+        "question_number": 2,
+        "question_text": "What is the punishment for driving drunk in Russia?",
+        "available_answers": 
+        [
+            {
+                "index": 1,
+                "answer": "100 USD"
+            },
+            {
+                "index": 2,
+                "answer": "Deprivation of driving license"
+            },
+            {
+                "index": 3,
+                "answer": "Warning"
+            }
+        ],
+        "right_anwer_number": 2
+    }
+
+]
