@@ -1,10 +1,11 @@
 package com.mipt;
 
 import com.mipt.dbAPI.DbService;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.*;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 
 import java.sql.*;
@@ -12,81 +13,101 @@ import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
+@Testcontainers
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class DbServiceTest {
-  // DbService.DbUsers TEST UNITS
+  @Container
+  private static final PostgreSQLContainer<?> postgres =
+      new PostgreSQLContainer<>("postgres:13-alpine")
+          .withDatabaseName("testdb")
+          .withUsername("testuser")
+          .withPassword("testpass")
+          .withInitScript("init.sql")
+          .withReuse(true);
+
+  static DbService dbService;
+
+  @BeforeAll
+  static void setUp() {
+    String jdbcUrl = postgres.getJdbcUrl();
+    String username = postgres.getUsername();
+    String password = postgres.getPassword();
+
+    dbService = new DbService(jdbcUrl, username, password);
+  }
+
+  // dbService.DbUsers TEST UNITS
 
   @Test
   @Order(1)
   void testRegisterAndCheckUserExists() throws SQLException {
-    assertFalse(DbService.DbUser.checkUserExists("testUser"));
-    assertTrue(DbService.DbUser.register("testUser", "12345"));
-    assertTrue(DbService.DbUser.checkUserExists("testUser"));
-    assertFalse(DbService.DbUser.register("testUser", "12345678"));
+    assertFalse(dbService.checkUserExists("testUser"));
+    assertTrue(dbService.register("testUser", "12345"));
+    assertTrue(dbService.checkUserExists("testUser"));
+    assertFalse(dbService.register("testUser", "12345678"));
   }
 
   @Test
   @Order(2)
   void testAuthorizeAndCheckedLoggedIn() throws SQLException {
-    assertNull(DbService.DbUser.checkLoggedIn("SESSION"));
-    assertFalse(DbService.DbUser.authorize("notExistingTestUser", "1234", "SESSION"));
-    assertNull(DbService.DbUser.checkLoggedIn("SESSION"));
-    assertFalse(DbService.DbUser.authorize("testUser", "12345wrong", "SESSION"));
-    assertNull(DbService.DbUser.checkLoggedIn("SESSION"));
-    assertTrue(DbService.DbUser.authorize("testUser", "12345", "SESSION"));
-    assertNotNull(DbService.DbUser.checkLoggedIn("SESSION"));
-    assertFalse(DbService.DbUser.authorize("testUser", "12345", "SESSION"));
+    assertNull(dbService.checkLoggedIn("SESSION"));
+    assertFalse(dbService.authorize("notExistingTestUser", "1234", "SESSION"));
+    assertNull(dbService.checkLoggedIn("SESSION"));
+    assertFalse(dbService.authorize("testUser", "12345wrong", "SESSION"));
+    assertNull(dbService.checkLoggedIn("SESSION"));
+    assertTrue(dbService.authorize("testUser", "12345", "SESSION"));
+    assertNotNull(dbService.checkLoggedIn("SESSION"));
+    assertFalse(dbService.authorize("testUser", "12345", "SESSION"));
   }
 
   @Test
   @Order(3)
   void testLogOut() throws SQLException {
-    assertNotNull(DbService.DbUser.checkLoggedIn("SESSION"));
-    DbService.DbUser.logOut("SESSION");
-    assertNull(DbService.DbUser.checkLoggedIn("SESSION"));
-    assertTrue(DbService.DbUser.authorize("testUser", "12345", "SESSION"));
+    assertNotNull(dbService.checkLoggedIn("SESSION"));
+    dbService.logOut("SESSION");
+    assertNull(dbService.checkLoggedIn("SESSION"));
+    assertTrue(dbService.authorize("testUser", "12345", "SESSION"));
   }
 
   @Test
   @Order(4)
   void testChangePassword() throws SQLException {
-    DbService.DbUser.changePassword("SESSION", "12345new");
-    DbService.DbUser.logOut("SESSION");
-    assertFalse(DbService.DbUser.authorize("testUser", "12345", "SESSION"));
-    assertTrue(DbService.DbUser.authorize("testUser", "12345new", "SESSION"));
+    dbService.changePassword("SESSION", "12345new");
+    dbService.logOut("SESSION");
+    assertFalse(dbService.authorize("testUser", "12345", "SESSION"));
+    assertTrue(dbService.authorize("testUser", "12345new", "SESSION"));
   }
 
   @Test
   void testChangeProfilePicAndGetProfilePic() throws SQLException {
-    assertEquals(0, DbService.DbUser.getProfilePic("NOT_EXISTING_SESSION"));
-    assertEquals(0, DbService.DbUser.getProfilePic("SESSION"));
-    DbService.DbUser.changeProfilePic("SESSION", 1);
-    assertEquals(1, DbService.DbUser.getProfilePic("SESSION"));
+    assertEquals(0, dbService.getProfilePic("NOT_EXISTING_SESSION"));
+    assertEquals(0, dbService.getProfilePic("SESSION"));
+    dbService.changeProfilePic("SESSION", 1);
+    assertEquals(1, dbService.getProfilePic("SESSION"));
   }
 
   @Test
   void testChangeDescriptionAndGetDescription() throws SQLException {
-    assertEquals("", DbService.DbUser.getDescription("NOT_EXISTING_SESSION"));
-    assertEquals("", DbService.DbUser.getDescription("SESSION"));
-    DbService.DbUser.changeDescription("SESSION", "testDescription");
-    assertEquals("testDescription", DbService.DbUser.getDescription("SESSION"));
+    assertEquals("", dbService.getDescription("NOT_EXISTING_SESSION"));
+    assertEquals("", dbService.getDescription("SESSION"));
+    dbService.changeDescription("SESSION", "testDescription");
+    assertEquals("testDescription", dbService.getDescription("SESSION"));
   }
 
   @Test
   void testSetLastActivityAndGetLastActivity() throws SQLException {
-    assertNull(DbService.DbUser.getLastActivity("NOT_EXISTING_SESSION"));
-    assertNull(DbService.DbUser.getLastActivity("SESSION"));
-    DbService.DbUser.setLastActivity("SESSION", Instant.ofEpochSecond(1));
-    assertEquals(Timestamp.from(Instant.ofEpochSecond(1)), DbService.DbUser.getLastActivity("SESSION"));
+    assertNull(dbService.getLastActivity("NOT_EXISTING_SESSION"));
+    assertNull(dbService.getLastActivity("SESSION"));
+    dbService.setLastActivity("SESSION", Instant.ofEpochSecond(1));
+    assertEquals(Timestamp.from(Instant.ofEpochSecond(1)), dbService.getLastActivity("SESSION"));
   }
 
   @Test
   void testSetCurrentGameAndGetCurrentGame() throws SQLException {
-    assertNull(DbService.DbUser.getCurrentGame("NOT_EXISTING_SESSION"));
-    assertNull(DbService.DbUser.getCurrentGame("SESSION"));
-    DbService.DbUser.setCurrentGame("SESSION", 1);
-    assertEquals(1, DbService.DbUser.getCurrentGame("SESSION"));
+    assertNull(dbService.getCurrentGame("NOT_EXISTING_SESSION"));
+    assertNull(dbService.getCurrentGame("SESSION"));
+    dbService.setCurrentGame("SESSION", 1);
+    assertEquals(1, dbService.getCurrentGame("SESSION"));
   }
 
   void testAddGamePlayedAndGetGamesPlayed() throws SQLException {
@@ -95,30 +116,30 @@ public class DbServiceTest {
 
   @Test
   void testAddGlobalPointsAndGetGlobalPoints() throws SQLException {
-    assertNull(DbService.DbUser.getGlobalPoints("NOT_EXISTING_SESSION"));
-    assertEquals(0, DbService.DbUser.getGlobalPoints("SESSION"));
-    DbService.DbUser.addGlobalPoints("SESSION", 5);
-    assertEquals(5, DbService.DbUser.getGlobalPoints("SESSION"));
+    assertNull(dbService.getGlobalPoints("NOT_EXISTING_SESSION"));
+    assertEquals(0, dbService.getGlobalPoints("SESSION"));
+    dbService.addGlobalPoints("SESSION", 5);
+    assertEquals(5, dbService.getGlobalPoints("SESSION"));
   }
 
   @Test
   void testAddGlobalPointsAndGetGlobalPossiblePoints() throws SQLException {
-    assertNull(DbService.DbUser.getGlobalPossiblePoints("NOT_EXISTING_SESSION"));
-    assertEquals(0, DbService.DbUser.getGlobalPossiblePoints("SESSION"));
-    DbService.DbUser.addGlobalPossiblePoints("SESSION", 5);
-    assertEquals(5, DbService.DbUser.getGlobalPossiblePoints("SESSION"));
+    assertNull(dbService.getGlobalPossiblePoints("NOT_EXISTING_SESSION"));
+    assertEquals(0, dbService.getGlobalPossiblePoints("SESSION"));
+    dbService.addGlobalPossiblePoints("SESSION", 5);
+    assertEquals(5, dbService.getGlobalPossiblePoints("SESSION"));
   }
 
   @Test
   void testAddCurrentGamePointsAndGetCurrentGamePoints() throws SQLException {
-    assertNull(DbService.DbUser.getCurrentGamePoints("NOT_EXISTING_SESSION"));
-    assertEquals(0, DbService.DbUser.getCurrentGamePoints("SESSION"));
-    DbService.DbUser.addCurrentGamePoints("SESSION", 5);
-    assertEquals(5, DbService.DbUser.getCurrentGamePoints("SESSION"));
+    assertNull(dbService.getCurrentGamePoints("NOT_EXISTING_SESSION"));
+    assertEquals(0, dbService.getCurrentGamePoints("SESSION"));
+    dbService.addCurrentGamePoints("SESSION", 5);
+    assertEquals(5, dbService.getCurrentGamePoints("SESSION"));
   }
 
 
-  // DbService.DbGame TEST UNITS
+  // dbService.DbGame TEST UNITS
 
   void testCreateGameAndCheckGameExists() throws SQLException {
     // FEATURE
@@ -156,7 +177,7 @@ public class DbServiceTest {
     // FEATURE
   }
 
-  // DbService.DbAchievement TEST UNITS
+  // dbService.DbAchievement TEST UNITS
 
   void testAddAchievement() throws SQLException {
     // FEATURE
@@ -166,7 +187,7 @@ public class DbServiceTest {
     // FEATURE
   }
 
-  // DbService.DbTopic TEST UNITS
+  // dbService.DbTopic TEST UNITS
 
   void testAddTopic() throws SQLException {
     // FEATURE
