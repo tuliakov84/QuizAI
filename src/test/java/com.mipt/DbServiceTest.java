@@ -17,6 +17,9 @@ import static org.junit.jupiter.api.Assertions.*;
 @Testcontainers
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class DbServiceTest {
+
+  // INITIALIZING CONTAINER
+
   @Container
   private static final PostgreSQLContainer<?> postgres =
       new PostgreSQLContainer<>("postgres:13-alpine")
@@ -41,7 +44,7 @@ public class DbServiceTest {
     dbService = new DbService(jdbcUrl, username, password);
   }
 
-  // dbService.DbUsers TEST UNITS
+  // Users TEST UNITS
 
   @Test
   @Order(1)
@@ -144,7 +147,7 @@ public class DbServiceTest {
   }
 
 
-  // dbService.DbGame TEST UNITS
+  // Game TEST UNITS
 
   void testCreateGameAndCheckGameExists() throws SQLException {
     // FEATURE
@@ -182,7 +185,7 @@ public class DbServiceTest {
     // FEATURE
   }
 
-  // dbService.DbAchievement TEST UNITS
+  // Achievement TEST UNITS
 
   void testAddAchievement() throws SQLException {
     // FEATURE
@@ -192,7 +195,7 @@ public class DbServiceTest {
     // FEATURE
   }
 
-  // dbService.DbTopic TEST UNITS
+  // Topic TEST UNITS
 
   void testAddTopic() throws SQLException {
     // FEATURE

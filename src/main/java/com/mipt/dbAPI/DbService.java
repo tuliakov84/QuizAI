@@ -9,6 +9,12 @@ import java.time.Instant;
 
 
 public class DbService {
+  // API of QUIZ AI ARENA database
+
+  //
+  // Initialization
+  //
+
   private final Connection conn;
 
   public DbService(String url, String user, String password) {
@@ -23,6 +29,10 @@ public class DbService {
       throw new RuntimeException(e);
     }
   }
+
+  //
+  // Users TABLE REFERRED METHODS
+  //
 
   public Integer checkLoggedIn(String session) throws SQLException {
     // must be completed every query to check user authenticated to perform actions
@@ -162,7 +172,7 @@ public class DbService {
   }
 
   public void setCurrentGame(String session, int gameId) throws SQLException {
-    // sets current game. used by DbGame.createGame while creating, public used while joining
+    // sets current game. used by createGame while creating, public used while joining
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_id = ? WHERE session = ?");
     updData.setInt(1, gameId);
     updData.setString(2, session);
@@ -191,7 +201,7 @@ public class DbService {
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET games_played_number = games_played_number + 1 WHERE session = ?");
     updData.setString(1, session);
     updData.executeUpdate();
-    // FEATURE: the structure will be reformatted later (JSON games_played_ids, achievement_ids -> TABLES)
+    // FEATURE
   }
 
   public void getGamesPlayed(String session) throws SQLException {
@@ -266,6 +276,9 @@ public class DbService {
     updData.executeUpdate();
   }
 
+  //
+  // Games TABLE REFERRED METHODS
+  //
 
   public Integer createGame(int authorId, int levelDifficulty, int numberOfQuestions, int participantsNumber, int topicId) throws SQLException {
     // creates the game room, returns gameId
@@ -350,7 +363,7 @@ public class DbService {
   }
 
   public void resumeGame(int gameId) throws SQLException {
-    // pauses the game
+    // resumes the game
     setStatus(gameId, 2);
   }
 
@@ -373,7 +386,7 @@ public class DbService {
 
   public Question nextQuestion(int gameId) throws SQLException {
     // returns a new object of next question
-    // FIX
+
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET current_question_number = current_question_number + 1 WHERE id = ?");
     updData.setInt(1, gameId);
     updData.executeUpdate();
@@ -381,32 +394,43 @@ public class DbService {
     PreparedStatement selCurrentNum = conn.prepareStatement("SELECT current_question_number FROM games WHERE id = ?");
     selCurrentNum.setInt(1, gameId);
     ResultSet rsCurrentNum = selCurrentNum.executeQuery();
-    int currentNum = rsCurrentNum.getInt(1);
+    int currentNum;
+    if (rsCurrentNum.next()) {
+      currentNum = rsCurrentNum.getInt(1);
+    } else {
+      return null; // not found
+    }
 
     PreparedStatement selQuestion = conn.prepareStatement("SELECT question_text, answer1, answer2, answer3, answer4 FROM questions WHERE question_number = ? AND game_id = ?");
     selQuestion.setInt(1, currentNum);
     selQuestion.setInt(2, gameId);
 
     ResultSet rsQuestion = selQuestion.executeQuery();
-    Question questionObj = new Question();
+    if (rsQuestion.next()) {
+      Question questionObj = new Question();
+      questionObj.questionText = rsQuestion.getString(1);
+      questionObj.answer1 = rsQuestion.getString(2);
+      questionObj.answer2 = rsQuestion.getString(3);
+      questionObj.answer3 = rsQuestion.getString(4);
+      questionObj.answer4 = rsQuestion.getString(5);
 
-    questionObj.questionText = rsQuestion.getString(1);
-    questionObj.answer1 = rsQuestion.getString(2);
-    questionObj.answer2 = rsQuestion.getString(3);
-    questionObj.answer3 = rsQuestion.getString(4);
-    questionObj.answer4 = rsQuestion.getString(5);
-
-    return questionObj;
+      return questionObj;
+    } else {
+      return null; // not found
+    }
   }
 
   public boolean validateAnswer(int gameId, int questionNumber, int submittedAnswerIndex) throws SQLException {
     // validates submitted answer
-    // FIX
     PreparedStatement selRightAnswer = conn.prepareStatement("SELECT right_answer_index FROM questions WHERE question_number = ? AND game_id = ?");
     selRightAnswer.setInt(1, questionNumber);
     selRightAnswer.setInt(2, gameId);
     ResultSet rsRightAnswer = selRightAnswer.executeQuery();
-    return submittedAnswerIndex == rsRightAnswer.getInt(1);
+    if (rsRightAnswer.next()) {
+      return submittedAnswerIndex == rsRightAnswer.getInt(1);
+    } else {
+      return false; // not found
+    }
   }
 
   public void loadQuestions(int gameId, JSONArray jsonArr) throws SQLException {
@@ -436,6 +460,10 @@ public class DbService {
     }
   }
 
+  //
+  // Achievements TABLE REFERRED METHODS
+  //
+
   public Integer addAchievement(Achievement achievement) throws SQLException {
     // creates a new achievement, returns id of it
     // FEATURE
@@ -446,6 +474,10 @@ public class DbService {
     // removes an existing achievement
     // FEATURE
   }
+
+  //
+  // Topics TABLE REFERRED METHODS
+  //
 
   public Integer addTopic(Topic topic) {
     // creates a new topic

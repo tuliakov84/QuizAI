@@ -28,8 +28,6 @@ CREATE TABLE IF NOT EXISTS users (
     games_played_number INT,
     global_points INT,
     global_possible_points INT,
-    games_played_ids JSON,
-    achievement_ids JSON,
     current_game_points INT
 );
 
@@ -49,6 +47,18 @@ CREATE TABLE IF NOT EXISTS games (
 
 ALTER TABLE users ADD CONSTRAINT fk_users_current_game FOREIGN KEY (current_game_id) REFERENCES games (id) ON DELETE SET NULL;
 
+CREATE TABLE IF NOT EXISTS games_history (
+    id SERIAL PRIMARY KEY,
+    game_id INT REFERENCES games (id) ON DELETE CASCADE,
+    user_id INT REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_achievements (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users (id) ON DELETE CASCADE,
+    achievement_id INT REFERENCES achievements (id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS questions (
     id SERIAL PRIMARY KEY,
     game_id INT REFERENCES games (id) ON DELETE CASCADE,
@@ -60,6 +70,8 @@ CREATE TABLE IF NOT EXISTS questions (
     answer3 TEXT,
     answer4 TEXT
 );
+
+CREATE INDEX topics_idx ON topics USING HASH (name);
 
 INSERT INTO games (status) VALUES (-1);
 INSERT INTO topics (name) VALUES ('testTopic');
