@@ -3,12 +3,13 @@ package com.mipt;
 import com.mipt.dbAPI.DbService;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 
 import java.sql.*;
+import java.time.Duration;
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -23,12 +24,16 @@ public class DbServiceTest {
           .withUsername("testuser")
           .withPassword("testpass")
           .withInitScript("init.sql")
-          .withReuse(true);
+          .withReuse(true)
+          .waitingFor(Wait.forListeningPort())
+          .waitingFor(Wait.forLogMessage(".*database system is ready to accept connections.*\\n", 1))
+          .withStartupTimeout(Duration.ofSeconds(90));;
 
   static DbService dbService;
 
   @BeforeAll
   static void setUp() {
+    assertTrue(postgres.isRunning(), "PostgreSQL container should be running");
     String jdbcUrl = postgres.getJdbcUrl();
     String username = postgres.getUsername();
     String password = postgres.getPassword();
