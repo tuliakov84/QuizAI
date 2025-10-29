@@ -6,6 +6,9 @@ import com.mipt.domainModel.*;
 import org.json.JSONObject;
 import org.json.JSONArray;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 
 public class DbService {
@@ -34,7 +37,8 @@ public class DbService {
   // Users TABLE REFERRED METHODS
   //
 
-  public Integer checkLoggedIn(String session) throws SQLException {
+  public Integer getUserId(String session) throws SQLException {
+    // checks if user authorized or not, returns userId if is
     // must be completed every query to check user authenticated to perform actions
     PreparedStatement selId = conn.prepareStatement("SELECT id FROM users WHERE session = ?");
     selId.setString(1, session);
@@ -43,7 +47,7 @@ public class DbService {
     if (rsSelId.next()) {
       return !rsSelId.isBeforeFirst() ? rsSelId.getInt(1) : null; // returns userId if logged in, null if not logged
     } else {
-      return null; // null if session is not exists
+      return null; // null if session not exists
     }
   }
 
@@ -125,9 +129,9 @@ public class DbService {
     selPic.setString(1, session);
     ResultSet rsSession = selPic.executeQuery();
     if (rsSession.next()) {
-      return rsSession.getInt(1);
+      return rsSession.getInt(1); // picId
     } else {
-      return 0;
+      return 0; // if not exists
     }
   }
 
@@ -145,9 +149,9 @@ public class DbService {
     selDescription.setString(1, session);
     ResultSet rsDescription = selDescription.executeQuery();
     if (rsDescription.next()) {
-      return rsDescription.getString(1);
+      return rsDescription.getString(1); // description
     } else {
-      return "";
+      return ""; // if not exists
     }
   }
 
@@ -165,9 +169,9 @@ public class DbService {
     selLastActivity.setString(1, session);
     ResultSet rsLastActivity = selLastActivity.executeQuery();
     if (rsLastActivity.next()) {
-      return rsLastActivity.getTimestamp(1);
+      return rsLastActivity.getTimestamp(1); // lastActivity timestamp
     } else {
-      return null;
+      return null; // if not exists
     }
   }
 
@@ -185,27 +189,42 @@ public class DbService {
     selCurrentGame.setString(1, session);
     ResultSet rsCurrentGame = selCurrentGame.executeQuery();
     if (rsCurrentGame.next()) {
-      int currentGameId = rsCurrentGame.getInt(1);
-      if (currentGameId == 0) {
-        return null;
-      } else {
-        return currentGameId;
-      }
+      int res = rsCurrentGame.getInt(1);
+      return res == 0 ? null : res; // gameId
     } else {
-      return null;
+      return null; // if not exists
     }
   }
 
-  public void addGamePlayed(String session, Game game) throws SQLException {
+  public void addGamePlayed(String session) throws SQLException {
     // adds a new game played
-    PreparedStatement updData = conn.prepareStatement("UPDATE users SET games_played_number = games_played_number + 1 WHERE session = ?");
-    updData.setString(1, session);
-    updData.executeUpdate();
-    // FEATURE
+    Integer gameId = getCurrentGame(session);
+    Integer userId = getUserId(session);
+    if (!(Objects.equals(gameId, null) || Objects.equals(userId, null))) {
+      PreparedStatement updData = conn.prepareStatement("UPDATE users SET games_played_number = games_played_number + 1 WHERE session = ?; INSERT INTO games_history (game_id, user_id) VALUES (?, ?);");
+      updData.setString(1, session);
+      updData.setInt(2, gameId);
+      updData.setInt(3, userId);
+
+      updData.executeUpdate();
+    }
   }
 
-  public void getGamesPlayed(String session) throws SQLException {
-    // FEATURE
+  public Integer[] getGamesPlayed(String session) throws SQLException {
+    // collects all the data about user's game history
+    Integer userId = getUserId(session);
+    if (userId == null) {
+      return null;
+    }
+    List<Integer> gameList = new ArrayList<>();
+    PreparedStatement selGamesHistory = conn.prepareStatement("SELECT game_id FROM games_history WHERE user_id = ?");
+    selGamesHistory.setInt(1, userId);
+    ResultSet rsGamesHistory = selGamesHistory.executeQuery();
+    while (rsGamesHistory.next()) {
+      gameList.add(rsGamesHistory.getInt("game_id")); // array of gameIds
+    }
+
+    return gameList.isEmpty() ? null : gameList.toArray(new Integer[0]);
   }
 
   public void addGlobalPoints(String session, int points) throws SQLException {
@@ -222,9 +241,9 @@ public class DbService {
     selGlobalPoints.setString(1, session);
     ResultSet rsGlobalPoints = selGlobalPoints.executeQuery();
     if (rsGlobalPoints.next()) {
-      return rsGlobalPoints.getInt(1);
+      return rsGlobalPoints.getInt(1); // globalPoints
     } else {
-      return null;
+      return null; // if not exists
     }
   }
 
@@ -242,9 +261,9 @@ public class DbService {
     selGlobalPossiblePoints.setString(1, session);
     ResultSet rsGlobalPossiblePoints = selGlobalPossiblePoints.executeQuery();
     if (rsGlobalPossiblePoints.next()) {
-      return rsGlobalPossiblePoints.getInt(1);
+      return rsGlobalPossiblePoints.getInt(1); // globalPossiblePoints
     } else {
-      return null;
+      return null; // if not exists
     }
   }
 
@@ -262,9 +281,9 @@ public class DbService {
     selCurrentGamePoints.setString(1, session);
     ResultSet rsCurrentGamePoints = selCurrentGamePoints.executeQuery();
     if (rsCurrentGamePoints.next()) {
-      return rsCurrentGamePoints.getInt(1);
+      return rsCurrentGamePoints.getInt(1); // currentGamePoints
     } else {
-      return null;
+      return null; // if not exists
     }
   }
 
@@ -282,8 +301,7 @@ public class DbService {
 
   public Integer createGame(int authorId, int levelDifficulty, int numberOfQuestions, int participantsNumber, int topicId) throws SQLException {
     // creates the game room, returns gameId
-    // needs author, topic, numberOfQuestions, levelDifficulty, participantsNumber to initialize
-    // default is_private = true
+    // default isPrivate = true
     PreparedStatement inpGame = conn.prepareStatement("INSERT INTO games (status, author_id, created_at, is_private, level_difficulty, current_question_number, number_of_questions, participants_number, topic_id) VALUES (0, ?, ?, 1, ?, 0, ?, ?, ?", Statement.RETURN_GENERATED_KEYS);
     inpGame.setInt(1, authorId);
     inpGame.setTimestamp(2, Timestamp.from(Instant.now()));
@@ -297,8 +315,24 @@ public class DbService {
     return rsInpGame.getInt(1); // gameId
   }
 
-  public void checkGameExists(int gameId) {
-    // FEATURE
+  public Boolean checkGameExists(int gameId) throws SQLException {
+    // checks if game exists or not
+    PreparedStatement selExists = conn.prepareStatement("SELECT * FROM games WHERE id = ?");
+    selExists.setInt(1, gameId);
+    ResultSet rsSelExists = selExists.executeQuery();
+    return rsSelExists.isBeforeFirst(); // true if game exists, false if not exists
+  }
+
+  public Integer[] getPreset(int gameId) throws SQLException {
+    // gets the preset of the game (authorId, levelDifficulty, numberOfQuestions, participantsNumber, topicId)
+    PreparedStatement selPreset = conn.prepareStatement("SELECT author_id, level_difficulty, number_of_questions, participants_number, topic_id FROM games WHERE id = ?");
+    selPreset.setInt(1, gameId);
+    ResultSet rsPreset = selPreset.executeQuery();
+    if (rsPreset.next()) {
+      return (Integer[]) rsPreset.getArray(1).getArray(); // timestamp
+    } else {
+      return null; // if not exists
+    }
   }
 
   private void setStatus(int gameId, int status) throws SQLException {
@@ -310,11 +344,19 @@ public class DbService {
     updData.executeUpdate();
   }
 
-  public void getStatus(int gameId) {
-    // FEATURE
+  public Integer getStatus(int gameId) throws SQLException {
+    // gets status for the game
+    PreparedStatement selStatus = conn.prepareStatement("SELECT status FROM games WHERE id = ?");
+    selStatus.setInt(1, gameId);
+    ResultSet rsStatus = selStatus.executeQuery();
+    if (rsStatus.next()) {
+      return rsStatus.getInt(1); // status: 0 - pending, 1 - paused, 2 - active, 3 - ended
+    } else {
+      return null; // if not exists
+    }
   }
 
-  private void setGameStartTime(int gameId, Instant gameStartTime) throws SQLException {
+  public void setGameStartTime(int gameId, Instant gameStartTime) throws SQLException {
     // sets the time of starting for the game
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET game_start_time = ? WHERE id = ?");
     updData.setTimestamp(1, Timestamp.from(gameStartTime));
@@ -322,8 +364,16 @@ public class DbService {
     updData.executeUpdate();
   }
 
-  public void getGameStartTime(int gameId) {
-    // FEATURE
+  public Timestamp getGameStartTime(int gameId) throws SQLException {
+    // gets time of start of the game
+    PreparedStatement selTime = conn.prepareStatement("SELECT game_start_time FROM games WHERE id = ?");
+    selTime.setInt(1, gameId);
+    ResultSet rsTime = selTime.executeQuery();
+    if (rsTime.next()) {
+      return rsTime.getTimestamp(1); // timestamp
+    } else {
+      return null; // if not exists
+    }
   }
 
   public void setPrivate(int gameId, boolean isPrivate) throws SQLException {
@@ -335,8 +385,16 @@ public class DbService {
     updData.executeUpdate();
   }
 
-  public void getPrivate(int gameId) {
-    // FEATURE
+  public Boolean getPrivate(int gameId) throws SQLException {
+    // gets the privateness option of the game
+    PreparedStatement selPrivate = conn.prepareStatement("SELECT is_private FROM games WHERE id = ?");
+    selPrivate.setInt(1, gameId);
+    ResultSet rsTime = selPrivate.executeQuery();
+    if (rsTime.next()) {
+      return rsTime.getBoolean(1); // true - is private, false - is not
+    } else {
+      return null; // if not exists
+    }
   }
 
   private void setGameEndTime(int gameId, Instant gameEndTime) throws SQLException {
@@ -347,28 +405,20 @@ public class DbService {
     updData.executeUpdate();
   }
 
-  public void getGameEndTime(int gameId) {
-    // FEATURE
-  }
-
-  public void startGame(int gameId) throws SQLException {
-    // starts the game
-    setStatus(gameId, 2);
-    setGameStartTime(gameId, Instant.now());
-  }
-
-  public void pauseGame(int gameId) throws SQLException {
-    // pauses the game
-    setStatus(gameId, 1);
-  }
-
-  public void resumeGame(int gameId) throws SQLException {
-    // resumes the game
-    setStatus(gameId, 2);
+  public Timestamp getGameEndTime(int gameId) throws SQLException {
+    // gets time of end of the game
+    PreparedStatement selTime = conn.prepareStatement("SELECT game_end_time FROM games WHERE id = ?");
+    selTime.setInt(1, gameId);
+    ResultSet rsTime = selTime.executeQuery();
+    if (rsTime.next()) {
+      return rsTime.getTimestamp(1); // timestamp
+    } else {
+      return null; // if not exists
+    }
   }
 
   public void stopGame(int gameId) throws SQLException {
-    // stops the game in Games table, must be used with DbUser.addGamePlayed
+    // stops the game in Games table, must be used with addGamePlayed
     setStatus(gameId, 3);
     setGameEndTime(gameId, Instant.now());
 
@@ -382,6 +432,18 @@ public class DbService {
     PreparedStatement updData = conn.prepareStatement("DELETE FROM games WHERE id = ?");
     updData.setInt(1, gameId);
     updData.executeUpdate();
+  }
+
+  public Integer getCurrentQuestionNumber(int gameId) throws SQLException {
+    // gets the current question number of the game
+    PreparedStatement selCurrQuestion = conn.prepareStatement("SELECT game_end_time FROM games WHERE id = ?");
+    selCurrQuestion.setInt(1, gameId);
+    ResultSet rsCurrQuestion = selCurrQuestion.executeQuery();
+    if (rsCurrQuestion.next()) {
+      return rsCurrQuestion.getInt(1); // currentQuestionNumber
+    } else {
+      return null; // if not exists
+    }
   }
 
   public Question nextQuestion(int gameId) throws SQLException {
@@ -414,7 +476,7 @@ public class DbService {
       questionObj.answer3 = rsQuestion.getString(4);
       questionObj.answer4 = rsQuestion.getString(5);
 
-      return questionObj;
+      return questionObj; // Question
     } else {
       return null; // not found
     }
@@ -427,7 +489,7 @@ public class DbService {
     selRightAnswer.setInt(2, gameId);
     ResultSet rsRightAnswer = selRightAnswer.executeQuery();
     if (rsRightAnswer.next()) {
-      return submittedAnswerIndex == rsRightAnswer.getInt(1);
+      return submittedAnswerIndex == rsRightAnswer.getInt(1); // true if right, false if not
     } else {
       return false; // not found
     }

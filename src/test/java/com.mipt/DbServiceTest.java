@@ -58,22 +58,22 @@ public class DbServiceTest {
   @Test
   @Order(2)
   void testAuthorizeAndCheckedLoggedIn() throws SQLException {
-    assertNull(dbService.checkLoggedIn("SESSION"));
+    assertNull(dbService.getUserId("SESSION"));
     assertFalse(dbService.authorize("notExistingTestUser", "1234", "SESSION"));
-    assertNull(dbService.checkLoggedIn("SESSION"));
+    assertNull(dbService.getUserId("SESSION"));
     assertFalse(dbService.authorize("testUser", "12345wrong", "SESSION"));
-    assertNull(dbService.checkLoggedIn("SESSION"));
+    assertNull(dbService.getUserId("SESSION"));
     assertTrue(dbService.authorize("testUser", "12345", "SESSION"));
-    assertNotNull(dbService.checkLoggedIn("SESSION"));
+    assertNotNull(dbService.getUserId("SESSION"));
     assertFalse(dbService.authorize("testUser", "12345", "SESSION"));
   }
 
   @Test
   @Order(3)
   void testLogOut() throws SQLException {
-    assertNotNull(dbService.checkLoggedIn("SESSION"));
+    assertNotNull(dbService.getUserId("SESSION"));
     dbService.logOut("SESSION");
-    assertNull(dbService.checkLoggedIn("SESSION"));
+    assertNull(dbService.getUserId("SESSION"));
     assertTrue(dbService.authorize("testUser", "12345", "SESSION"));
   }
 
@@ -111,6 +111,16 @@ public class DbServiceTest {
   }
 
   @Test
+  @Order(5)
+  void testAddGamePlayedAndGetGamesPlayed_notInGame() throws SQLException {
+    dbService.addGamePlayed("NOT_EXISTING_SESSION");
+    assertNull(dbService.getGamesPlayed("NOT_EXISTING_SESSION"));
+    dbService.addGamePlayed("SESSION");
+    assertNull(dbService.getGamesPlayed("SESSION"));
+  }
+
+  @Test
+  @Order(6)
   void testSetCurrentGameAndGetCurrentGame() throws SQLException {
     assertNull(dbService.getCurrentGame("NOT_EXISTING_SESSION"));
     assertNull(dbService.getCurrentGame("SESSION"));
@@ -118,8 +128,14 @@ public class DbServiceTest {
     assertEquals(1, dbService.getCurrentGame("SESSION"));
   }
 
-  void testAddGamePlayedAndGetGamesPlayed() throws SQLException {
-    // FEATURE
+  @Test
+  @Order(7)
+  void testAddGamePlayedAndGetGamesPlayed_inGame() throws SQLException {
+    dbService.addGamePlayed("NOT_EXISTING_SESSION");
+    assertNull(dbService.getGamesPlayed("NOT_EXISTING_SESSION"));
+    dbService.addGamePlayed("SESSION");
+    Integer[] testArr = {1};
+    assertArrayEquals(testArr, dbService.getGamesPlayed("SESSION"));
   }
 
   @Test
