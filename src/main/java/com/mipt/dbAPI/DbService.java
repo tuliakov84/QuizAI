@@ -299,10 +299,18 @@ public class DbService {
   // Games TABLE REFERRED METHODS
   //
 
-  public Integer createGame(int authorId, int levelDifficulty, int numberOfQuestions, int participantsNumber, int topicId) throws SQLException {
+  public Integer createGame(String sessionOfAuthor, int levelDifficulty, int numberOfQuestions, int participantsNumber, int topicId) throws SQLException {
     // creates the game room, returns gameId
     // default isPrivate = true
-    PreparedStatement inpGame = conn.prepareStatement("INSERT INTO games (status, author_id, created_at, is_private, level_difficulty, current_question_number, number_of_questions, participants_number, topic_id) VALUES (0, ?, ?, 1, ?, 0, ?, ?, ?", Statement.RETURN_GENERATED_KEYS);
+    Integer authorId = getUserId(sessionOfAuthor);
+    if (authorId == null) {
+      return null; // null if author not exists
+    }
+    if (!(levelDifficulty >= 1 && levelDifficulty <= 3) || !(participantsNumber >= 4 && participantsNumber <= 15)) {
+      return null; // null if provided bad initialization params while using method
+    }
+
+    PreparedStatement inpGame = conn.prepareStatement("INSERT INTO games (status, author_id, created_at, is_private, level_difficulty, current_question_number, number_of_questions, participants_number, topic_id) VALUES (0, ?, ?, TRUE, ?, 0, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
     inpGame.setInt(1, authorId);
     inpGame.setTimestamp(2, Timestamp.from(Instant.now()));
     inpGame.setInt(3, levelDifficulty);
@@ -312,7 +320,11 @@ public class DbService {
 
     inpGame.executeUpdate();
     ResultSet rsInpGame = inpGame.getGeneratedKeys();
-    return rsInpGame.getInt(1); // gameId
+    if (rsInpGame.next()) {
+      return rsInpGame.getInt(1);
+    } else {
+      return null;
+    }
   }
 
   public Boolean checkGameExists(int gameId) throws SQLException {
@@ -329,13 +341,19 @@ public class DbService {
     selPreset.setInt(1, gameId);
     ResultSet rsPreset = selPreset.executeQuery();
     if (rsPreset.next()) {
-      return (Integer[]) rsPreset.getArray(1).getArray(); // timestamp
+      Integer[] preset = new Integer[5];
+      preset[0] = rsPreset.getInt("author_id");
+      preset[1] = rsPreset.getInt("level_difficulty");
+      preset[2] = rsPreset.getInt("number_of_questions");
+      preset[3] = rsPreset.getInt("participants_number");
+      preset[4] = rsPreset.getInt("topic_id");
+      return preset;
     } else {
       return null; // if not exists
     }
   }
 
-  private void setStatus(int gameId, int status) throws SQLException {
+  public void setStatus(int gameId, int status) throws SQLException {
     // sets status for the game
     // 0 - pending, 1 - paused, 2 - active, 3 - ended
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET status = ? WHERE id = ?");
@@ -357,7 +375,7 @@ public class DbService {
   }
 
   public void setGameStartTime(int gameId, Instant gameStartTime) throws SQLException {
-    // sets the time of starting for the game
+    // sets the time of start of the game
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET game_start_time = ? WHERE id = ?");
     updData.setTimestamp(1, Timestamp.from(gameStartTime));
     updData.setInt(2, gameId);
@@ -365,7 +383,7 @@ public class DbService {
   }
 
   public Timestamp getGameStartTime(int gameId) throws SQLException {
-    // gets time of start of the game
+    // gets the time of start of the game
     PreparedStatement selTime = conn.prepareStatement("SELECT game_start_time FROM games WHERE id = ?");
     selTime.setInt(1, gameId);
     ResultSet rsTime = selTime.executeQuery();
@@ -377,9 +395,8 @@ public class DbService {
   }
 
   public void setPrivate(int gameId, boolean isPrivate) throws SQLException {
-    // sets the private option for the game
-    // sets the time of creating for the game
-    PreparedStatement updData = conn.prepareStatement("UPDATE games SET isPrivate = ? WHERE id = ?");
+    // sets the privateness option for the game
+    PreparedStatement updData = conn.prepareStatement("UPDATE games SET is_private = ? WHERE id = ?");
     updData.setBoolean(1, isPrivate);
     updData.setInt(2, gameId);
     updData.executeUpdate();
@@ -397,7 +414,7 @@ public class DbService {
     }
   }
 
-  private void setGameEndTime(int gameId, Instant gameEndTime) throws SQLException {
+  public void setGameEndTime(int gameId, Instant gameEndTime) throws SQLException {
     // sets the time of ending for the game
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET game_end_time = ? WHERE id = ?");
     updData.setTimestamp(1, Timestamp.from(gameEndTime));
@@ -482,8 +499,12 @@ public class DbService {
     }
   }
 
-  public boolean validateAnswer(int gameId, int questionNumber, int submittedAnswerIndex) throws SQLException {
+  public Boolean validateAnswer(int gameId, int questionNumber, int submittedAnswerIndex) throws SQLException {
     // validates submitted answer
+    Integer gameStatus = getStatus(gameId);
+    if (gameStatus == null || !gameStatus.equals(2)) {
+      return null; // null if game is not active
+    }
     PreparedStatement selRightAnswer = conn.prepareStatement("SELECT right_answer_index FROM questions WHERE question_number = ? AND game_id = ?");
     selRightAnswer.setInt(1, questionNumber);
     selRightAnswer.setInt(2, gameId);

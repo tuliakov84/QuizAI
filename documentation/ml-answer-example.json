@@ -15,6 +15,10 @@
             {
                 "index": 3,
                 "answer": "Lace tip"
+            },
+            {
+                "index": 4,
+                "answer": "idk"
             }
         ],
         "right_answer_number": 3
@@ -35,9 +39,12 @@
             {
                 "index": 3,
                 "answer": "Warning"
+            },
+            {
+                "index": 4,
+                "answer": "None"
             }
         ],
-        "right_anwer_number": 2
+        "right_answer_number": 2
     }
-
 ]

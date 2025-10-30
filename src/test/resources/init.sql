@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS games (
     id SERIAL PRIMARY KEY,
     status SMALLINT,
     author_id INT REFERENCES users (id) ON DELETE SET NULL,
+    created_at TIMESTAMP,
     game_start_time TIMESTAMP,
     game_end_time TIMESTAMP,
     is_private BOOLEAN,
