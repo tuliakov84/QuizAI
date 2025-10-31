@@ -194,7 +194,6 @@ public class DbServiceTest {
 
   @Test
   void testSetPrivateAndGetPrivate() throws SQLException {
-    // FEATURE
     assertNull(dbService.getPrivate(52));
     assertTrue(dbService.getPrivate(2));
     dbService.setPrivate(2, false);
@@ -203,7 +202,6 @@ public class DbServiceTest {
 
   @Test
   void testGetGameStartTimeAndSetGameStartTime() throws SQLException {
-    // FEATURE
     assertNull(dbService.getGameStartTime(52));
     dbService.setGameStartTime(2, Instant.ofEpochSecond(1));
     assertEquals(Timestamp.from(Instant.ofEpochSecond(1)), dbService.getGameStartTime(2));
@@ -318,6 +316,18 @@ public class DbServiceTest {
     // FEATURE
   }
 
+  void testCheckAchievement() throws SQLException {
+    // FEATURE
+  }
+  
+  void testGetAchievementById() throws SQLException {
+    // FEATURE
+  }
+
+  void testGetAllAchievements() throws SQLException {
+    // FEATURE
+  }
+
   void testRemoveAchievement() throws SQLException {
     // FEATURE
   }
@@ -325,6 +335,14 @@ public class DbServiceTest {
   // Topic TEST UNITS
 
   void testAddTopic() throws SQLException {
+    // FEATURE
+  }
+
+  void testGetTopicById() throws SQLException {
+    // FEATURE
+  }
+
+  void testGetAllTopics() throws SQLException {
     // FEATURE
   }
 
