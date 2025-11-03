@@ -1,6 +1,6 @@
 package com.mipt.domainModel;
 
 public class Topic {
-  int topicId;
-  String name;
+  public int topicId;
+  public String name;
 }

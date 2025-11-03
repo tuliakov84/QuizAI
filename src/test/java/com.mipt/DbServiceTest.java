@@ -172,7 +172,7 @@ public class DbServiceTest {
     assertNull(dbService.createGame("NOT_EXISTING_SESSION", 1, 1, 4, 1));
     assertNull(dbService.createGame("SESSION", 4, 1, 4, 1));
     assertNull(dbService.createGame("SESSION", 1, 1, -1, 1));
-    assertTrue(dbService.checkGameExists(1)); // test game with id=1 is already initialized in sql
+    assertTrue(dbService.checkGameExists(1)); // test game with topicId=1 is already initialized in sql
     assertFalse(dbService.checkGameExists(2));
     assertEquals(2, dbService.createGame("SESSION", 1, 1, 4, 1));
     assertTrue(dbService.checkGameExists(2));
@@ -272,11 +272,15 @@ public class DbServiceTest {
 
     Question result1 = dbService.nextQuestion(2);
     if (
+        (
         Objects.equals(result1.questionText, "What the Aglet is?") &&
             Objects.equals(result1.answer1, "American audit company") &&
             Objects.equals(result1.answer2, "Programming language") &&
             Objects.equals(result1.answer3, "Lace tip") &&
             Objects.equals(result1.answer4, "idk")
+        ) && (
+            dbService.getRightAnswer(2, 1).equals(3)
+        )
     ) {
       assertTrue(true);
     } else {
@@ -285,28 +289,62 @@ public class DbServiceTest {
 
     Question result2 = dbService.nextQuestion(2);
     if (
+        (
         Objects.equals(result2.questionText, "What is the punishment for driving drunk in Russia?") &&
             Objects.equals(result2.answer1, "100 USD") &&
             Objects.equals(result2.answer2, "Deprivation of driving license") &&
             Objects.equals(result2.answer3, "Warning") &&
             Objects.equals(result2.answer4, "None")
+        ) && (
+            dbService.getRightAnswer(2, 2).equals(2)
+        )
     ) {
       assertTrue(true);
     } else {
       fail();
     }
-
   }
 
-  void testValidateAnswer() throws SQLException {
+  @Test
+  void testGetRightAnswer() throws SQLException {
+    assertNull(dbService.getRightAnswer(52, 2));
+    assertNotEquals(2, dbService.getRightAnswer(2, 52));
+    assertNotEquals(1, dbService.getRightAnswer(2, 2));
+    assertEquals(3, dbService.getRightAnswer(2, 1));
+    assertEquals(2, dbService.getRightAnswer(2, 2));
+
+    assertNull(dbService.nextQuestion(2));
+  }
+
+  void testGetGameLeaderboards() throws SQLException {
     // FEATURE
   }
 
-  void testStopGame() throws SQLException {
-    // FEATURE
+
+  @AfterAll
+  static void testStopGameAndDeleteGame() throws SQLException {
+    dbService.createGame("SESSION", 1, 5, 5, 1);
+    dbService.setCurrentGame("SESSION", 3);
+    assertTrue(dbService.register("test2", "1234"));
+    assertTrue(dbService.authorize("test2", "1234", "SESSION2"));
+
+    dbService.setCurrentGame("SESSION2", 2);
+    dbService.stopGame(52);
+    dbService.stopGame(2);
+
+    assertEquals(3, dbService.getStatus(2));
+    assertEquals(0, dbService.getStatus(3));
+    assertNull(dbService.getCurrentGame("SESSION2"));
+    assertEquals(3, dbService.getCurrentGame("SESSION"));
+    assertNull(dbService.getRightAnswer(2, 2));
+
+
+    dbService.deleteGame(2);
+    assertNull(dbService.getPreset(2));
+    assertNotNull(dbService.getPreset(3));
   }
 
-  void testDeleteGame() throws SQLException {
+  void testGetGlobalLeaderboards() throws SQLException {
     // FEATURE
   }
 

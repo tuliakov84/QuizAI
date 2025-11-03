@@ -24,6 +24,7 @@ public class DbService {
 
   private static Connection connect(String url, String user, String password) {
     // establishes connection to the database
+    
     try {
       return DriverManager.getConnection(url, user, password);
     } catch (SQLException e) {
@@ -38,6 +39,7 @@ public class DbService {
   public Integer getUserId(String session) throws SQLException {
     // checks if user authorized or not, returns userId if is
     // must be completed every query to check user authenticated to perform actions
+    
     PreparedStatement selId = conn.prepareStatement("SELECT id FROM users WHERE session = ?");
     selId.setString(1, session);
 
@@ -58,6 +60,7 @@ public class DbService {
 
   public boolean register(String username, String password) throws SQLException {
     // creates an account for a new user
+    
     if (checkUserExists(username)) {
       return false; // false if user already exists
     }
@@ -73,6 +76,7 @@ public class DbService {
 
   public boolean authorize(String username, String password, String session) throws SQLException {
     // authorizes user
+    
     PreparedStatement selExists = conn.prepareStatement("SELECT password FROM users WHERE username = ?");
     selExists.setString(1, username);
     ResultSet rsSelExists = selExists.executeQuery();
@@ -86,8 +90,9 @@ public class DbService {
         if (rsSession.next()) {
           return false; // session key is not unique and already exists in database
         } else {
-          PreparedStatement updData = conn.prepareStatement("UPDATE users SET session = ?");
+          PreparedStatement updData = conn.prepareStatement("UPDATE users SET session = ? WHERE username = ?");
           updData.setString(1, session);
+          updData.setString(2, username);
           updData.executeUpdate();
           return true; // done
         }
@@ -101,6 +106,7 @@ public class DbService {
 
   public void changePassword(String session, String newPassword) throws SQLException {
     // sets new hashed password for user in database
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET password = ? WHERE session = ?");
     String hashedPassword = BCrypt.withDefaults().hashToString(12, newPassword.toCharArray());
     updData.setString(1, hashedPassword);
@@ -111,6 +117,7 @@ public class DbService {
 
   public void changeProfilePic(String session, int picId) throws SQLException {
     // changes profile picture. default picture id is 0
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET pic_id = ? WHERE session = ?");
     updData.setInt(1, picId);
     updData.setString(2, session);
@@ -119,6 +126,7 @@ public class DbService {
 
   public int getProfilePic(String session) throws SQLException {
     // gets profile picture id
+    
     PreparedStatement selPic = conn.prepareStatement("SELECT pic_id FROM users WHERE session = ?");
     selPic.setString(1, session);
     ResultSet rsSession = selPic.executeQuery();
@@ -131,6 +139,7 @@ public class DbService {
 
   public void changeDescription(String session, String description) throws SQLException {
     // changes description. default description is null
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET description = ? WHERE session = ?");
     updData.setString(1, description);
     updData.setString(2, session);
@@ -139,6 +148,7 @@ public class DbService {
 
   public String getDescription(String session) throws SQLException {
     // gets profile picture id
+    
     PreparedStatement selDescription = conn.prepareStatement("SELECT description FROM users WHERE session = ?");
     selDescription.setString(1, session);
     ResultSet rsDescription = selDescription.executeQuery();
@@ -151,6 +161,7 @@ public class DbService {
 
   public void setLastActivity(String session, Instant time) throws SQLException {
     // sets last activity according to the last game played. used by addGamePlayed
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET last_activity = ? WHERE session = ?");
     updData.setTimestamp(1, Timestamp.from(time));
     updData.setString(2, session);
@@ -159,6 +170,7 @@ public class DbService {
 
   public Timestamp getLastActivity(String session) throws SQLException {
     // gets last activity
+    
     PreparedStatement selLastActivity = conn.prepareStatement("SELECT last_activity FROM users WHERE session = ?");
     selLastActivity.setString(1, session);
     ResultSet rsLastActivity = selLastActivity.executeQuery();
@@ -171,6 +183,7 @@ public class DbService {
 
   public void setCurrentGame(String session, int gameId) throws SQLException {
     // sets current game. used by createGame while creating, public used while joining
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_id = ? WHERE session = ?");
     updData.setInt(1, gameId);
     updData.setString(2, session);
@@ -179,6 +192,7 @@ public class DbService {
 
   public Integer getCurrentGame(String session) throws SQLException {
     // gets current game
+    
     PreparedStatement selCurrentGame = conn.prepareStatement("SELECT current_game_id FROM users WHERE session = ?");
     selCurrentGame.setString(1, session);
     ResultSet rsCurrentGame = selCurrentGame.executeQuery();
@@ -192,6 +206,7 @@ public class DbService {
 
   public void addGamePlayed(String session) throws SQLException {
     // adds a new game played
+    
     Integer gameId = getCurrentGame(session);
     Integer userId = getUserId(session);
     if (!(Objects.equals(gameId, null) || Objects.equals(userId, null))) {
@@ -206,6 +221,7 @@ public class DbService {
 
   public Integer[] getGamesPlayed(String session) throws SQLException {
     // collects all the data about user's game history
+    
     Integer userId = getUserId(session);
     if (userId == null) {
       return null;
@@ -223,6 +239,7 @@ public class DbService {
 
   public void addGlobalPoints(String session, int points) throws SQLException {
     // adds global points to the user's statistics data
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET global_points = global_points + ? WHERE session = ?");
     updData.setInt(1, points);
     updData.setString(2, session);
@@ -231,6 +248,7 @@ public class DbService {
 
   public Integer getGlobalPoints(String session) throws SQLException {
     // gets global points
+    
     PreparedStatement selGlobalPoints = conn.prepareStatement("SELECT global_points FROM users WHERE session = ?");
     selGlobalPoints.setString(1, session);
     ResultSet rsGlobalPoints = selGlobalPoints.executeQuery();
@@ -243,6 +261,7 @@ public class DbService {
 
   public void addGlobalPossiblePoints(String session, int possiblePoints) throws SQLException {
     // adds global possible points to the user's statistics data
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET global_possible_points = global_possible_points + ? WHERE session = ?");
     updData.setInt(1, possiblePoints);
     updData.setString(2, session);
@@ -251,6 +270,7 @@ public class DbService {
 
   public Integer getGlobalPossiblePoints(String session) throws SQLException {
     // gets global possible points
+    
     PreparedStatement selGlobalPossiblePoints = conn.prepareStatement("SELECT global_possible_points FROM users WHERE session = ?");
     selGlobalPossiblePoints.setString(1, session);
     ResultSet rsGlobalPossiblePoints = selGlobalPossiblePoints.executeQuery();
@@ -263,6 +283,7 @@ public class DbService {
 
   public void addCurrentGamePoints(String session, int points) throws SQLException {
     // adds current game points to the user's statistics data
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_points = current_game_points + ? WHERE session = ?");
     updData.setInt(1, points);
     updData.setString(2, session);
@@ -271,6 +292,7 @@ public class DbService {
 
   public Integer getCurrentGamePoints(String session) throws SQLException {
     // gets current game points
+    
     PreparedStatement selCurrentGamePoints = conn.prepareStatement("SELECT current_game_points FROM users WHERE session = ?");
     selCurrentGamePoints.setString(1, session);
     ResultSet rsCurrentGamePoints = selCurrentGamePoints.executeQuery();
@@ -284,6 +306,7 @@ public class DbService {
   public void logOut(String session) throws SQLException {
     // erases the session info in the users data
     // adds global points to the user's statistics data
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET session = NULL WHERE session = ?");
     updData.setString(1, session);
     updData.executeUpdate();
@@ -325,6 +348,7 @@ public class DbService {
 
   public Boolean checkGameExists(int gameId) throws SQLException {
     // checks if game exists or not
+    
     PreparedStatement selExists = conn.prepareStatement("SELECT * FROM games WHERE id = ?");
     selExists.setInt(1, gameId);
     ResultSet rsSelExists = selExists.executeQuery();
@@ -333,6 +357,7 @@ public class DbService {
 
   public Integer[] getPreset(int gameId) throws SQLException {
     // gets the preset of the game (authorId, levelDifficulty, numberOfQuestions, participantsNumber, topicId)
+    
     PreparedStatement selPreset = conn.prepareStatement("SELECT author_id, level_difficulty, number_of_questions, participants_number, topic_id FROM games WHERE id = ?");
     selPreset.setInt(1, gameId);
     ResultSet rsPreset = selPreset.executeQuery();
@@ -352,6 +377,7 @@ public class DbService {
   public void setStatus(int gameId, int status) throws SQLException {
     // sets status for the game
     // 0 - pending, 1 - paused, 2 - active, 3 - ended
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET status = ? WHERE id = ?");
     updData.setInt(1, status);
     updData.setInt(2, gameId);
@@ -360,6 +386,7 @@ public class DbService {
 
   public Integer getStatus(int gameId) throws SQLException {
     // gets status for the game
+    
     PreparedStatement selStatus = conn.prepareStatement("SELECT status FROM games WHERE id = ?");
     selStatus.setInt(1, gameId);
     ResultSet rsStatus = selStatus.executeQuery();
@@ -372,6 +399,7 @@ public class DbService {
 
   public void setGameStartTime(int gameId, Instant gameStartTime) throws SQLException {
     // sets the time of start of the game
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET game_start_time = ? WHERE id = ?");
     updData.setTimestamp(1, Timestamp.from(gameStartTime));
     updData.setInt(2, gameId);
@@ -380,6 +408,7 @@ public class DbService {
 
   public Timestamp getGameStartTime(int gameId) throws SQLException {
     // gets the time of start of the game
+    
     PreparedStatement selTime = conn.prepareStatement("SELECT game_start_time FROM games WHERE id = ?");
     selTime.setInt(1, gameId);
     ResultSet rsTime = selTime.executeQuery();
@@ -392,6 +421,7 @@ public class DbService {
 
   public void setPrivate(int gameId, boolean isPrivate) throws SQLException {
     // sets the privateness option for the game
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET is_private = ? WHERE id = ?");
     updData.setBoolean(1, isPrivate);
     updData.setInt(2, gameId);
@@ -400,6 +430,7 @@ public class DbService {
 
   public Boolean getPrivate(int gameId) throws SQLException {
     // gets the privateness option of the game
+    
     PreparedStatement selPrivate = conn.prepareStatement("SELECT is_private FROM games WHERE id = ?");
     selPrivate.setInt(1, gameId);
     ResultSet rsTime = selPrivate.executeQuery();
@@ -412,6 +443,7 @@ public class DbService {
 
   public void setGameEndTime(int gameId, Instant gameEndTime) throws SQLException {
     // sets the time of ending for the game
+    
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET game_end_time = ? WHERE id = ?");
     updData.setTimestamp(1, Timestamp.from(gameEndTime));
     updData.setInt(2, gameId);
@@ -420,6 +452,7 @@ public class DbService {
 
   public Timestamp getGameEndTime(int gameId) throws SQLException {
     // gets time of end of the game
+    
     PreparedStatement selTime = conn.prepareStatement("SELECT game_end_time FROM games WHERE id = ?");
     selTime.setInt(1, gameId);
     ResultSet rsTime = selTime.executeQuery();
@@ -432,16 +465,21 @@ public class DbService {
 
   public void stopGame(int gameId) throws SQLException {
     // stops the game in Games table, must be used with addGamePlayed
-    setStatus(gameId, 3);
-    setGameEndTime(gameId, Instant.now());
 
-    PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_id = NULL WHERE current_game_id = ?");
-    updData.setInt(1, gameId);
-    updData.executeUpdate();
+    Integer gameStatus = getStatus(gameId);
+    if (gameStatus != null) {
+      setStatus(gameId, 3);
+      setGameEndTime(gameId, Instant.now());
+
+      PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_id = NULL WHERE current_game_id = ?");
+      updData.setInt(1, gameId);
+      updData.executeUpdate();
+    }
   }
 
   public void deleteGame(int gameId) throws SQLException {
     // deletes the game
+    
     PreparedStatement updData = conn.prepareStatement("DELETE FROM games WHERE id = ?");
     updData.setInt(1, gameId);
     updData.executeUpdate();
@@ -449,6 +487,7 @@ public class DbService {
 
   public Integer getCurrentQuestionNumber(int gameId) throws SQLException {
     // gets the current question number of the game
+    
     PreparedStatement selCurrQuestion = conn.prepareStatement("SELECT game_end_time FROM games WHERE id = ?");
     selCurrQuestion.setInt(1, gameId);
     ResultSet rsCurrQuestion = selCurrQuestion.executeQuery();
@@ -496,26 +535,27 @@ public class DbService {
     }
   }
 
-  public Boolean validateAnswer(int gameId, int questionNumber, int submittedAnswerIndex) throws SQLException {
-    // validates submitted answer
+  public Integer getRightAnswer(int gameId, int questionNumber) throws SQLException {
     Integer gameStatus = getStatus(gameId);
     if (gameStatus == null || !gameStatus.equals(2)) {
       return null; // null if game is not active
     }
-    PreparedStatement selRightAnswer = conn.prepareStatement("SELECT right_answer_index FROM questions WHERE question_number = ? AND game_id = ?");
-    selRightAnswer.setInt(1, questionNumber);
-    selRightAnswer.setInt(2, gameId);
-    ResultSet rsRightAnswer = selRightAnswer.executeQuery();
-    if (rsRightAnswer.next()) {
-      return submittedAnswerIndex == rsRightAnswer.getInt(1); // true if right, false if not
+    PreparedStatement selRight = conn.prepareStatement("SELECT right_answer_number FROM questions WHERE question_number = ? AND game_id = ?");
+    selRight.setInt(1, questionNumber);
+    selRight.setInt(2, gameId);
+    ResultSet rsRight = selRight.executeQuery();
+    if (rsRight.next()) {
+      return rsRight.getInt(1);
     } else {
-      return false; // not found
+      return null;
     }
   }
+
 
   public void loadQuestions(int gameId, JSONArray jsonArr) throws SQLException {
     // example of json argument is described in the documentation catalog
     // loads questions data from json and commits it into the database
+    
     final int ANSWER_AMOUNT = 4;
 
     for (int i = 0; i < jsonArr.length(); i++) {
@@ -542,23 +582,101 @@ public class DbService {
     }
   }
 
+  public JSONArray getGameLeaderboards(int gameId) throws SQLException {
+    // gets leaderboards of current game as JSONArray
+    // return [[username, currentGamePoints], ...] // example : [["ultra_evgeniy1337", 1500], ["alexander_under", 1250], ...]
+
+    Integer gameStatus = getStatus(gameId);
+    if (gameStatus == null) {
+      return null; // null if game not exists
+    }
+    PreparedStatement selUsers = conn.prepareStatement("SELECT username, current_game_points FROM users " +
+        "WHERE game_id = ? ORDER BY current_game_points DESC");
+    selUsers.setInt(1, gameId);
+    ResultSet rsUsers = selUsers.executeQuery();
+    JSONArray res = new JSONArray();
+    while (rsUsers.next()) {
+      JSONArray putObj = new JSONArray();
+      putObj.put(rsUsers.getString("username"));
+      putObj.put(rsUsers.getInt("current_game_points"));
+      res.put(putObj);
+    }
+
+    return res;
+  }
+
+  public JSONArray getGlobalLeaderboards(int gameId) throws SQLException {
+    // gets global leaderboards TOP-100 as JSONArray
+    // return [[id, username, globalPoints, globalPossiblePoints], ...]
+    // example : [[571, "ultra_evgeniy1337", 150014, 1234567], [1693, "alexander_under", 125017, 2345678], ...]
+
+    Integer gameStatus = getStatus(gameId);
+    if (gameStatus == null) {
+      return null; // null if game not exists
+    }
+    PreparedStatement selUsers = conn.prepareStatement("SELECT id, username, global_points, global_possible_points " +
+        "FROM users ORDER BY global_points DESC, global_possible_points ASC LIMIT 100");
+    selUsers.setInt(1, gameId);
+    ResultSet rsUsers = selUsers.executeQuery();
+    JSONArray res = new JSONArray();
+    while (rsUsers.next()) {
+      JSONArray putObj = new JSONArray();
+      putObj.put(rsUsers.getInt("id"));
+      putObj.put(rsUsers.getString("username"));
+      putObj.put(rsUsers.getInt("global_points"));
+      putObj.put(rsUsers.getString("global_possible_points"));
+      res.put(putObj);
+    }
+
+    return res;
+  }
+
   //
   // Achievements TABLE REFERRED METHODS
   //
 
-  public void addAchievement(String session, int achievementId) throws SQLException {
+  public Integer addAchievement(Achievement achievement) throws SQLException {
     // creates a new achievement, returns id of it
+    
+    PreparedStatement inpAchvm = conn.prepareStatement("INSERT INTO achievements (name, profile_pic_needed, description_needed, " +
+        "games_number_needed, global_points_needed, global_rating_place_needed, current_game_points_needed, current_game_rating_needed," +
+        "current_game_level_difficult_needed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
+    inpAchvm.setString(1, achievement.name);
+    inpAchvm.setBoolean(2, achievement.profilePicNeeded);
+    inpAchvm.setBoolean(3, achievement.descriptionNeeded);
+    inpAchvm.setInt(4, achievement.gamesNumberNeeded);
+    inpAchvm.setInt(5, achievement.globalPointsNeeded);
+    inpAchvm.setInt(6, achievement.globalRatingPlaceNeeded);
+    inpAchvm.setInt(7, achievement.currentGamePointsNeeded);
+    inpAchvm.setInt(8, achievement.currentGameRatingNeeded);
+    inpAchvm.setInt(9, achievement.currentGameLevelDifficultyNeeded);
+    
+    inpAchvm.executeUpdate();
+    ResultSet rsInpAchvm = inpAchvm.getGeneratedKeys();
+    if (rsInpAchvm.next()) {
+      return rsInpAchvm.getInt(1);
+    } else {
+      return null;
+    }
+  }
+  
+  public void attachAchievement(String session, int achievementId) throws SQLException {
+    // attaches achievement to user
+    
     Integer userId = getUserId(session);
     if (userId != null) {
       PreparedStatement inpAchvm = conn.prepareStatement("INSERT INTO user_achievements (user_id, achievement_id) VALUES (?, ?)");
       inpAchvm.setInt(1, userId);
       inpAchvm.setInt(2, achievementId);
+      
+      inpAchvm.executeUpdate();
     }
   }
 
   public Integer[] checkAchievementAchieved(String session, Achievement achieved) throws SQLException {
     // checks if achievement achieved, params of actions user achieved need to be specified in (Achievement) fields
     // returns id list of achievements
+    
     Integer userId = getUserId(session);
     if (userId == null) {
       return null; // if not exists
@@ -620,6 +738,7 @@ public class DbService {
 
   public Achievement[] getAllAchievements() throws SQLException {
     // returns achievement list
+    
     ArrayList<Achievement> res = new ArrayList<>();
     Statement selAchievement = conn.createStatement();
     ResultSet rsAchievement = selAchievement.executeQuery("SELECT * FROM achievements");
@@ -646,6 +765,7 @@ public class DbService {
 
   public void removeAchievement(int achievementId) throws SQLException {
     // removes an existing achievement
+    
     PreparedStatement delAchievement = conn.prepareStatement("DELETE FROM achievements WHERE id = ?");
     delAchievement.setInt(1, achievementId);
     delAchievement.executeUpdate();
@@ -655,24 +775,60 @@ public class DbService {
   // Topics TABLE REFERRED METHODS
   //
 
-  public Integer addTopic(Topic topic) {
-    // creates a new topic
-    // FEATURE
-    return null;
+  public Integer addTopic(Topic topic) throws SQLException {
+    // creates a new topic, returns id of it
+
+    PreparedStatement inpTopic = conn.prepareStatement("INSERT INTO topics (name) VALUES (?)", Statement.RETURN_GENERATED_KEYS);
+    inpTopic.setString(1, topic.name);
+
+    inpTopic.executeUpdate();
+    ResultSet rsInpTopic = inpTopic.getGeneratedKeys();
+    if (rsInpTopic.next()) {
+      return rsInpTopic.getInt(1);
+    } else {
+      return null;
+    }
   }
 
-  public Topic getTopicById(int topicId) {
-    // FEATURE
-    return null;
+  public Topic getTopicById(int id) throws SQLException {
+    // returns topic object by id
+    
+    Topic topic = new Topic();
+    PreparedStatement inpTopic = conn.prepareStatement("SELECT name FROM topics WHERE id = ?");
+    inpTopic.setInt(1, id);
+    
+    ResultSet rsInpTopic = inpTopic.executeQuery();
+    if (rsInpTopic.next()) {
+      topic.topicId = id;
+      topic.name = rsInpTopic.getString(1);
+      return topic;
+    } else {
+      return null;
+    }
   }
 
-  public Topic[] getAllTopics() {
-    // FEATURE
-    return null;
+  public Topic[] getAllTopics() throws SQLException {
+    // returns topic list
+
+    ArrayList<Topic> res = new ArrayList<>();
+    Statement selTopic = conn.createStatement();
+    ResultSet rsAchievement = selTopic.executeQuery("SELECT * FROM topics");
+
+    while (rsAchievement.next()) {
+      Topic topicObj = new Topic();
+      topicObj.topicId = rsAchievement.getInt("id");
+      topicObj.name = rsAchievement.getString("name");
+      res.add(topicObj);
+    }
+    
+    return res.toArray(new Topic[0]);
   }
 
-  public void removeTopic(Topic topic) {
+  public void removeTopic(int topicId) throws SQLException {
     // removes an existing topic
-    // FEATURE
+
+    PreparedStatement delAchievement = conn.prepareStatement("DELETE FROM achievements WHERE id = ?");
+    delAchievement.setInt(1, topicId);
+    delAchievement.executeUpdate();
   }
 }
