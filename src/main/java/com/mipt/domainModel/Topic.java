@@ -1,8 +1,6 @@
 package com.mipt.domainModel;
 
-import com.mipt.domainModel.Interfaces.ITopic;
-
-public class Topic implements ITopic {
+public class Topic {
   public int topicId;
   public String name;
 
@@ -11,22 +9,18 @@ public class Topic implements ITopic {
     this.name = name;
   }
 
-  @Override
   public int getTopicId() {
     return topicId;
   }
-
-  @Override
+  
   public void setTopicId(int topicId) {
     this.topicId = topicId;
   }
 
-  @Override
   public String getName() {
     return name;
   }
 
-  @Override
   public void setName(String name) {
     this.name = name;
   }
