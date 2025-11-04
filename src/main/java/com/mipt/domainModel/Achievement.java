@@ -3,16 +3,16 @@ package com.mipt.domainModel;
 import com.mipt.domainModel.Interfaces.IAchievement;
 
 public class Achievement implements IAchievement {
-  private int achievementId;
-  private String name;
-  private boolean profilePicNeeded;
-  private boolean descriptionNeeded;
-  private int gamesNumberNeeded;
-  private int globalPointsNeeded;
-  private int globalRatingPlaceNeeded;
-  private int currentGamePointsNeeded;
-  private int currentGameRatingNeeded;
-  private int currentGameDifficultyNeeded;
+  public int achievementId;
+  public String name;
+  public boolean profilePicNeeded;
+  public boolean descriptionNeeded;
+  public int gamesNumberNeeded;
+  public int globalPointsNeeded;
+  public int globalRatingPlaceNeeded;
+  public int currentGamePointsNeeded;
+  public int currentGameRatingNeeded;
+  public int currentGameDifficultyNeeded;
 
   public Achievement(int achievementId, String name) {
     this.achievementId = achievementId;

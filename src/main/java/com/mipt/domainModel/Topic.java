@@ -3,8 +3,8 @@ package com.mipt.domainModel;
 import com.mipt.domainModel.Interfaces.ITopic;
 
 public class Topic implements ITopic {
-  private int topicId;
-  private String name;
+  public int topicId;
+  public String name;
 
   public Topic(int topicId, String name) {
     this.topicId = topicId;

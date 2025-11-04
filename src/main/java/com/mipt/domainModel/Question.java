@@ -3,16 +3,16 @@ package com.mipt.domainModel;
 import com.mipt.domainModel.Interfaces.IQuestion;
 
 public class Question implements IQuestion {
-  private int questionId;
-  private Game game;
+  public int questionId;
+  public Game game;
 
-  private String questionText;
-  private String answer1;
-  private String answer2;
-  private String answer3;
-  private String answer4;
-  private int rightAnswerNumber;
-  private int questionNumber;
+  public String questionText;
+  public String answer1;
+  public String answer2;
+  public String answer3;
+  public String answer4;
+  public int rightAnswerNumber;
+  public int questionNumber;
 
   public Question(int questionId, Game game, String questionText,
                   String answer1, String answer2, String answer3, String answer4,
