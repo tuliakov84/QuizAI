@@ -3,7 +3,7 @@ package com.mipt.domainModel;
 import java.time.Instant;
 
 public class User {
-  public final int userId;
+  public int userId;
   public Game currentGame;
   public Achievement[] achievements;
   public Game[] gamesPlayed;
