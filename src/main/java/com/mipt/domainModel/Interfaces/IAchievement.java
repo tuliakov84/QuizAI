@@ -28,6 +28,6 @@ public interface IAchievement {
   int getCurrentGameRatingNeeded();
   void setCurrentGameRatingNeeded(int currentGameRatingNeeded);
 
-  int getCurrentGameDifficultyNeeded();
-  void setCurrentGameDifficultyNeeded(int currentGameDifficultyNeeded);
+  int getCurrentGameLevelDifficultyNeeded();
+  void setCurrentGameLevelDifficultyNeeded(int currentGameLevelDifficultyNeeded);
 }

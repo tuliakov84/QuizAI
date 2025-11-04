@@ -11,7 +11,7 @@ public class Achievement implements IAchievement {
   public int globalRatingPlaceNeeded;
   public int currentGamePointsNeeded;
   public int currentGameRatingNeeded;
-  public int currentGameDifficultyNeeded;
+  public int currentGameLevelDifficultyNeeded;
 
   public Achievement(int achievementId, String name) {
     this.achievementId = achievementId;
@@ -109,12 +109,12 @@ public class Achievement implements IAchievement {
   }
 
   @Override
-  public int getCurrentGameDifficultyNeeded() {
-    return currentGameDifficultyNeeded;
+  public int getCurrentGameLevelDifficultyNeeded() {
+    return currentGameLevelDifficultyNeeded;
   }
 
   @Override
-  public void setCurrentGameDifficultyNeeded(int currentGameDifficultyNeeded) {
-    this.currentGameDifficultyNeeded = currentGameDifficultyNeeded;
+  public void setCurrentGameLevelDifficultyNeeded(int currentGameLevelDifficultyNeeded) {
+    this.currentGameLevelDifficultyNeeded = currentGameLevelDifficultyNeeded;
   }
 }
