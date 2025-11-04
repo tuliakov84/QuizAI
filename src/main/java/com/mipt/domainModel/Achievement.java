@@ -1,3 +1,5 @@
+package com.mipt.domainModel;
+
 import com.mipt.domainModel.Interfaces.IAchievement;
 
 public class Achievement implements IAchievement {
@@ -12,6 +14,10 @@ public class Achievement implements IAchievement {
   public int currentGamePointsNeeded;
   public int currentGameRatingNeeded;
   public int currentGameLevelDifficultyNeeded;
+
+  public Achievement() {
+
+  }
 
   public Achievement(int achievementId, String name) {
     this.achievementId = achievementId;
