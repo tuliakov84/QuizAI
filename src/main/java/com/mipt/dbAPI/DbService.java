@@ -488,7 +488,7 @@ public class DbService {
   public Integer getCurrentQuestionNumber(int gameId) throws SQLException {
     // gets the current question number of the game
     
-    PreparedStatement selCurrQuestion = conn.prepareStatement("SELECT game_end_time FROM games WHERE id = ?");
+    PreparedStatement selCurrQuestion = conn.prepareStatement("SELECT current_question_number FROM games WHERE id = ?");
     selCurrQuestion.setInt(1, gameId);
     ResultSet rsCurrQuestion = selCurrQuestion.executeQuery();
     if (rsCurrQuestion.next()) {
@@ -537,7 +537,7 @@ public class DbService {
 
   public Integer getRightAnswer(int gameId, int questionNumber) throws SQLException {
     Integer gameStatus = getStatus(gameId);
-    if (gameStatus == null || !gameStatus.equals(2)) {
+    if (gameStatus == null) {
       return null; // null if game is not active
     }
     PreparedStatement selRight = conn.prepareStatement("SELECT right_answer_number FROM questions WHERE question_number = ? AND game_id = ?");
@@ -591,40 +591,32 @@ public class DbService {
       return null; // null if game not exists
     }
     PreparedStatement selUsers = conn.prepareStatement("SELECT username, current_game_points FROM users " +
-        "WHERE game_id = ? ORDER BY current_game_points DESC");
+        "WHERE current_game_id = ? ORDER BY current_game_points DESC");
     selUsers.setInt(1, gameId);
     ResultSet rsUsers = selUsers.executeQuery();
     JSONArray res = new JSONArray();
     while (rsUsers.next()) {
-      JSONArray putObj = new JSONArray();
-      putObj.put(rsUsers.getString("username"));
-      putObj.put(rsUsers.getInt("current_game_points"));
-      res.put(putObj);
+      res.put(new JSONArray().put(rsUsers.getString("username")).put(rsUsers.getInt("current_game_points")));
     }
 
     return res;
   }
 
-  public JSONArray getGlobalLeaderboards(int gameId) throws SQLException {
+  public JSONArray getGlobalLeaderboards() throws SQLException {
     // gets global leaderboards TOP-100 as JSONArray
     // return [[id, username, globalPoints, globalPossiblePoints], ...]
     // example : [[571, "ultra_evgeniy1337", 150014, 1234567], [1693, "alexander_under", 125017, 2345678], ...]
 
-    Integer gameStatus = getStatus(gameId);
-    if (gameStatus == null) {
-      return null; // null if game not exists
-    }
-    PreparedStatement selUsers = conn.prepareStatement("SELECT id, username, global_points, global_possible_points " +
+    Statement selUsers = conn.createStatement();
+    ResultSet rsUsers = selUsers.executeQuery("SELECT id, username, global_points, global_possible_points " +
         "FROM users ORDER BY global_points DESC, global_possible_points ASC LIMIT 100");
-    selUsers.setInt(1, gameId);
-    ResultSet rsUsers = selUsers.executeQuery();
     JSONArray res = new JSONArray();
     while (rsUsers.next()) {
       JSONArray putObj = new JSONArray();
       putObj.put(rsUsers.getInt("id"));
       putObj.put(rsUsers.getString("username"));
       putObj.put(rsUsers.getInt("global_points"));
-      putObj.put(rsUsers.getString("global_possible_points"));
+      putObj.put(rsUsers.getInt("global_possible_points"));
       res.put(putObj);
     }
 
@@ -640,7 +632,7 @@ public class DbService {
     
     PreparedStatement inpAchvm = conn.prepareStatement("INSERT INTO achievements (name, profile_pic_needed, description_needed, " +
         "games_number_needed, global_points_needed, global_rating_place_needed, current_game_points_needed, current_game_rating_needed," +
-        "current_game_level_difficult_needed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
+        "current_game_level_difficulty_needed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
     inpAchvm.setString(1, achievement.name);
     inpAchvm.setBoolean(2, achievement.profilePicNeeded);
     inpAchvm.setBoolean(3, achievement.descriptionNeeded);
@@ -685,7 +677,8 @@ public class DbService {
 
     String sql = "SELECT a.id FROM achievements a " +
       "LEFT JOIN user_achievements ua ON a.id = ua.achievement_id AND ua.user_id = ? " +
-      "WHERE a.profile_pic_needed = ? AND a.description_needed = ? " +
+      "WHERE a.profile_pic_needed = ? " +
+      "AND a.description_needed = ?" +
       "AND a.games_number_needed >= ? AND a.global_points_needed >= ? " +
       "AND a.global_rating_place_needed >= ? AND a.current_game_points_needed >= ? " +
       "AND a.current_game_rating_needed >= ? AND a.current_game_level_difficulty_needed >= ? " +
@@ -705,6 +698,24 @@ public class DbService {
     ResultSet rsAchievement = selAchievement.executeQuery();
     while (rsAchievement.next()) {
       res.add(rsAchievement.getInt("id"));
+    }
+
+    return res.toArray(new Integer[0]);
+  }
+
+  public Integer[] getAchievementsOf(String session) throws SQLException {
+    // returns id list of achievements user already have
+
+    Integer userId = getUserId(session);
+    if (userId == null) {
+      return null; // if not exists
+    }
+    ArrayList<Integer> res = new ArrayList<>();
+    PreparedStatement selAchievement = conn.prepareStatement("SELECT achievement_id FROM user_achievements WHERE user_id = ? ORDER BY achievement_id ASC");
+    selAchievement.setInt(1, userId);
+    ResultSet rsAchievement = selAchievement.executeQuery();
+    while (rsAchievement.next()) {
+      res.add(rsAchievement.getInt("achievement_id"));
     }
 
     return res.toArray(new Integer[0]);
@@ -741,7 +752,7 @@ public class DbService {
     
     ArrayList<Achievement> res = new ArrayList<>();
     Statement selAchievement = conn.createStatement();
-    ResultSet rsAchievement = selAchievement.executeQuery("SELECT * FROM achievements");
+    ResultSet rsAchievement = selAchievement.executeQuery("SELECT * FROM achievements ORDER BY id ASC");
 
     while (rsAchievement.next()) {
       Achievement achievementObj = new Achievement();
@@ -827,7 +838,7 @@ public class DbService {
   public void removeTopic(int topicId) throws SQLException {
     // removes an existing topic
 
-    PreparedStatement delAchievement = conn.prepareStatement("DELETE FROM achievements WHERE id = ?");
+    PreparedStatement delAchievement = conn.prepareStatement("DELETE FROM topics WHERE id = ?");
     delAchievement.setInt(1, topicId);
     delAchievement.executeUpdate();
   }

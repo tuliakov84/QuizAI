@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS questions (
 );
 
 CREATE INDEX topics_idx ON topics USING HASH (name);
+CREATE INDEX users_idx ON users USING HASH (session);
 
 INSERT INTO games (status) VALUES (-1);
 INSERT INTO topics (name) VALUES ('testTopic');
