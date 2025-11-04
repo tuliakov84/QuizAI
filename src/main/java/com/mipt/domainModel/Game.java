@@ -6,19 +6,19 @@ import java.time.Instant;
 
 public class Game implements IGame {
 
-  private int gameId;
-  private User author;
-  private Topic topic;
-  private Question question;
-  private Status status;
-  private Instant createdAt;
-  private Instant gameStartTime;
-  private Instant gameEndTime;
-  private int currentQuestionNumber;
-  private int numberOfQuestions;
-  private boolean isPrivate;
-  private LevelDifficulty levelDifficulty;
-  private int participantsNumber;
+  public int gameId;
+  public User author;
+  public Topic topic;
+  public Question question;
+  public Status status;
+  public Instant createdAt;
+  public Instant gameStartTime;
+  public Instant gameEndTime;
+  public int currentQuestionNumber;
+  public int numberOfQuestions;
+  public boolean isPrivate;
+  public LevelDifficulty levelDifficulty;
+  public int participantsNumber;
 
   public enum Status {
     WAITING,

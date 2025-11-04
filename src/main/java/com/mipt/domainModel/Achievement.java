@@ -11,8 +11,8 @@ public class Achievement implements IAchievement {
   public int globalRatingPlaceNeeded;
   public int currentGamePointsNeeded;
   public int currentGameRatingNeeded;
-  public int currentGameLevelDifficultyNeeded;
-  
+  public int currentGameDifficultyNeeded;
+
   public Achievement(int achievementId, String name) {
     this.achievementId = achievementId;
     this.name = name;

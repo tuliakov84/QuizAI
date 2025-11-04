@@ -10,16 +10,16 @@ public class User implements IUser {
   public Achievement[] achievements;
   public Game[] gamesPlayed;
 
-  private String session;
-  private String username;
-  private String password;
-  private int picId;
-  private String description;
-  private Instant lastActivity;
-  private int gamesPlayedNumber;
-  private int globalPoints;
-  private int globalPossiblePoints;
-  private int currentGamePoints;
+  public String session;
+  public String username;
+  public String password;
+  public int picId;
+  public String description;
+  public Instant lastActivity;
+  public int gamesPlayedNumber;
+  public int globalPoints;
+  public int globalPossiblePoints;
+  public int currentGamePoints;
 
   public User(int userId, String password, String username) {
     this.userId = userId;
