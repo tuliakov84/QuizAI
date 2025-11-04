@@ -55,6 +55,8 @@ public class DbServiceTest {
     assertTrue(dbService.register("testUser", "12345"));
     assertTrue(dbService.checkUserExists("testUser"));
     assertFalse(dbService.register("testUser", "12345678"));
+
+    assertTrue(dbService.register("test2", "1234"));
   }
 
   @Test
@@ -68,6 +70,9 @@ public class DbServiceTest {
     assertTrue(dbService.authorize("testUser", "12345", "SESSION"));
     assertNotNull(dbService.getUserId("SESSION"));
     assertFalse(dbService.authorize("testUser", "12345", "SESSION"));
+
+    assertTrue(dbService.authorize("test2", "1234", "SESSION2"));
+
   }
 
   @Test
@@ -75,8 +80,13 @@ public class DbServiceTest {
   void testLogOut() throws SQLException {
     assertNotNull(dbService.getUserId("SESSION"));
     dbService.logOut("SESSION");
+    dbService.logOut("SESSION2");
+
     assertNull(dbService.getUserId("SESSION"));
     assertTrue(dbService.authorize("testUser", "12345", "SESSION"));
+
+    assertNull(dbService.getUserId("SESSION2"));
+    assertTrue(dbService.authorize("test2", "1234", "SESSION2"));
   }
 
   @Test
@@ -86,6 +96,10 @@ public class DbServiceTest {
     dbService.logOut("SESSION");
     assertFalse(dbService.authorize("testUser", "12345", "SESSION"));
     assertTrue(dbService.authorize("testUser", "12345new", "SESSION"));
+
+    dbService.logOut("SESSION2");
+    assertFalse(dbService.authorize("test2", "1234", "SESSION"));
+    assertTrue(dbService.authorize("test2", "1234", "SESSION2"));
   }
 
   @Test
@@ -102,6 +116,9 @@ public class DbServiceTest {
     assertEquals("", dbService.getDescription("SESSION"));
     dbService.changeDescription("SESSION", "testDescription");
     assertEquals("testDescription", dbService.getDescription("SESSION"));
+
+    assertEquals("", dbService.getDescription("SESSION2"));
+
   }
 
   @Test
@@ -110,15 +127,18 @@ public class DbServiceTest {
     assertNull(dbService.getLastActivity("SESSION"));
     dbService.setLastActivity("SESSION", Instant.ofEpochSecond(1));
     assertEquals(Timestamp.from(Instant.ofEpochSecond(1)), dbService.getLastActivity("SESSION"));
+
+    assertNull(dbService.getLastActivity("SESSION2"));
   }
 
   @Test
   @Order(5)
   void testAddGamePlayedAndGetGamesPlayed_notInGame() throws SQLException {
+    // tests working OUT OF THE GAME
     dbService.addGamePlayed("NOT_EXISTING_SESSION");
     assertNull(dbService.getGamesPlayed("NOT_EXISTING_SESSION"));
     dbService.addGamePlayed("SESSION");
-    assertNull(dbService.getGamesPlayed("SESSION"));
+    assertNull(dbService.getGamesPlayed("SESSION")); // NOT IN GAME
   }
 
   @Test
@@ -127,6 +147,7 @@ public class DbServiceTest {
     assertNull(dbService.getCurrentGame("NOT_EXISTING_SESSION"));
     assertNull(dbService.getCurrentGame("SESSION"));
     dbService.setCurrentGame("SESSION", 1);
+
     assertEquals(1, dbService.getCurrentGame("SESSION"));
   }
 
@@ -146,6 +167,8 @@ public class DbServiceTest {
     assertEquals(0, dbService.getGlobalPoints("SESSION"));
     dbService.addGlobalPoints("SESSION", 5);
     assertEquals(5, dbService.getGlobalPoints("SESSION"));
+
+    assertEquals(0, dbService.getGlobalPoints("SESSION2"));
   }
 
   @Test
@@ -154,6 +177,8 @@ public class DbServiceTest {
     assertEquals(0, dbService.getGlobalPossiblePoints("SESSION"));
     dbService.addGlobalPossiblePoints("SESSION", 5);
     assertEquals(5, dbService.getGlobalPossiblePoints("SESSION"));
+
+    assertEquals(0, dbService.getGlobalPossiblePoints("SESSION2"));
   }
 
   @Test
@@ -162,6 +187,8 @@ public class DbServiceTest {
     assertEquals(0, dbService.getCurrentGamePoints("SESSION"));
     dbService.addCurrentGamePoints("SESSION", 5);
     assertEquals(5, dbService.getCurrentGamePoints("SESSION"));
+
+    assertEquals(0, dbService.getCurrentGamePoints("SESSION2"));
   }
 
 
@@ -325,9 +352,6 @@ public class DbServiceTest {
   static void testStopGameAndDeleteGame() throws SQLException {
     dbService.createGame("SESSION", 1, 5, 5, 1);
     dbService.setCurrentGame("SESSION", 3);
-    assertTrue(dbService.register("test2", "1234"));
-    assertTrue(dbService.authorize("test2", "1234", "SESSION2"));
-
     dbService.setCurrentGame("SESSION2", 2);
     dbService.stopGame(52);
     dbService.stopGame(2);
