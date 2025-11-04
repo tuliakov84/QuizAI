@@ -4,6 +4,10 @@ public class Topic {
   public int topicId;
   public String name;
 
+  public Topic() {
+
+  }
+
   public Topic(int topicId, String name) {
     this.topicId = topicId;
     this.name = name;

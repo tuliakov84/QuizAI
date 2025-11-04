@@ -12,6 +12,10 @@ public class Question {
   public int rightAnswerNumber;
   public int questionNumber;
 
+  public Question(){
+
+  }
+
   public Question(int questionId, Game game, String questionText,
                   String answer1, String answer2, String answer3, String answer4,
                   int rightAnswerNumber, int questionNumber) {
