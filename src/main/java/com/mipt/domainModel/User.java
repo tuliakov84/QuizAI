@@ -5,7 +5,7 @@ import com.mipt.domainModel.Interfaces.IUser;
 import java.time.Instant;
 
 public class User implements IUser {
-  public final int userId;
+  public int userId;
   public Game currentGame;
   public Achievement[] achievements;
   public Game[] gamesPlayed;
@@ -20,6 +20,10 @@ public class User implements IUser {
   public int globalPoints;
   public int globalPossiblePoints;
   public int currentGamePoints;
+
+  public User() {
+
+  }
 
   public User(int userId, String password, String username) {
     this.userId = userId;
