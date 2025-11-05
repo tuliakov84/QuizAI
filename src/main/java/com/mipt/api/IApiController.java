@@ -24,11 +24,6 @@ public interface IApiController {
   Question getNextQuestion(String session, int gameId);
   boolean answerQuestion(String session, int gameId, int answerNumber);
 
-  List<Topic> listTopics();
-
-  List<Achievement> getAllAchievements();
   List<Achievement> getUserAchievements(String session);
-
-  List<User> getGlobalRating();
-  List<User> getCurrentGameRating(int gameId);
+  int getUserCurrentRating (String session);
 }
