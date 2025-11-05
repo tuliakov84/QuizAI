@@ -2,7 +2,6 @@ package com.mipt.domainModel;
 
 public class Achievement {
   public int achievementId;
-
   public String name;
   public boolean profilePicNeeded;
   public boolean descriptionNeeded;
@@ -12,10 +11,6 @@ public class Achievement {
   public int currentGamePointsNeeded;
   public int currentGameRatingNeeded;
   public int currentGameLevelDifficultyNeeded;
-
-  public Achievement() {
-
-  }
 
   public Achievement(int achievementId, String name) {
     this.achievementId = achievementId;

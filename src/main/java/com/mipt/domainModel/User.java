@@ -19,10 +19,6 @@ public class User {
   public int globalPossiblePoints;
   public int currentGamePoints;
 
-  public User() {
-
-  }
-
   public User(int userId, String password, String username) {
     this.userId = userId;
     this.password = password;
