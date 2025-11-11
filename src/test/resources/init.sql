@@ -39,10 +39,10 @@ CREATE TABLE IF NOT EXISTS games (
     game_start_time TIMESTAMP,
     game_end_time TIMESTAMP,
     is_private BOOLEAN,
-    level_difficulty SMALLINT CHECK (level_difficulty >= 1 AND level_difficulty <= 3),
+    level_difficulty SMALLINT,
     current_question_number INT,
     number_of_questions INT,
-    participants_number SMALLINT CHECK (participants_number >= 4 AND participants_number <= 15),
+    participants_number SMALLINT,
     topic_id INT REFERENCES topics (id) ON DELETE SET NULL
 );
 
@@ -75,6 +75,6 @@ CREATE TABLE IF NOT EXISTS questions (
 CREATE INDEX topics_idx ON topics USING HASH (name);
 CREATE INDEX users_idx ON users USING HASH (session);
 
-INSERT INTO games (status) VALUES (-1);
+INSERT INTO games (status, participants_number) VALUES (0, 1);
 INSERT INTO topics (name) VALUES ('testTopic');
 INSERT INTO achievements (name) VALUES ('testAchievement');
