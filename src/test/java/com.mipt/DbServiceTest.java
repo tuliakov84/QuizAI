@@ -158,20 +158,40 @@ public class DbServiceTest {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 5, 4, 1);
 
+    // testing getCurrentGame for not existing sessions
     assertThrows(RuntimeException.class, () -> dbService.getCurrentGame("NOT_EXISTING_SESSION"));
 
-    // joining the game for test1
+    // creating 3 users additionally to reach the bound
+    dbService.register("user3", "1");
+    dbService.register("user4", "1");
+    dbService.register("user5", "1");
+    dbService.authorize("user3", "1", "SESSION3");
+    dbService.authorize("user4", "1", "SESSION4");
+    dbService.authorize("user5", "1", "SESSION5");
+
+    // joining the game and checking current participants
     assertNull(dbService.getCurrentGame("SESSION"));
     assertDoesNotThrow(() -> dbService.setCurrentGame("SESSION", gameId));
     assertEquals(gameId, dbService.getCurrentGame("SESSION"));
-
-    // failed joining the game for test2, out of bounds error throwing
+    assertEquals(1, dbService.getCurrentParticipantsNumber(gameId));
     assertNull(dbService.getCurrentGame("SESSION2"));
-    assertThrows(RuntimeException.class, () -> dbService.setCurrentGame("SESSION", 1));
-    assertNull(dbService.getCurrentGame("SESSION2"));
+    assertDoesNotThrow(() -> dbService.setCurrentGame("SESSION2", gameId));
+    assertEquals(gameId, dbService.getCurrentGame("SESSION2"));
+    assertEquals(2, dbService.getCurrentParticipantsNumber(gameId));
+    assertNull(dbService.getCurrentGame("SESSION3"));
+    assertDoesNotThrow(() -> dbService.setCurrentGame("SESSION3", gameId));
+    assertEquals(gameId, dbService.getCurrentGame("SESSION3"));
+    assertEquals(3, dbService.getCurrentParticipantsNumber(gameId));
+    assertNull(dbService.getCurrentGame("SESSION4"));
+    assertDoesNotThrow(() -> dbService.setCurrentGame("SESSION4", gameId));
+    assertEquals(gameId, dbService.getCurrentGame("SESSION4"));
+    assertEquals(4, dbService.getCurrentParticipantsNumber(gameId));
 
-    // checking participants
-    assertEquals(1, dbService.getCurrentParticipantsNumber(gameId)); // working with init game here
+    // failed joining the game for test5, out of bounds error throwing
+    assertNull(dbService.getCurrentGame("SESSION5"));
+    assertThrows(RuntimeException.class, () -> dbService.setCurrentGame("SESSION5", gameId));
+    assertNull(dbService.getCurrentGame("SESSION5"));
+    assertEquals(4, dbService.getCurrentParticipantsNumber(gameId));
   }
 
   @Test
