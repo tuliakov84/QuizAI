@@ -370,7 +370,7 @@ public class DbService {
     if (authorId == null) {
       throw new RuntimeException("Not found"); // null if author not exists
     }
-    if (!(levelDifficulty >= 1 && levelDifficulty <= 3) || !(participantsNumber >= 4 && participantsNumber <= 15)) {
+    if (!(levelDifficulty >= 1 && levelDifficulty <= 3) || participantsNumber < 4) {
       throw new RuntimeException("Bad params"); // null if provided bad initialization params while using method
     }
 
