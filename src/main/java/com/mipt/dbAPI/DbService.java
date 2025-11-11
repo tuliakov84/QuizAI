@@ -253,6 +253,9 @@ public class DbService {
     
     Integer gameId = getCurrentGame(session);
     Integer userId = getUserId(session);
+    if (userId == null) {
+      throw new RuntimeException("Not found"); // if there is no such user
+    }
     if (!(Objects.equals(gameId, null) || Objects.equals(userId, null))) {
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET games_played_number = games_played_number + 1 WHERE session = ?; INSERT INTO games_history (game_id, user_id) VALUES (?, ?);");
       updData.setString(1, session);
