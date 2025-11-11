@@ -522,7 +522,7 @@ public class DbService {
       throw new RuntimeException("Not found"); // if not exists
     }
   }
-  
+
   public Integer getCurrentQuestionNumber(int gameId) throws SQLException {
     // gets the current question number of the game
     
