@@ -1,5 +1,8 @@
 <h1>Документация библиотеки DbService</h1>
 
+<h4>Замечание: Все без исключения методы выбрасывают SQLException. Если не стоит прочерк, то и DatabaseAccessException</h4>
+<h4>Коды исключений DatabaseAccessException прописаны в полях "выбрасывает"</h4>
+
 <h2>Методы пользователя</h2>
 
 **function** checkUserExists  
@@ -27,12 +30,12 @@
 **function** changePassword  
 **описание:** Устанавливает новый пароль для пользователя  
 **принимает:** String session, String newPassword  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 **function** changeProfilePic  
 **описание:** Изменяет аватарку профиля  
 **принимает:** String session, int picId  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 **function** getProfilePic  
 **описание:** Получает ID аватарки профиля  
@@ -55,7 +58,7 @@
 **function** changeDescription  
 **описание:** Изменяет описание профиля  
 **принимает:** String session, String description  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 **function** getDescription  
 **описание:** Получает описание профиля  
@@ -66,7 +69,7 @@
 **function** setLastActivity  
 **описание:** Устанавливает время последней активности  
 **принимает:** String session, Instant time  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 **function** getLastActivity  
 **описание:** Получает время последней активности  
@@ -77,7 +80,7 @@
 **function** setCurrentGame  
 **описание:** Устанавливает текущую игру для пользователя  
 **принимает:** String session, Integer gameId (чтобы снять с игры, указать null)  
-**выбрасывает:** Request is out of bounds, Not found
+**выбрасывает:** Request is out of bounds, Not found (пользователь), Game not found
 
 **function** getCurrentGame  
 **описание:** Получает ID текущей игры пользователя  
@@ -88,7 +91,7 @@
 **function** addGamePlayed  
 **описание:** Добавляет сыгранную игру в историю  
 **принимает:** String session  
-**выбрасывает:** Not found
+**выбрасывает:** Not found (пользователь), Game not found
 
 **function** getGamesPlayed  
 **описание:** Получает историю игр пользователя  
@@ -99,7 +102,7 @@
 **function** addGlobalPoints  
 **описание:** Добавляет глобальные очки пользователю  
 **принимает:** String session, int points  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 **function** getGlobalPoints  
 **описание:** Получает глобальные очки пользователя  
@@ -110,7 +113,7 @@
 **function** addGlobalPossiblePoints  
 **описание:** Добавляет возможные глобальные очки  
 **принимает:** String session, int possiblePoints  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 **function** getGlobalPossiblePoints  
 **описание:** Получает возможные глобальные очки  
@@ -121,7 +124,7 @@
 **function** addCurrentGamePoints  
 **описание:** Добавляет очки в текущей игре  
 **принимает:** String session, int points  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 **function** getCurrentGamePoints  
 **описание:** Получает очки в текущей игре  
@@ -132,7 +135,7 @@
 **function** logOut  
 **описание:** Выход пользователя из системы  
 **принимает:** String session  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 <h2>Методы игры</h2>
 
@@ -140,7 +143,7 @@
 **описание:** Создает новую игровую комнату  
 **принимает:** String sessionOfAuthor, int levelDifficulty, int numberOfQuestions, int participantsNumber, int topicId  
 **возвращает:** Integer gameId  
-**выбрасывает:** Not found, Bad params
+**выбрасывает:** Not found (пользователь), Bad params
 
 **function** checkGameExists  
 **описание:** Проверяет существование игры  
@@ -157,7 +160,7 @@
 **function** setStatus  
 **описание:** Устанавливает статус игры  
 **принимает:** int gameId, int status  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 **function** getStatus  
 **описание:** Получает статус игры  
@@ -168,7 +171,7 @@
 **function** setGameStartTime  
 **описание:** Устанавливает время начала игры  
 **принимает:** int gameId, Instant gameStartTime  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 **function** getGameStartTime  
 **описание:** Получает время начала игры  
@@ -179,7 +182,7 @@
 **function** setPrivate  
 **описание:** Устанавливает приватность игры  
 **принимает:** int gameId, boolean isPrivate  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 **function** getPrivate  
 **описание:** Получает статус приватности игры  
@@ -190,7 +193,7 @@
 **function** setGameEndTime  
 **описание:** Устанавливает время окончания игры  
 **принимает:** int gameId, Instant gameEndTime  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 **function** getGameEndTime  
 **описание:** Получает время окончания игры  
@@ -200,6 +203,11 @@
 
 **function** stopGame  
 **описание:** Останавливает игру  
+**принимает:** int gameId  
+**выбрасывает:** Not found
+
+**function** deleteGame  
+**описание:** Удаляет игру  
 **принимает:** int gameId  
 **выбрасывает:** Not found
 
@@ -213,7 +221,7 @@
 **описание:** Возвращает следующий вопрос в игре  
 **принимает:** int gameId  
 **возвращает:** Question questionObj (null, если вопросов больше нет)  
-**выбрасывает:** Not found
+**выбрасывает:** Not found, Next question not exists
 
 **function** getRightAnswer  
 **описание:** Получает правильный ответ на вопрос  
@@ -224,7 +232,7 @@
 **function** loadQuestions  
 **описание:** Загружает вопросы в игру из JSON (пример показан в ml-answer-example.json)  
 **принимает:** int gameId, JSONArray jsonArr  
-**выбрасывает:** -
+**выбрасывает:** Not found
 
 **function** getGameLeaderboards  
 **описание:** Получает таблицу лидеров текущей игры  
@@ -261,13 +269,13 @@
 **function** attachAchievement  
 **описание:** Прикрепляет достижение пользователю  
 **принимает:** String session, int achievementId  
-**выбрасывает:** Not found
+**выбрасывает:** Not found (пользователь)
 
 **function** checkAchievementAchieved  
 **описание:** Проверяет выполненные достижения на основе статистики, изложенной в объекте achieved  
 **принимает:** String session, Achievement achieved  
 **возвращает:** Integer[] achievementIds  
-**выбрасывает:** Not found
+**выбрасывает:** Not found (пользователь)
 
 **function** getAchievementsOf  
 **описание:** Получает достижения пользователя  

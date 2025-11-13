@@ -58,11 +58,11 @@ public class DbService {
     return rsSelExists.isBeforeFirst(); // true if user already exists, false if not exists
   }
 
-  public void register(String username, String password) throws SQLException {
+  public void register(String username, String password) throws SQLException, DatabaseAccessException {
     // creates an account for a new user
     
     if (checkUserExists(username)) {
-      throw new RuntimeException("User already exists"); // if user already exists
+      throw new DatabaseAccessException("User already exists"); // if user already exists
     }
     String hashedPassword = BCrypt.withDefaults().hashToString(12, password.toCharArray());
     PreparedStatement inpData = conn.prepareStatement("INSERT INTO users" +
@@ -73,7 +73,7 @@ public class DbService {
     inpData.executeUpdate();
   }
 
-  public void authorize(String username, String password, String session) throws SQLException {
+  public void authorize(String username, String password, String session) throws SQLException, DatabaseAccessException {
     // authorizes user
     
     PreparedStatement selExists = conn.prepareStatement("SELECT password FROM users WHERE username = ?");
@@ -87,7 +87,7 @@ public class DbService {
         selSession.setString(1, session);
         ResultSet rsSession = selSession.executeQuery();
         if (rsSession.next()) {
-          throw new RuntimeException("Session key is not unique and already exists in database");
+          throw new DatabaseAccessException("Session key is not unique and already exists in database");
         } else {
           PreparedStatement updData = conn.prepareStatement("UPDATE users SET session = ? WHERE username = ?");
           updData.setString(1, session);
@@ -95,16 +95,20 @@ public class DbService {
           updData.executeUpdate();
         }
       } else {
-        throw new RuntimeException("Wrong password"); // password is wrong
+        throw new DatabaseAccessException("Wrong password"); // password is wrong
       }
     } else {
-      throw new RuntimeException("Not found"); // if user not exists
+      throw new DatabaseAccessException(); // if user not exists
     }
   }
 
-  public void changePassword(String session, String newPassword) throws SQLException {
+  public void changePassword(String session, String newPassword) throws SQLException, DatabaseAccessException {
     // sets new hashed password for user in database
-    
+
+    Integer userId = getUserId(session);
+    if (userId == null) {
+      throw new DatabaseAccessException(); // if there is no such user
+    }
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET password = ? WHERE session = ?");
     String hashedPassword = BCrypt.withDefaults().hashToString(12, newPassword.toCharArray());
     updData.setString(1, hashedPassword);
@@ -113,16 +117,20 @@ public class DbService {
     updData.executeUpdate();
   }
 
-  public void changeProfilePic(String session, int picId) throws SQLException {
+  public void changeProfilePic(String session, int picId) throws SQLException, DatabaseAccessException {
     // changes profile picture. default picture id is 0
-    
+
+    Integer userId = getUserId(session);
+    if (userId == null) {
+      throw new DatabaseAccessException(); // if there is no such user
+    }
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET pic_id = ? WHERE session = ?");
     updData.setInt(1, picId);
     updData.setString(2, session);
     updData.executeUpdate();
   }
 
-  public int getProfilePic(String session) throws SQLException {
+  public int getProfilePic(String session) throws SQLException, DatabaseAccessException {
     // gets profile picture id
     
     PreparedStatement selPic = conn.prepareStatement("SELECT pic_id FROM users WHERE session = ?");
@@ -131,11 +139,11 @@ public class DbService {
     if (rsSession.next()) {
       return rsSession.getInt(1); // picId
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public String getUsername(int userId) throws SQLException {
+  public String getUsername(int userId) throws SQLException, DatabaseAccessException {
     // gets username for userId
 
     PreparedStatement selUsers = conn.prepareStatement("SELECT username FROM users WHERE id = ?");
@@ -144,11 +152,11 @@ public class DbService {
     if (rsUsers.next()) {
       return rsUsers.getString(1);
     } else {
-      throw new RuntimeException("Not found"); // not found
+      throw new DatabaseAccessException(); // not found
     }
   }
 
-  public String getUsername(String session) throws SQLException {
+  public String getUsername(String session) throws SQLException, DatabaseAccessException {
     // gets username for session
 
     PreparedStatement selUsers = conn.prepareStatement("SELECT username FROM users WHERE session = ?");
@@ -157,20 +165,24 @@ public class DbService {
     if (rsUsers.next()) {
       return rsUsers.getString(1);
     } else {
-      throw new RuntimeException("Not found"); // not found
+      throw new DatabaseAccessException(); // not found
     }
   }
 
-  public void changeDescription(String session, String description) throws SQLException {
+  public void changeDescription(String session, String description) throws SQLException, DatabaseAccessException {
     // changes description. default description is null
-    
+
+    Integer userId = getUserId(session);
+    if (userId == null) {
+      throw new DatabaseAccessException(); // if there is no such user
+    }
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET description = ? WHERE session = ?");
     updData.setString(1, description);
     updData.setString(2, session);
     updData.executeUpdate();
   }
 
-  public String getDescription(String session) throws SQLException {
+  public String getDescription(String session) throws SQLException, DatabaseAccessException {
     // gets profile picture id
     
     PreparedStatement selDescription = conn.prepareStatement("SELECT description FROM users WHERE session = ?");
@@ -179,20 +191,24 @@ public class DbService {
     if (rsDescription.next()) {
       return rsDescription.getString(1); // description
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public void setLastActivity(String session, Instant time) throws SQLException {
+  public void setLastActivity(String session, Instant time) throws SQLException, DatabaseAccessException {
     // sets last activity according to the last game played. used by addGamePlayed
-    
+
+    Integer userId = getUserId(session);
+    if (userId == null) {
+      throw new DatabaseAccessException(); // if there is no such user
+    }
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET last_activity = ? WHERE session = ?");
     updData.setTimestamp(1, Timestamp.from(time));
     updData.setString(2, session);
     updData.executeUpdate();
   }
 
-  public Timestamp getLastActivity(String session) throws SQLException {
+  public Timestamp getLastActivity(String session) throws SQLException, DatabaseAccessException {
     // gets last activity
     
     PreparedStatement selLastActivity = conn.prepareStatement("SELECT last_activity FROM users WHERE session = ?");
@@ -201,14 +217,19 @@ public class DbService {
     if (rsLastActivity.next()) {
       return rsLastActivity.getTimestamp(1); // lastActivity timestamp
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public void setCurrentGame(String session, Integer gameId) throws SQLException {
+  public void setCurrentGame(String session, Integer gameId) throws SQLException, DatabaseAccessException {
     // sets current game. used by createGame while creating, public used while joining
     // checks for the bounds in the game: if not out of the participantsNumber, and only if game status is 0
     // to clear the current game, gameId = null should be set
+
+    Integer userId = getUserId(session);
+    if (userId == null) {
+      throw new DatabaseAccessException(); // if there is no such user
+    }
 
     if (gameId == null) {
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_id = NULL WHERE session = ?");
@@ -221,7 +242,7 @@ public class DbService {
       if (rsParticipantsNumber.next()) {
         Integer participantsNumber = rsParticipantsNumber.getInt(1);
         if (Objects.equals(getCurrentParticipantsNumber(gameId), participantsNumber)) {
-          throw new RuntimeException("Request is out of bounds"); // the request is out of the maximum participants number bound
+          throw new DatabaseAccessException("Request is out of bounds"); // the request is out of the maximum participants number bound
         } else {
           PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_id = ? WHERE session = ?");
           updData.setInt(1, gameId);
@@ -229,12 +250,12 @@ public class DbService {
           updData.executeUpdate();
         }
       } else {
-        throw new RuntimeException("Not found"); // game not found / the game is not with 0 status (already started)
+        throw new DatabaseAccessException("Game not found"); // game not found / the game is not with 0 status (already started)
       }
     }
   }
 
-  public Integer getCurrentGame(String session) throws SQLException {
+  public Integer getCurrentGame(String session) throws SQLException, DatabaseAccessException {
     // gets current game
     
     PreparedStatement selCurrentGame = conn.prepareStatement("SELECT current_game_id FROM users WHERE session = ?");
@@ -244,34 +265,36 @@ public class DbService {
       int res = rsCurrentGame.getInt(1);
       return res == 0 ? null : res; // gameId, null if is not in game
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public void addGamePlayed(String session) throws SQLException {
+  public void addGamePlayed(String session) throws SQLException, DatabaseAccessException {
     // adds a new game played
     
     Integer gameId = getCurrentGame(session);
     Integer userId = getUserId(session);
     if (userId == null) {
-      throw new RuntimeException("Not found"); // if there is no such user
+      throw new DatabaseAccessException(); // if there is no such user
     }
-    if (!(Objects.equals(gameId, null) || Objects.equals(userId, null))) {
+    if (!(Objects.equals(gameId, null))) {
       PreparedStatement updData = conn.prepareStatement("UPDATE users SET games_played_number = games_played_number + 1 WHERE session = ?; INSERT INTO games_history (game_id, user_id) VALUES (?, ?);");
       updData.setString(1, session);
       updData.setInt(2, gameId);
       updData.setInt(3, userId);
 
       updData.executeUpdate();
+    } else {
+      throw new DatabaseAccessException("Game not found");
     }
   }
 
-  public Integer[] getGamesPlayed(String session) throws SQLException {
+  public Integer[] getGamesPlayed(String session) throws SQLException, DatabaseAccessException {
     // collects all the data about user's game history
     
     Integer userId = getUserId(session);
     if (userId == null) {
-      throw new RuntimeException("Not found"); // if there is no such user
+      throw new DatabaseAccessException(); // if there is no such user
     }
     List<Integer> gameList = new ArrayList<>();
     PreparedStatement selGamesHistory = conn.prepareStatement("SELECT game_id FROM games_history WHERE user_id = ?");
@@ -284,16 +307,20 @@ public class DbService {
     return gameList.isEmpty() ? null : gameList.toArray(new Integer[0]);
   }
 
-  public void addGlobalPoints(String session, int points) throws SQLException {
+  public void addGlobalPoints(String session, int points) throws SQLException, DatabaseAccessException {
     // adds global points to the user's statistics data
-    
+
+    Integer userId = getUserId(session);
+    if (userId == null) {
+      throw new DatabaseAccessException(); // if there is no such user
+    }
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET global_points = global_points + ? WHERE session = ?");
     updData.setInt(1, points);
     updData.setString(2, session);
     updData.executeUpdate();
   }
 
-  public Integer getGlobalPoints(String session) throws SQLException {
+  public Integer getGlobalPoints(String session) throws SQLException, DatabaseAccessException {
     // gets global points
     
     PreparedStatement selGlobalPoints = conn.prepareStatement("SELECT global_points FROM users WHERE session = ?");
@@ -302,20 +329,24 @@ public class DbService {
     if (rsGlobalPoints.next()) {
       return rsGlobalPoints.getInt(1); // globalPoints
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public void addGlobalPossiblePoints(String session, int possiblePoints) throws SQLException {
+  public void addGlobalPossiblePoints(String session, int possiblePoints) throws SQLException, DatabaseAccessException {
     // adds global possible points to the user's statistics data
-    
+
+    Integer userId = getUserId(session);
+    if (userId == null) {
+      throw new DatabaseAccessException(); // if there is no such user
+    }
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET global_possible_points = global_possible_points + ? WHERE session = ?");
     updData.setInt(1, possiblePoints);
     updData.setString(2, session);
     updData.executeUpdate();
   }
 
-  public Integer getGlobalPossiblePoints(String session) throws SQLException {
+  public Integer getGlobalPossiblePoints(String session) throws SQLException, DatabaseAccessException {
     // gets global possible points
     
     PreparedStatement selGlobalPossiblePoints = conn.prepareStatement("SELECT global_possible_points FROM users WHERE session = ?");
@@ -324,20 +355,24 @@ public class DbService {
     if (rsGlobalPossiblePoints.next()) {
       return rsGlobalPossiblePoints.getInt(1); // globalPossiblePoints
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public void addCurrentGamePoints(String session, int points) throws SQLException {
+  public void addCurrentGamePoints(String session, int points) throws SQLException, DatabaseAccessException {
     // adds current game points to the user's statistics data
-    
+
+    Integer userId = getUserId(session);
+    if (userId == null) {
+      throw new DatabaseAccessException(); // if there is no such user
+    }
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_points = current_game_points + ? WHERE session = ?");
     updData.setInt(1, points);
     updData.setString(2, session);
     updData.executeUpdate();
   }
 
-  public Integer getCurrentGamePoints(String session) throws SQLException {
+  public Integer getCurrentGamePoints(String session) throws SQLException, DatabaseAccessException {
     // gets current game points
     
     PreparedStatement selCurrentGamePoints = conn.prepareStatement("SELECT current_game_points FROM users WHERE session = ?");
@@ -346,14 +381,18 @@ public class DbService {
     if (rsCurrentGamePoints.next()) {
       return rsCurrentGamePoints.getInt(1); // currentGamePoints
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public void logOut(String session) throws SQLException {
+  public void logOut(String session) throws SQLException, DatabaseAccessException {
     // erases the session info in the users data
     // adds global points to the user's statistics data
-    
+
+    Integer userId = getUserId(session);
+    if (userId == null) {
+      throw new DatabaseAccessException(); // if there is no such user
+    }
     PreparedStatement updData = conn.prepareStatement("UPDATE users SET session = NULL WHERE session = ?");
     updData.setString(1, session);
     updData.executeUpdate();
@@ -363,15 +402,15 @@ public class DbService {
   // Games TABLE REFERRED METHODS
   //
 
-  public Integer createGame(String sessionOfAuthor, int levelDifficulty, int numberOfQuestions, int participantsNumber, int topicId) throws SQLException {
+  public Integer createGame(String sessionOfAuthor, int levelDifficulty, int numberOfQuestions, int participantsNumber, int topicId) throws SQLException, DatabaseAccessException {
     // creates the game room, returns gameId
     // default isPrivate = true
     Integer authorId = getUserId(sessionOfAuthor);
     if (authorId == null) {
-      throw new RuntimeException("Not found"); // null if author not exists
+      throw new DatabaseAccessException(); // if author not exists
     }
     if (!(levelDifficulty >= 1 && levelDifficulty <= 3) || participantsNumber < 4) {
-      throw new RuntimeException("Bad params"); // null if provided bad initialization params while using method
+      throw new DatabaseAccessException("Bad params"); // if provided bad initialization params while using method
     }
 
     PreparedStatement inpGame = conn.prepareStatement("INSERT INTO games " +
@@ -402,9 +441,9 @@ public class DbService {
     return rsSelExists.isBeforeFirst(); // true if game exists, false if not exists
   }
 
-  public Integer[] getPreset(int gameId) throws SQLException {
+  public Integer[] getPreset(int gameId) throws SQLException, DatabaseAccessException {
     // gets the preset of the game (authorId, levelDifficulty, numberOfQuestions, participantsNumber, topicId)
-    
+
     PreparedStatement selPreset = conn.prepareStatement("SELECT author_id, level_difficulty, number_of_questions, participants_number, topic_id FROM games WHERE id = ?");
     selPreset.setInt(1, gameId);
     ResultSet rsPreset = selPreset.executeQuery();
@@ -417,21 +456,24 @@ public class DbService {
       preset[4] = rsPreset.getInt("topic_id");
       return preset;
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public void setStatus(int gameId, int status) throws SQLException {
+  public void setStatus(int gameId, int status) throws SQLException, DatabaseAccessException {
     // sets status for the game
     // 0 - pending, 1 - paused, 2 - active, 3 - ended
-    
+
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException(); // game not found
+    }
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET status = ? WHERE id = ?");
     updData.setInt(1, status);
     updData.setInt(2, gameId);
     updData.executeUpdate();
   }
 
-  public Integer getStatus(int gameId) throws SQLException {
+  public Integer getStatus(int gameId) throws SQLException, DatabaseAccessException {
     // gets status for the game
     
     PreparedStatement selStatus = conn.prepareStatement("SELECT status FROM games WHERE id = ?");
@@ -440,20 +482,23 @@ public class DbService {
     if (rsStatus.next()) {
       return rsStatus.getInt(1); // status: 0 - pending, 1 - paused, 2 - active, 3 - ended
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public void setGameStartTime(int gameId, Instant gameStartTime) throws SQLException {
+  public void setGameStartTime(int gameId, Instant gameStartTime) throws SQLException, DatabaseAccessException {
     // sets the time of start of the game
-    
+
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException(); // game not found
+    }
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET game_start_time = ? WHERE id = ?");
     updData.setTimestamp(1, Timestamp.from(gameStartTime));
     updData.setInt(2, gameId);
     updData.executeUpdate();
   }
 
-  public Timestamp getGameStartTime(int gameId) throws SQLException {
+  public Timestamp getGameStartTime(int gameId) throws SQLException, DatabaseAccessException {
     // gets the time of start of the game
     
     PreparedStatement selTime = conn.prepareStatement("SELECT game_start_time FROM games WHERE id = ?");
@@ -462,20 +507,23 @@ public class DbService {
     if (rsTime.next()) {
       return rsTime.getTimestamp(1); // timestamp
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public void setPrivate(int gameId, boolean isPrivate) throws SQLException {
+  public void setPrivate(int gameId, boolean isPrivate) throws SQLException, DatabaseAccessException {
     // sets the privateness option for the game
-    
+
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException(); // game not found
+    }
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET is_private = ? WHERE id = ?");
     updData.setBoolean(1, isPrivate);
     updData.setInt(2, gameId);
     updData.executeUpdate();
   }
 
-  public Boolean getPrivate(int gameId) throws SQLException {
+  public Boolean getPrivate(int gameId) throws SQLException, DatabaseAccessException {
     // gets the privateness option of the game
     
     PreparedStatement selPrivate = conn.prepareStatement("SELECT is_private FROM games WHERE id = ?");
@@ -484,20 +532,23 @@ public class DbService {
     if (rsTime.next()) {
       return rsTime.getBoolean(1); // true - is private, false - is not
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public void setGameEndTime(int gameId, Instant gameEndTime) throws SQLException {
+  public void setGameEndTime(int gameId, Instant gameEndTime) throws SQLException, DatabaseAccessException {
     // sets the time of ending for the game
-    
+
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException(); // game not found
+    }
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET game_end_time = ? WHERE id = ?");
     updData.setTimestamp(1, Timestamp.from(gameEndTime));
     updData.setInt(2, gameId);
     updData.executeUpdate();
   }
 
-  public Timestamp getGameEndTime(int gameId) throws SQLException {
+  public Timestamp getGameEndTime(int gameId) throws SQLException, DatabaseAccessException {
     // gets time of end of the game
     
     PreparedStatement selTime = conn.prepareStatement("SELECT game_end_time FROM games WHERE id = ?");
@@ -506,15 +557,14 @@ public class DbService {
     if (rsTime.next()) {
       return rsTime.getTimestamp(1); // timestamp
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public void stopGame(int gameId) throws SQLException {
+  public void stopGame(int gameId) throws SQLException, DatabaseAccessException {
     // stops the game in Games table, must be used with addGamePlayed
 
-    Integer gameStatus = getStatus(gameId);
-    if (gameStatus != null) {
+    if (checkGameExists(gameId)) {
       setStatus(gameId, 3);
       setGameEndTime(gameId, Instant.now());
 
@@ -522,11 +572,25 @@ public class DbService {
       updData.setInt(1, gameId);
       updData.executeUpdate();
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public Integer getCurrentQuestionNumber(int gameId) throws SQLException {
+  public void deleteGame(int gameId) throws SQLException, DatabaseAccessException {
+    // deletes the game
+
+    if (checkGameExists(gameId)) {
+      PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_id = NULL WHERE current_game_id = ?; " +
+          "DELETE FROM games WHERE id = ?");
+      updData.setInt(1, gameId);
+      updData.setInt(2, gameId);
+      updData.executeUpdate();
+    } else {
+      throw new DatabaseAccessException(); // if not exists
+    }
+  }
+
+  public Integer getCurrentQuestionNumber(int gameId) throws SQLException, DatabaseAccessException {
     // gets the current question number of the game
     
     PreparedStatement selCurrQuestion = conn.prepareStatement("SELECT current_question_number FROM games WHERE id = ?");
@@ -535,12 +599,15 @@ public class DbService {
     if (rsCurrQuestion.next()) {
       return rsCurrQuestion.getInt(1); // currentQuestionNumber
     } else {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
   }
 
-  public Question nextQuestion(int gameId) throws SQLException {
+  public Question nextQuestion(int gameId) throws SQLException, DatabaseAccessException {
     // returns a new object of next question
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException(); // game not found
+    }
 
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET current_question_number = current_question_number + 1 WHERE id = ?");
     updData.setInt(1, gameId);
@@ -553,7 +620,7 @@ public class DbService {
     if (rsCurrentNum.next()) {
       currentNum = rsCurrentNum.getInt(1);
     } else {
-      throw new RuntimeException("Not found");
+      throw new DatabaseAccessException(); // game not found
     }
 
     PreparedStatement selQuestion = conn.prepareStatement("SELECT question_text, answer1, answer2, answer3, answer4" +
@@ -572,14 +639,19 @@ public class DbService {
 
       return questionObj; // Question
     } else {
-      throw new RuntimeException("Not found");
+      throw new DatabaseAccessException("Next question not exists"); // questions not found
     }
   }
 
-  public Integer getRightAnswer(int gameId, int questionNumber) throws SQLException {
+  public Integer getRightAnswer(int gameId, int questionNumber) throws SQLException, DatabaseAccessException {
+    // gets right answer for a question number
+
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException(); // game not found
+    }
     Integer gameStatus = getStatus(gameId);
     if (gameStatus != 2) {
-      throw new RuntimeException("Game is not active"); // if game is not active
+      throw new DatabaseAccessException("Game is not active"); // if game is not active
     }
     PreparedStatement selRight = conn.prepareStatement("SELECT right_answer_number FROM questions WHERE question_number = ? AND game_id = ?");
     selRight.setInt(1, questionNumber);
@@ -588,15 +660,19 @@ public class DbService {
     if (rsRight.next()) {
       return rsRight.getInt(1);
     } else {
-      throw new RuntimeException("Not found");
+      throw new DatabaseAccessException();
     }
   }
 
 
-  public void loadQuestions(int gameId, JSONArray jsonArr) throws SQLException {
+  public void loadQuestions(int gameId, JSONArray jsonArr) throws SQLException, DatabaseAccessException {
     // example of json argument is described in the documentation catalog
     // loads questions data from json and commits it into the database
-    
+
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException(); // game not found
+    }
+
     final int ANSWER_AMOUNT = 4;
 
     for (int i = 0; i < jsonArr.length(); i++) {
@@ -623,14 +699,14 @@ public class DbService {
     }
   }
 
-  public JSONArray getGameLeaderboards(int gameId) throws SQLException {
+  public JSONArray getGameLeaderboards(int gameId) throws SQLException, DatabaseAccessException {
     // gets leaderboards of current game as JSONArray
     // return [[username, currentGamePoints], ...] // example : [["ultra_evgeniy1337", 1500], ["alexander_under", 1250], ...]
 
-    Integer gameStatus = getStatus(gameId);
-    if (gameStatus == null) {
-      throw new RuntimeException("Not found"); // null if game not exists
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException(); // game not found
     }
+
     PreparedStatement selUsers = conn.prepareStatement("SELECT username, current_game_points FROM users " +
         "WHERE current_game_id = ? ORDER BY current_game_points DESC");
     selUsers.setInt(1, gameId);
@@ -664,20 +740,23 @@ public class DbService {
     return res;
   }
 
-  public Integer getCurrentParticipantsNumber(int gameId) throws SQLException {
+  public Integer getCurrentParticipantsNumber(int gameId) throws SQLException, DatabaseAccessException {
     // gets current participants number by gameId
 
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException(); // game not found
+    }
     PreparedStatement selUsers = conn.prepareStatement("SELECT COUNT(id) FROM users WHERE current_game_id = ?");
     selUsers.setInt(1, gameId);
     ResultSet rsUsers = selUsers.executeQuery();
     if (rsUsers.next()) {
       return rsUsers.getInt(1);
     } else {
-      throw new RuntimeException("Not found"); // not found
+      throw new DatabaseAccessException();
     }
   }
 
-  public JSONArray getOpenGames() throws SQLException {
+  public JSONArray getOpenGames() throws SQLException, DatabaseAccessException {
     // gets currently open games as JSONArray, sorted by id ascending
     // return [[gameId, topicId, currentParticipantsNumber, participantsNumber], ...]
     // example : [[25, 2, 4, 5], [36, 3, 4, 6], ...]
@@ -728,7 +807,7 @@ public class DbService {
     }
   }
   
-  public void attachAchievement(String session, int achievementId) throws SQLException {
+  public void attachAchievement(String session, int achievementId) throws SQLException, DatabaseAccessException {
     // attaches achievement to user
     
     Integer userId = getUserId(session);
@@ -739,17 +818,17 @@ public class DbService {
       
       inpAchvm.executeUpdate();
     } else {
-      throw new RuntimeException("Not found");
+      throw new DatabaseAccessException();
     }
   }
 
-  public Integer[] checkAchievementAchieved(String session, Achievement achieved) throws SQLException {
+  public Integer[] checkAchievementAchieved(String session, Achievement achieved) throws SQLException, DatabaseAccessException {
     // checks if achievement achieved, params of actions user achieved need to be specified in (Achievement) fields
     // returns id list of achievements
     
     Integer userId = getUserId(session);
     if (userId == null) {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
     ArrayList<Integer> res = new ArrayList<>();
 
@@ -781,12 +860,12 @@ public class DbService {
     return res.toArray(new Integer[0]);
   }
 
-  public Integer[] getAchievementsOf(String session) throws SQLException {
+  public Integer[] getAchievementsOf(String session) throws SQLException, DatabaseAccessException {
     // returns id list of achievements user already have
 
     Integer userId = getUserId(session);
     if (userId == null) {
-      throw new RuntimeException("Not found"); // if not exists
+      throw new DatabaseAccessException(); // if not exists
     }
     ArrayList<Integer> res = new ArrayList<>();
     PreparedStatement selAchievement = conn.prepareStatement("SELECT achievement_id FROM user_achievements WHERE user_id = ? ORDER BY achievement_id ASC");
@@ -799,7 +878,7 @@ public class DbService {
     return res.toArray(new Integer[0]);
   }
 
-  public Achievement getAchievementById(int achievementId) throws SQLException {
+  public Achievement getAchievementById(int achievementId) throws SQLException, DatabaseAccessException {
     // returns achievement object by id
 
     PreparedStatement selAchievement = conn.prepareStatement("SELECT * FROM achievements WHERE id = ?");
@@ -821,7 +900,7 @@ public class DbService {
 
       return achievementObj;
     } else {
-      throw new RuntimeException("Not found"); // not found
+      throw new DatabaseAccessException(); // not found
     }
   }
 
@@ -879,7 +958,7 @@ public class DbService {
     }
   }
 
-  public Topic getTopicById(int id) throws SQLException {
+  public Topic getTopicById(int id) throws SQLException, DatabaseAccessException {
     // returns topic object by id
     
     Topic topic = new Topic();
@@ -892,7 +971,7 @@ public class DbService {
       topic.name = rsInpTopic.getString(1);
       return topic;
     } else {
-      throw new RuntimeException("Not found");
+      throw new DatabaseAccessException();
     }
   }
 

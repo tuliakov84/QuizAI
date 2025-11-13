@@ -1,5 +1,6 @@
 package com.mipt;
 
+import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Achievement;
 import org.json.JSONArray;
@@ -115,7 +116,7 @@ public class DbServicePerformanceTest {
 
   @Test
   @Order(2)
-  void testConcurrentUserAuthorization() throws InterruptedException, SQLException {
+  void testConcurrentUserAuthorization() throws InterruptedException, SQLException, DatabaseAccessException {
     // Тест производительности авторизации пользователей
     // Проверяем выдержку не менее 100 пользователей в минуту
     int numberOfUsers = 120;
@@ -164,7 +165,7 @@ public class DbServicePerformanceTest {
 
   @Test
   @Order(3)
-  void testFrequentSessionValidation() throws InterruptedException, SQLException {
+  void testFrequentSessionValidation() throws InterruptedException, SQLException, DatabaseAccessException {
     // Тест производительности частых проверок сессий (getUserId)
     int numberOfUsers = 30;
     int operationsPerUser = 100;
@@ -215,7 +216,7 @@ public class DbServicePerformanceTest {
 
   @Test
   @Order(4)
-  void testConcurrentGameCreation() throws InterruptedException, SQLException {
+  void testConcurrentGameCreation() throws InterruptedException, SQLException, DatabaseAccessException {
     // Тест производительности создания игр
     // Проверяем выдержку не менее 100 операций в минуту
     int numberOfGames = 120;
@@ -271,7 +272,7 @@ public class DbServicePerformanceTest {
 
   @Test
   @Order(5)
-  void testBulkQuestionLoading() throws SQLException {
+  void testBulkQuestionLoading() throws SQLException, DatabaseAccessException {
     // Тест производительности загрузки большого количества вопросов
     dbService.register("questionLoader", "pass");
     dbService.authorize("questionLoader", "pass", "loaderSession");
@@ -319,7 +320,7 @@ public class DbServicePerformanceTest {
 
   @Test
   @Order(6)
-  void testFrequentPointsUpdates() throws InterruptedException, SQLException {
+  void testFrequentPointsUpdates() throws InterruptedException, SQLException, DatabaseAccessException {
     // Тест производительности частых обновлений очков
     int numberOfUsers = 20;
     int updatesPerUser = 50;
@@ -376,7 +377,7 @@ public class DbServicePerformanceTest {
 
   @Test
   @Order(7)
-  void testLeaderboardQueriesUnderLoad() throws InterruptedException, SQLException {
+  void testLeaderboardQueriesUnderLoad() throws InterruptedException, SQLException, DatabaseAccessException {
     // Тест производительности запросов лидербордов под нагрузкой
     int numberOfUsers = 30;
     int queriesPerUser = 20;
@@ -438,7 +439,7 @@ public class DbServicePerformanceTest {
 
   @Test
   @Order(8)
-  void testConcurrentGameJoining() throws InterruptedException, SQLException {
+  void testConcurrentGameJoining() throws InterruptedException, SQLException, DatabaseAccessException {
     // Тест производительности одновременного присоединения к игре
     // Проверяем выдержку не менее 100 операций в минуту
     int numberOfGames = 10;
@@ -503,7 +504,7 @@ public class DbServicePerformanceTest {
 
   @Test
   @Order(9)
-  void testGetOpenGamesPerformance() throws SQLException, InterruptedException {
+  void testGetOpenGamesPerformance() throws SQLException, InterruptedException, DatabaseAccessException {
     // Тест производительности получения списка открытых игр
     int numberOfOpenGames = 50;
     int numberOfQueries = 100;
@@ -556,7 +557,7 @@ public class DbServicePerformanceTest {
 
   @Test
   @Order(10)
-  void testAchievementCheckPerformance() throws SQLException, InterruptedException {
+  void testAchievementCheckPerformance() throws SQLException, InterruptedException, DatabaseAccessException {
     // Тест производительности проверки достижений
     int numberOfUsers = 20;
     int checksPerUser = 10;
@@ -629,7 +630,7 @@ public class DbServicePerformanceTest {
 
   @Test
   @Order(11)
-  void testMixedWorkload() throws SQLException, InterruptedException {
+  void testMixedWorkload() throws SQLException, InterruptedException, DatabaseAccessException {
     // Комплексный тест смешанной нагрузки
     int numberOfOperations = 200;
     int threadPoolSize = 30;

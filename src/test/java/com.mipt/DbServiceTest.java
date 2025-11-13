@@ -1,5 +1,6 @@
 package com.mipt;
 
+import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Achievement;
 import com.mipt.domainModel.Question;
@@ -52,28 +53,28 @@ public class DbServiceTest {
   }
 
   @BeforeEach
-  void setInitRecords() throws SQLException {
+  void setInitRecords() throws SQLException, DatabaseAccessException {
     // creating users
     assertFalse(dbService.checkUserExists("test1"));
     assertDoesNotThrow(() -> dbService.register("test1", "12345"));
     assertTrue(dbService.checkUserExists("test1"));
-    assertThrows(RuntimeException.class, () -> dbService.register("test1", "12345678"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.register("test1", "12345678"));
 
     assertFalse(dbService.checkUserExists("test2"));
     assertDoesNotThrow(() -> dbService.register("test2", "1234"));
     assertTrue(dbService.checkUserExists("test2"));
-    assertThrows(RuntimeException.class, () -> dbService.register("test2", "1234567"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.register("test2", "1234567"));
 
     // authorizing users
     assertNull(dbService.getUserId("SESSION"));
-    assertThrows(RuntimeException.class, () -> dbService.authorize("notExistingTestUser", "1234", "SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("notExistingTestUser", "1234", "SESSION"));
     assertNull(dbService.getUserId("SESSION"));
-    assertThrows(RuntimeException.class, () -> dbService.authorize("test1", "12345wrong", "SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("test1", "12345wrong", "SESSION"));
     assertNull(dbService.getUserId("SESSION"));
 
     assertDoesNotThrow(() -> dbService.authorize("test1", "12345", "SESSION"));
     assertNotNull(dbService.getUserId("SESSION"));
-    assertThrows(RuntimeException.class, () -> dbService.authorize("test1", "12345", "SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("test1", "12345", "SESSION"));
 
     assertDoesNotThrow(() -> dbService.authorize("test2", "1234", "SESSION2"));
 
@@ -82,7 +83,7 @@ public class DbServiceTest {
   }
 
   @AfterEach
-  void eraseRecords() throws SQLException {
+  void eraseRecords() throws SQLException, DatabaseAccessException {
     // deleting all data
     dbService.eraseAllData("DELETE_ALL_RECORDS_IN_DATABASE");
   }
@@ -91,12 +92,12 @@ public class DbServiceTest {
   // Users TEST UNITS
   //
 
-
   @Test
-  void testLogOut() throws SQLException {
+  void testLogOut() throws SQLException, DatabaseAccessException {
     assertNotNull(dbService.getUserId("SESSION"));
     assertNotNull(dbService.getUserId("SESSION2"));
 
+    assertThrows(DatabaseAccessException.class, () -> dbService.logOut("NOT_EXISTING_SESSION"));
     dbService.logOut("SESSION");
     dbService.logOut("SESSION2");
 
@@ -108,22 +109,26 @@ public class DbServiceTest {
   }
 
   @Test
-  void testChangePassword() throws SQLException {
+  void testChangePassword() throws SQLException, DatabaseAccessException {
+    assertThrows(DatabaseAccessException.class, () -> dbService.changePassword("NOT_EXISTING_SESSION", "1"));
+
     dbService.changePassword("SESSION", "12345new");
     dbService.changePassword("SESSION2", "1234new");
 
     dbService.logOut("SESSION");
-    assertThrows(RuntimeException.class, () -> dbService.authorize("test1", "12345", "SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("test1", "12345", "SESSION"));
     assertDoesNotThrow(() -> dbService.authorize("test1", "12345new", "SESSION"));
 
     dbService.logOut("SESSION2");
-    assertThrows(RuntimeException.class, () -> dbService.authorize("test2", "1234", "SESSION2"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("test2", "1234", "SESSION2"));
     assertDoesNotThrow(() -> dbService.authorize("test2", "1234new", "SESSION2"));
   }
 
   @Test
-  void testChangeProfilePic_GetProfilePic() throws SQLException {
-    assertThrows(RuntimeException.class, () -> dbService.getProfilePic("NOT_EXISTING_SESSION"));
+  void testChangeProfilePic_GetProfilePic() throws SQLException, DatabaseAccessException {
+    assertThrows(DatabaseAccessException.class, () -> dbService.changeProfilePic("NOT_EXISTING_SESSION", 1));
+
+    assertThrows(DatabaseAccessException.class, () -> dbService.getProfilePic("NOT_EXISTING_SESSION"));
     assertEquals(0, dbService.getProfilePic("SESSION"));
     dbService.changeProfilePic("SESSION", 1);
     dbService.changeProfilePic("SESSION2", 2);
@@ -132,8 +137,10 @@ public class DbServiceTest {
   }
 
   @Test
-  void testChangeDescription_GetDescription() throws SQLException {
-    assertThrows(RuntimeException.class, () -> dbService.getDescription("NOT_EXISTING_SESSION"));
+  void testChangeDescription_GetDescription() throws SQLException, DatabaseAccessException {
+    assertThrows(DatabaseAccessException.class, () -> dbService.changeDescription("NOT_EXISTING_SESSION", "123"));
+
+    assertThrows(DatabaseAccessException.class, () -> dbService.getDescription("NOT_EXISTING_SESSION"));
     assertEquals("", dbService.getDescription("SESSION"));
     dbService.changeDescription("SESSION", "testDescription");
     assertEquals("testDescription", dbService.getDescription("SESSION"));
@@ -142,8 +149,10 @@ public class DbServiceTest {
   }
 
   @Test
-  void testSetLastActivity_GetLastActivity() throws SQLException {
-    assertThrows(RuntimeException.class, () -> dbService.getLastActivity("NOT_EXISTING_SESSION"));
+  void testSetLastActivity_GetLastActivity() throws SQLException, DatabaseAccessException {
+    assertThrows(DatabaseAccessException.class, () -> dbService.setLastActivity("NOT_EXISTING_SESSION", Instant.ofEpochSecond(1)));
+
+    assertThrows(DatabaseAccessException.class, () -> dbService.getLastActivity("NOT_EXISTING_SESSION"));
     assertNull(dbService.getLastActivity("SESSION"));
     dbService.setLastActivity("SESSION", Instant.ofEpochSecond(1));
     assertNull(dbService.getLastActivity("SESSION2"));
@@ -154,12 +163,13 @@ public class DbServiceTest {
   }
 
   @Test
-  void testSetCurrentGame_GetCurrentGame_GetCurrentParticipantsNumber() throws SQLException {
+  void testSetCurrentGame_GetCurrentGame_GetCurrentParticipantsNumber() throws SQLException, DatabaseAccessException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 5, 4, 1);
 
     // testing getCurrentGame for not existing sessions
-    assertThrows(RuntimeException.class, () -> dbService.getCurrentGame("NOT_EXISTING_SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.setCurrentGame("NOT_EXISTING_SESSION", gameId));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getCurrentGame("NOT_EXISTING_SESSION"));
 
     // creating 3 users additionally to reach the bound
     dbService.register("user3", "1");
@@ -189,15 +199,15 @@ public class DbServiceTest {
 
     // failed joining the game for test5, out of bounds error throwing
     assertNull(dbService.getCurrentGame("SESSION5"));
-    assertThrows(RuntimeException.class, () -> dbService.setCurrentGame("SESSION5", gameId));
+    assertThrows(DatabaseAccessException.class, () -> dbService.setCurrentGame("SESSION5", gameId));
     assertNull(dbService.getCurrentGame("SESSION5"));
     assertEquals(4, dbService.getCurrentParticipantsNumber(gameId));
   }
 
   @Test
-  void testAddGamePlayed_GetGamesPlayed() throws SQLException {
+  void testAddGamePlayed_GetGamesPlayed() throws SQLException, DatabaseAccessException {
     // test working OUT OF THE GAME
-    dbService.addGamePlayed("SESSION");
+    assertThrows(DatabaseAccessException.class, () -> dbService.addGamePlayed("SESSION"));
     assertNull(dbService.getGamesPlayed("SESSION")); // NOT IN GAME
 
     // test working IN GAME
@@ -206,8 +216,8 @@ public class DbServiceTest {
     Integer gameId = dbService.createGame("SESSION", 1, 5, 4, 1);
 
     // testing not existing sessions
-    assertThrows(RuntimeException.class, () -> dbService.addGamePlayed("NOT_EXISTING_SESSION"));
-    assertThrows(RuntimeException.class, () -> dbService.getGamesPlayed("NOT_EXISTING_SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.addGamePlayed("NOT_EXISTING_SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getGamesPlayed("NOT_EXISTING_SESSION"));
 
     // joining the game
     assertNull(dbService.getCurrentGame("SESSION"));
@@ -228,7 +238,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testAddGlobalPoints_GetGlobalPoints() throws SQLException {
+  void testAddGlobalPoints_GetGlobalPoints() throws SQLException, DatabaseAccessException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 5, 4, 1);
 
@@ -241,7 +251,8 @@ public class DbServiceTest {
     assertEquals(gameId, dbService.getCurrentGame("SESSION2"));
 
     // testing not existing sessions
-    assertThrows(RuntimeException.class, () -> dbService.getGlobalPoints("NOT_EXISTING_SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.addGlobalPoints("NOT_EXISTING_SESSION", 9999));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getGlobalPoints("NOT_EXISTING_SESSION"));
 
     // adding global points
     assertEquals(0, dbService.getGlobalPoints("SESSION"));
@@ -253,7 +264,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testAddGlobalPossiblePoints_GetGlobalPossiblePoints() throws SQLException {
+  void testAddGlobalPossiblePoints_GetGlobalPossiblePoints() throws SQLException, DatabaseAccessException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 5, 4, 1);
 
@@ -266,7 +277,8 @@ public class DbServiceTest {
     assertEquals(gameId, dbService.getCurrentGame("SESSION2"));
 
     // testing not existing sessions
-    assertThrows(RuntimeException.class, () -> dbService.getGlobalPossiblePoints("NOT_EXISTING_SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.addGlobalPossiblePoints("NOT_EXISTING_SESSION", 9999));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getGlobalPossiblePoints("NOT_EXISTING_SESSION"));
 
     // adding global possible points
     assertEquals(0, dbService.getGlobalPossiblePoints("SESSION"));
@@ -278,7 +290,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testAddCurrentGamePoints_GetCurrentGamePoints() throws SQLException {
+  void testAddCurrentGamePoints_GetCurrentGamePoints() throws SQLException, DatabaseAccessException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 5, 4, 1);
 
@@ -291,7 +303,8 @@ public class DbServiceTest {
     assertEquals(gameId, dbService.getCurrentGame("SESSION2"));
 
     // testing not existing sessions
-    assertThrows(RuntimeException.class, () -> dbService.getCurrentGamePoints("NOT_EXISTING_SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.addCurrentGamePoints("NOT_EXISTING_SESSION", 9999));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getCurrentGamePoints("NOT_EXISTING_SESSION"));
 
     // adding global possible points
     assertEquals(0, dbService.getCurrentGamePoints("SESSION"));
@@ -308,13 +321,13 @@ public class DbServiceTest {
 
   @Test
   @Order(1)
-  void testCreateGame_CheckGameExists() throws SQLException {
+  void testCreateGame_CheckGameExists() throws SQLException, DatabaseAccessException {
     // testing not existing sessions
-    assertThrows(RuntimeException.class, () -> dbService.createGame("NOT_EXISTING_SESSION", 1, 1, 4, 1));
+    assertThrows(DatabaseAccessException.class, () -> dbService.createGame("NOT_EXISTING_SESSION", 1, 1, 4, 1));
 
     // testing errors throwing "out of bounds"
-    assertThrows(RuntimeException.class, () -> dbService.createGame("SESSION", 4, 1, 4, 1));
-    assertThrows(RuntimeException.class, () -> dbService.createGame("SESSION", 1, 1, -1, 1));
+    assertThrows(DatabaseAccessException.class, () -> dbService.createGame("SESSION", 4, 1, 4, 1));
+    assertThrows(DatabaseAccessException.class, () -> dbService.createGame("SESSION", 1, 1, -1, 1));
 
     // testing game exists method
     assertTrue(dbService.checkGameExists(1)); // test game with topicId=1 is already initialized in sql
@@ -324,14 +337,15 @@ public class DbServiceTest {
   }
 
   @Test
-  void testSetPrivate_GetPrivate_GetOpenGames() throws SQLException {
+  void testSetPrivate_GetPrivate_GetOpenGames() throws SQLException, DatabaseAccessException {
     // creating games
     Integer gameId1 = dbService.createGame("SESSION", 1, 5, 4, 1);
     Integer gameId2 = dbService.createGame("SESSION2", 3, 15, 5, 1);
 
     // set, get private test
     // testing not existing games
-    assertThrows(RuntimeException.class, () -> dbService.getPrivate(52));
+    assertThrows(DatabaseAccessException.class, () -> dbService.setPrivate(145, false));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getPrivate(145));
 
     // testing
     assertTrue(dbService.getPrivate(gameId1));
@@ -350,12 +364,12 @@ public class DbServiceTest {
   }
 
   @Test
-  void testGetPreset() throws SQLException {
+  void testGetPreset() throws SQLException, DatabaseAccessException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 5, 4, 1);
 
     // testing not existing game
-    assertThrows(RuntimeException.class, () -> dbService.getPreset(145));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getPreset(145));
 
     // testing
     Integer[] testArr = {dbService.getUserId("SESSION"), 1, 5, 4, 1};
@@ -363,12 +377,13 @@ public class DbServiceTest {
   }
 
   @Test
-  void testSetStatus_GetStatus() throws SQLException {
+  void testSetStatus_GetStatus() throws SQLException, DatabaseAccessException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 5, 4, 1);
 
     // testing not existing game
-    assertThrows(RuntimeException.class, () -> dbService.getStatus(145));
+    assertThrows(DatabaseAccessException.class, () -> dbService.setStatus(145, 2));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getStatus(145));
 
     // testing
     assertEquals(0, dbService.getStatus(gameId));
@@ -377,12 +392,13 @@ public class DbServiceTest {
   }
 
   @Test
-  void testGetGameStartTime_SetGameStartTime() throws SQLException {
+  void testGetGameStartTime_SetGameStartTime() throws SQLException, DatabaseAccessException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 5, 4, 1);
 
     // testing not existing game
-    assertThrows(RuntimeException.class, () -> dbService.getGameStartTime(145));
+    assertThrows(DatabaseAccessException.class, () -> dbService.setGameStartTime(145, Instant.ofEpochSecond(1)));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getGameStartTime(145));
 
     // testing
     dbService.setGameStartTime(gameId, Instant.ofEpochSecond(1));
@@ -390,12 +406,13 @@ public class DbServiceTest {
   }
 
   @Test
-  void testGetGameEndTime_SetGameEndTime() throws SQLException {
+  void testGetGameEndTime_SetGameEndTime() throws SQLException, DatabaseAccessException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 5, 4, 1);
 
     // testing not existing game
-    assertThrows(RuntimeException.class, () -> dbService.getGameEndTime(145));
+    assertThrows(DatabaseAccessException.class, () -> dbService.setGameEndTime(145, Instant.ofEpochSecond(1)));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getGameEndTime(145));
 
     // testing
     dbService.setGameEndTime(gameId, Instant.ofEpochSecond(1));
@@ -403,13 +420,14 @@ public class DbServiceTest {
   }
 
   @Test
-  void testLoadQuestions_NextQuestion_GetCurrentQuestion_GetRightAnswer() throws SQLException {
+  void testLoadQuestions_NextQuestion_GetCurrentQuestion_GetRightAnswer() throws SQLException, DatabaseAccessException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 10, 4, 1);
     dbService.setStatus(gameId, 2);
 
-    // testing not existing game getCurrentQuestionNumber
-    assertThrows(RuntimeException.class, () -> dbService.getCurrentQuestionNumber(145));
+    // testing not existing game getCurrentQuestionNumber and nextQuestion
+    assertThrows(DatabaseAccessException.class, () -> dbService.getCurrentQuestionNumber(145));
+    assertThrows(DatabaseAccessException.class, () -> dbService.nextQuestion(145));
 
     // load questions
     String jsonString = "[\n" +
@@ -463,18 +481,20 @@ public class DbServiceTest {
         "    }\n" +
         "]\n";
 
+    // performing loadQuestions and testing not existing game
     JSONArray jsonObject = new JSONArray(jsonString);
+    assertThrows(DatabaseAccessException.class, () -> dbService.loadQuestions(145, jsonObject));
     dbService.loadQuestions(gameId, jsonObject);
 
     // testing getRightAnswer
     // testing not existing game
-    assertThrows(RuntimeException.class, () -> dbService.getRightAnswer(145, 2));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getRightAnswer(145, 2));
 
     // testing stopped game getRightAnswer
     Integer stoppedGameId = dbService.createGame("SESSION2", 1, 10, 4, 1);
     dbService.loadQuestions(stoppedGameId, jsonObject);
     dbService.setStatus(stoppedGameId, 3);
-    assertThrows(RuntimeException.class, () -> dbService.getRightAnswer(stoppedGameId, 2));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getRightAnswer(stoppedGameId, 2));
 
     // testing running game getRightAnswer
     assertEquals(3, dbService.getRightAnswer(gameId, 1));
@@ -521,15 +541,20 @@ public class DbServiceTest {
     }
 
     // testing the bound of loaded questions
-    assertThrows(RuntimeException.class, () -> dbService.nextQuestion(gameId));
+    assertThrows(DatabaseAccessException.class, () -> dbService.nextQuestion(gameId));
   }
 
 
   @Test
-  void testGetGameLeaderboards_GetCurrentGameParticipantsNumber() throws SQLException {
+  void testGetGameLeaderboards_GetCurrentGameParticipantsNumber() throws SQLException, DatabaseAccessException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 10, 4, 1);
 
+    // testing not existing game
+    assertThrows(DatabaseAccessException.class, () -> dbService.getGameLeaderboards(145));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getCurrentParticipantsNumber(145));
+
+    // testing
     dbService.setCurrentGame("SESSION", gameId);
     assertEquals(1, dbService.getCurrentParticipantsNumber(gameId));
     dbService.setCurrentGame("SESSION2", gameId);
@@ -540,19 +565,22 @@ public class DbServiceTest {
     assertEquals("[[\"test2\",150],[\"test1\",100]]", dbService.getGameLeaderboards(gameId).toString());
   }
 
-
   @Test
-  void testStopGame_DeleteGame_GetGlobalLeaderboards() throws SQLException {
+  void testStopGame_DeleteGame_GetGlobalLeaderboards() throws SQLException, DatabaseAccessException {
     // creating games
     Integer gameId1 = dbService.createGame("SESSION", 1, 5, 5, 1);
     Integer gameId2 = dbService.createGame("SESSION", 1, 5, 5, 1);
+
+    // testing not existing games
+    assertThrows(DatabaseAccessException.class, () -> dbService.stopGame(145));
+    assertThrows(DatabaseAccessException.class, () -> dbService.deleteGame(145));
 
     // joining the games
     dbService.setCurrentGame("SESSION", gameId1);
     dbService.setCurrentGame("SESSION2", gameId2);
 
     // stopping game 1
-    assertThrows(RuntimeException.class, () -> dbService.stopGame(145));
+    assertThrows(DatabaseAccessException.class, () -> dbService.stopGame(145));
     assertDoesNotThrow(() -> dbService.stopGame(gameId1));
 
     assertEquals(3, dbService.getStatus(gameId1));
@@ -582,6 +610,12 @@ public class DbServiceTest {
     assertEquals(dbService.getUsername("SESSION2"), second.getString(1));
     assertEquals(100, second.getInt(2));
     assertEquals(170, second.getInt(3));
+
+    // deleting the game
+    assertTrue(dbService.checkGameExists(gameId1));
+    dbService.deleteGame(gameId1);
+    assertFalse(dbService.checkGameExists(gameId1));
+    assertTrue(dbService.checkGameExists(gameId2));
   }
 
   //
@@ -600,7 +634,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testAddAchievement_GetAchievementById() throws SQLException {
+  void testAddAchievement_GetAchievementById() throws SQLException, DatabaseAccessException {
     // creating achievement
     Achievement achvm = createTestAchievement();
     Integer achvmId = dbService.addAchievement(achvm);
@@ -616,7 +650,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testCheckAchievementAchieved_AttachAchievement_GetAchievementsOf() throws SQLException {
+  void testCheckAchievementAchieved_AttachAchievement_GetAchievementsOf() throws SQLException, DatabaseAccessException {
     // creating achievement
     Achievement achvm = createTestAchievement();
     Integer achvmId1 = dbService.addAchievement(achvm);
@@ -648,7 +682,7 @@ public class DbServiceTest {
     assertArrayEquals(testArr2, dbService.getAchievementsOf("SESSION")); // here must be init and test achievements
 
     // testing not existing sessions
-    assertThrows(RuntimeException.class, () -> dbService.getAchievementsOf("NOT_EXISTING_SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getAchievementsOf("NOT_EXISTING_SESSION"));
 
     // testing other users don't have these achievements
     assertArrayEquals(emptyArr, dbService.getAchievementsOf("SESSION2"));
@@ -658,7 +692,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testGetAllAchievements() throws SQLException {
+  void testGetAllAchievements() throws SQLException, DatabaseAccessException {
     // creating achievement
     Achievement achvm = createTestAchievement();
     dbService.addAchievement(achvm);
@@ -682,14 +716,14 @@ public class DbServiceTest {
   }
 
   @Test
-  void testRemoveAchievement() throws SQLException {
+  void testRemoveAchievement() throws SQLException, DatabaseAccessException {
     // creating achievement
     Achievement achvm = createTestAchievement();
     Integer achvmId = dbService.addAchievement(achvm);
 
     dbService.removeAchievement(achvmId);
     // testing it not exists anymore
-    assertThrows(RuntimeException.class, () -> dbService.getAchievementById(achvmId));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getAchievementById(achvmId));
   }
 
   //
@@ -703,7 +737,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testAddTopic_GetTopicById() throws SQLException {
+  void testAddTopic_GetTopicById() throws SQLException, DatabaseAccessException {
     // creating topics
     Topic topic1 = createTestTopic("testTopic1");
     Topic topic2 = createTestTopic("testTopic2");
@@ -722,7 +756,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testGetAllTopics() throws SQLException {
+  void testGetAllTopics() throws SQLException, DatabaseAccessException {
     // creating topics
     Topic topic1 = createTestTopic("testTopic1");
     Topic topic2 = createTestTopic("testTopic2");
@@ -743,7 +777,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testRemoveTopic() throws SQLException {
+  void testRemoveTopic() throws SQLException, DatabaseAccessException {
     // creating topics
     Topic topic1 = createTestTopic("testTopic1");
     Topic topic2 = createTestTopic("testTopic2");
@@ -752,7 +786,7 @@ public class DbServiceTest {
 
     // testing removeTopic
     dbService.removeTopic(topicId1);
-    assertThrows(RuntimeException.class, () -> dbService.getTopicById(topicId1));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getTopicById(topicId1));
 
     // checking topic2 left
     assertNotNull(dbService.getTopicById(topicId2));
