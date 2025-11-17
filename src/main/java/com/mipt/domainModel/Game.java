@@ -12,6 +12,7 @@ public class Game {
   public Instant createdAt;
   public Instant gameStartTime;
   public Instant gameEndTime;
+  public Instant timeToAnswer;
   public int currentQuestionNumber;
   public int numberOfQuestions;
   public boolean isPrivate;
@@ -105,6 +106,14 @@ public class Game {
 
   public void setGameEndTime(Instant gameEndTime) {
     this.gameEndTime = gameEndTime;
+  }
+
+  public Instant getTimeToAnswer() {
+    return timeToAnswer;
+  }
+
+  public void setTimeToAnswer(Instant timeToAnswer) {
+    this.timeToAnswer = timeToAnswer;
   }
 
   public int getCurrentQuestionNumber() {
