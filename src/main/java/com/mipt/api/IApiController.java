@@ -2,28 +2,51 @@ package com.mipt.api;
 
 import com.mipt.domainModel.*;
 
+import java.time.Instant;
 import java.util.List;
 
 public interface IApiController {
-
-  User register(String username, String password);
-  String login(String username, String password);
+  //User authentification
+  User register(String userName, String password, String session);
+  User login(String userName, String password, String session);
   void logout(String session);
 
-  User getUserBySession(String session);
-  void updateProfilePic(String session, int picId);
-  void updateDescription(String session, String description);
+  //Show UserData
+  String getUsername(String session);
+  int getProfilePicId(String session);
+  int getCurrentGlobalPoints(String session);
+  int getGlobalPossiblePoints(String session);
+  List<Achievement> getAchievements(String session);
+  List<Game> getGamesPlayed(String session);
 
-  Game createGame(String session, int topicId, Game.LevelDifficulty level, boolean isPrivate);
-  List<Game> listWaitingGames();
-  void joinGame(String session, int gameId);
-  void startGame(String session, int gameId);
-  void pauseGame(String session, int gameId);
-  void endGame(String session, int gameId);
 
-  Question getNextQuestion(String session, int gameId);
-  boolean answerQuestion(String session, int gameId, int answerNumber);
+  //Editing profile
+  User updateUserProfilePic(String session, int picId);
+  User updateUsername(String session, String newUserName);
+  User updatePassword(String session, String oldPassword, String newPassword);
+  User updateDescription(String session, String newDescription);
 
-  List<Achievement> getUserAchievements(String session);
-  int getUserCurrentRating (String session);
+  //Host operations
+  Game createGame(String hostSession, int topicId, Game.LevelDifficulty level,
+                  boolean isPrivate, int maxAmounOfPlayers, Instant timeToAnswer);
+  Game updateMaxAmountOfPlayersInGame(String hostSession, int newMaxAmountOfPlayers);
+  Question startGame(String hostSession);
+  void deleteGame(String hostSession);
+  void pauseGame(String hostSession);
+  void unpauseGame(String hostSession);
+
+  //Nonhost operations
+  List<Game> getListOfWaitingGames();
+  User joinGame(String session, int gameId);
+  User leftGame(String session);
+  List<User> getListOfPlayersInCurrentGame(int gameId);
+
+  //Game service
+  Question getNextQuestion(int questionId, int gameId);
+  void getAnswer(String session, int answerNumber, Instant timeToAnswer);
+  int getCurrentGamePoints(String session);
+  void endGame(int gameId);//should it be in ApiController?
+
+  //Show leaderboard
+  List<User> getBestPlayers();
 }
