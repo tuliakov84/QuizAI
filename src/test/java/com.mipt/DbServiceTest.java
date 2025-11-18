@@ -6,6 +6,7 @@ import com.mipt.domainModel.Achievement;
 import com.mipt.domainModel.Question;
 import com.mipt.domainModel.Topic;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -337,7 +338,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testSetPrivate_GetPrivate_GetOpenGames() throws SQLException, DatabaseAccessException {
+  void testSetPrivate_GetPrivate_GetOpenGames() throws SQLException, DatabaseAccessException, JSONException {
     // creating games
     Integer gameId1 = dbService.createGame("SESSION", 1, 5, 4, 1);
     Integer gameId2 = dbService.createGame("SESSION2", 3, 15, 5, 1);
@@ -420,7 +421,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testLoadQuestions_NextQuestion_GetCurrentQuestion_GetRightAnswer() throws SQLException, DatabaseAccessException {
+  void testLoadQuestions_NextQuestion_GetCurrentQuestion_GetRightAnswer() throws SQLException, DatabaseAccessException, JSONException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 10, 4, 1);
     dbService.setStatus(gameId, 2);
@@ -566,7 +567,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testStopGame_DeleteGame_GetGlobalLeaderboards() throws SQLException, DatabaseAccessException {
+  void testStopGame_DeleteGame_GetGlobalLeaderboards() throws SQLException, DatabaseAccessException, JSONException {
     // creating games
     Integer gameId1 = dbService.createGame("SESSION", 1, 5, 5, 1);
     Integer gameId2 = dbService.createGame("SESSION", 1, 5, 5, 1);

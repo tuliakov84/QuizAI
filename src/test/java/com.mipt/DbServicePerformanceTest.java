@@ -4,6 +4,7 @@ import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Achievement;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -272,7 +273,7 @@ public class DbServicePerformanceTest {
 
   @Test
   @Order(5)
-  void testBulkQuestionLoading() throws SQLException, DatabaseAccessException {
+  void testBulkQuestionLoading() throws SQLException, DatabaseAccessException, JSONException {
     // Тест производительности загрузки большого количества вопросов
     dbService.register("questionLoader", "pass");
     dbService.authorize("questionLoader", "pass", "loaderSession");
