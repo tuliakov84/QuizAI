@@ -1,12 +1,13 @@
 package com.mipt.domainModel;
 
 import java.time.Instant;
+import java.util.List;
 
 public class User {
   public int userId;
   public Game currentGame;
-  public Achievement[] achievements;
-  public Game[] gamesPlayed;
+  public List<Achievement> achievements;
+  public List<Game> gamesPlayed;
 
   public String session;
   public String username;
@@ -134,19 +135,19 @@ public class User {
     this.currentGame = currentGame;
   }
 
-  public Achievement[] getAchievements() {
+  public List<Achievement> getAchievements() {
     return achievements;
   }
 
-  public void setAchievements(Achievement[] achievements) {
+  public void setAchievements(List<Achievement> achievements) {
     this.achievements = achievements;
   }
 
-  public Game[] getGamesPlayed() {
+  public List<Game> getGamesPlayed() {
     return gamesPlayed;
   }
 
-  public void setGamesPlayed(Game[] gamesPlayed) {
+  public void setGamesPlayed(List<Game> gamesPlayed) {
     this.gamesPlayed = gamesPlayed;
   }
 }
