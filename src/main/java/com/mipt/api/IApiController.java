@@ -1,6 +1,7 @@
 package com.mipt.api;
 
 import com.mipt.domainModel.*;
+import com.mipt.utils.AccessException;
 
 import java.time.Instant;
 import java.util.List;
@@ -8,8 +9,8 @@ import java.util.List;
 public interface IApiController {
   //User authentification
   String register(String userName, String password);
-  String login(String userName, String password);
-  void logout(String session);
+  String login(String userName, String password) throws AccessException;
+  void logOut(String session);
 
   //Show UserData
   String getUsername(String session);
@@ -34,7 +35,7 @@ public interface IApiController {
   Question startGame(String hostSession);
   void deleteGame(String hostSession);
   void pauseGame(String hostSession);
-  void unpauseGame(String hostSession);
+  void resumeGame(String hostSession);
 
   //Nonhost operations
   List<Game> getListOfOpenGames();

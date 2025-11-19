@@ -73,7 +73,7 @@ public class DbService {
     inpData.executeUpdate();
   }
 
-  public void authorize(String username, String password, String session) throws SQLException, DatabaseAccessException {
+  public void authenticate(String username, String password, String session) throws SQLException, DatabaseAccessException {
     // authorizes user
     
     PreparedStatement selExists = conn.prepareStatement("SELECT password FROM users WHERE username = ?");

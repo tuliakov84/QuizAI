@@ -68,16 +68,16 @@ public class DbServiceTest {
 
     // authorizing users
     assertNull(dbService.getUserId("SESSION"));
-    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("notExistingTestUser", "1234", "SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authenticate("notExistingTestUser", "1234", "SESSION"));
     assertNull(dbService.getUserId("SESSION"));
-    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("test1", "12345wrong", "SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authenticate("test1", "12345wrong", "SESSION"));
     assertNull(dbService.getUserId("SESSION"));
 
-    assertDoesNotThrow(() -> dbService.authorize("test1", "12345", "SESSION"));
+    assertDoesNotThrow(() -> dbService.authenticate("test1", "12345", "SESSION"));
     assertNotNull(dbService.getUserId("SESSION"));
-    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("test1", "12345", "SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authenticate("test1", "12345", "SESSION"));
 
-    assertDoesNotThrow(() -> dbService.authorize("test2", "1234", "SESSION2"));
+    assertDoesNotThrow(() -> dbService.authenticate("test2", "1234", "SESSION2"));
 
     assertEquals("test1", dbService.getUsername(dbService.getUserId("SESSION")));
     assertEquals("test2", dbService.getUsername("SESSION2"));
@@ -103,10 +103,10 @@ public class DbServiceTest {
     dbService.logOut("SESSION2");
 
     assertNull(dbService.getUserId("SESSION"));
-    assertDoesNotThrow(() -> dbService.authorize("test1", "12345", "SESSION"));
+    assertDoesNotThrow(() -> dbService.authenticate("test1", "12345", "SESSION"));
 
     assertNull(dbService.getUserId("SESSION2"));
-    assertDoesNotThrow(() -> dbService.authorize("test2", "1234", "SESSION2"));
+    assertDoesNotThrow(() -> dbService.authenticate("test2", "1234", "SESSION2"));
   }
 
   @Test
@@ -117,12 +117,12 @@ public class DbServiceTest {
     dbService.changePassword("SESSION2", "1234new");
 
     dbService.logOut("SESSION");
-    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("test1", "12345", "SESSION"));
-    assertDoesNotThrow(() -> dbService.authorize("test1", "12345new", "SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authenticate("test1", "12345", "SESSION"));
+    assertDoesNotThrow(() -> dbService.authenticate("test1", "12345new", "SESSION"));
 
     dbService.logOut("SESSION2");
-    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("test2", "1234", "SESSION2"));
-    assertDoesNotThrow(() -> dbService.authorize("test2", "1234new", "SESSION2"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authenticate("test2", "1234", "SESSION2"));
+    assertDoesNotThrow(() -> dbService.authenticate("test2", "1234new", "SESSION2"));
   }
 
   @Test
@@ -176,9 +176,9 @@ public class DbServiceTest {
     dbService.register("user3", "1");
     dbService.register("user4", "1");
     dbService.register("user5", "1");
-    dbService.authorize("user3", "1", "SESSION3");
-    dbService.authorize("user4", "1", "SESSION4");
-    dbService.authorize("user5", "1", "SESSION5");
+    dbService.authenticate("user3", "1", "SESSION3");
+    dbService.authenticate("user4", "1", "SESSION4");
+    dbService.authenticate("user5", "1", "SESSION5");
 
     // joining the game and checking current participants
     assertNull(dbService.getCurrentGame("SESSION"));

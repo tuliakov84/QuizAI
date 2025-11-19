@@ -138,7 +138,7 @@ public class DbServicePerformanceTest {
       final int userId = i;
       executor.submit(() -> {
         try {
-          dbService.authorize("authUser" + userId, "pass" + userId, "session" + userId);
+          dbService.authenticate("authUser" + userId, "pass" + userId, "session" + userId);
           successCount.incrementAndGet();
         } catch (Exception e) {
           // Ignore errors for performance test
@@ -174,7 +174,7 @@ public class DbServicePerformanceTest {
     // Подготовка: регистрируем и авторизуем пользователей
     for (int i = 0; i < numberOfUsers; i++) {
       dbService.register("sessionUser" + i, "pass" + i);
-      dbService.authorize("sessionUser" + i, "pass" + i, "session" + i);
+      dbService.authenticate("sessionUser" + i, "pass" + i, "session" + i);
     }
 
     ExecutorService executor = Executors.newFixedThreadPool(20);
@@ -226,7 +226,7 @@ public class DbServicePerformanceTest {
     // Подготовка: регистрируем пользователей
     for (int i = 0; i < numberOfGames; i++) {
       dbService.register("gameCreator" + i, "pass" + i);
-      dbService.authorize("gameCreator" + i, "pass" + i, "creatorSession" + i);
+      dbService.authenticate("gameCreator" + i, "pass" + i, "creatorSession" + i);
     }
 
     ExecutorService executor = Executors.newFixedThreadPool(threadPoolSize);
@@ -276,7 +276,7 @@ public class DbServicePerformanceTest {
   void testBulkQuestionLoading() throws SQLException, DatabaseAccessException, JSONException {
     // Тест производительности загрузки большого количества вопросов
     dbService.register("questionLoader", "pass");
-    dbService.authorize("questionLoader", "pass", "loaderSession");
+    dbService.authenticate("questionLoader", "pass", "loaderSession");
     Integer gameId = dbService.createGame("loaderSession", 1, 100, 4, 1);
 
     // Создаем JSON массив с вопросами
@@ -328,11 +328,11 @@ public class DbServicePerformanceTest {
 
     // Подготовка: регистрируем пользователей и создаем игру
     dbService.register("pointsGameOwner", "pass");
-    dbService.authorize("pointsGameOwner", "pass", "pointsOwnerSession");
+    dbService.authenticate("pointsGameOwner", "pass", "pointsOwnerSession");
     Integer gameId = dbService.createGame("pointsOwnerSession", 1, 10, 20, 1);
     for (int i = 0; i < numberOfUsers; i++) {
       dbService.register("pointsUser" + i, "pass" + i);
-      dbService.authorize("pointsUser" + i, "pass" + i, "pointsSession" + i);
+      dbService.authenticate("pointsUser" + i, "pass" + i, "pointsSession" + i);
       dbService.setCurrentGame("pointsSession" + i, gameId);
     }
 
@@ -385,11 +385,11 @@ public class DbServicePerformanceTest {
 
     // Подготовка: создаем пользователей с очками
     dbService.register("leaderboardGameOwner", "pass");
-    dbService.authorize("leaderboardGameOwner", "pass", "lbOwnerSession");
+    dbService.authenticate("leaderboardGameOwner", "pass", "lbOwnerSession");
     Integer gameId = dbService.createGame("lbOwnerSession", 1, 10, 30, 1);
     for (int i = 0; i < numberOfUsers; i++) {
       dbService.register("leaderboardUser" + i, "pass" + i);
-      dbService.authorize("leaderboardUser" + i, "pass" + i, "lbSession" + i);
+      dbService.authenticate("leaderboardUser" + i, "pass" + i, "lbSession" + i);
       dbService.setCurrentGame("lbSession" + i, gameId);
       dbService.addCurrentGamePoints("lbSession" + i, i * 10);
       dbService.addGlobalPoints("lbSession" + i, i * 5);
@@ -451,14 +451,14 @@ public class DbServicePerformanceTest {
     List<Integer> gameIds = new ArrayList<>();
     for (int i = 0; i < numberOfGames; i++) {
       dbService.register("gameOwner" + i, "pass" + i);
-      dbService.authorize("gameOwner" + i, "pass" + i, "ownerSession" + i);
+      dbService.authenticate("gameOwner" + i, "pass" + i, "ownerSession" + i);
       Integer gameId = dbService.createGame("ownerSession" + i, 1, 10, usersPerGame, 1);
       gameIds.add(gameId);
     }
 
     for (int i = 0; i < numberOfGames * usersPerGame; i++) {
       dbService.register("joiner" + i, "pass" + i);
-      dbService.authorize("joiner" + i, "pass" + i, "joinerSession" + i);
+      dbService.authenticate("joiner" + i, "pass" + i, "joinerSession" + i);
     }
 
     ExecutorService executor = Executors.newFixedThreadPool(threadPoolSize);
@@ -513,7 +513,7 @@ public class DbServicePerformanceTest {
     // Подготовка: создаем много открытых игр
     for (int i = 0; i < numberOfOpenGames; i++) {
       dbService.register("openGameOwner" + i, "pass" + i);
-      dbService.authorize("openGameOwner" + i, "pass" + i, "openOwnerSession" + i);
+      dbService.authenticate("openGameOwner" + i, "pass" + i, "openOwnerSession" + i);
       Integer gameId = dbService.createGame("openOwnerSession" + i, 1, 10, 4, 1);
       dbService.setPrivate(gameId, false);
     }
@@ -578,7 +578,7 @@ public class DbServicePerformanceTest {
 
     for (int i = 0; i < numberOfUsers; i++) {
       dbService.register("achievementUser" + i, "pass" + i);
-      dbService.authorize("achievementUser" + i, "pass" + i, "achSession" + i);
+      dbService.authenticate("achievementUser" + i, "pass" + i, "achSession" + i);
     }
 
     ExecutorService executor = Executors.newFixedThreadPool(10);
@@ -639,7 +639,7 @@ public class DbServicePerformanceTest {
     // Подготовка: создаем базовых пользователей и игры
     for (int i = 0; i < 20; i++) {
       dbService.register("mixedUser" + i, "pass" + i);
-      dbService.authorize("mixedUser" + i, "pass" + i, "mixedSession" + i);
+      dbService.authenticate("mixedUser" + i, "pass" + i, "mixedSession" + i);
     }
 
     Integer gameId = dbService.createGame("mixedSession0", 1, 10, 15, 1);
