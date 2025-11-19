@@ -4,13 +4,11 @@ import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 
 import com.mipt.domainModel.Game;
-import org.springframework.web.bind.annotation.RestController;
 
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
-@RestController
 public class backendUtils {
 
   private static final int MAX_SESSION_RETRIES = 5;
