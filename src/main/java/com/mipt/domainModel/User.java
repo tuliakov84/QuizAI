@@ -4,21 +4,21 @@ import java.time.Instant;
 import java.util.List;
 
 public class User {
-  public int userId;
-  public Game currentGame;
-  public List<Achievement> achievements;
-  public List<Game> gamesPlayed;
+  private int userId;
+  private Game currentGame;
+  private List<Achievement> achievements;
+  private List<Game> gamesPlayed;
 
-  public String session;
-  public String username;
-  public String password;
-  public int picId;
-  public String description;
-  public Instant lastActivity;
-  public int gamesPlayedNumber;
-  public int globalPoints;
-  public int globalPossiblePoints;
-  public int currentGamePoints;
+  private String session;
+  private String username;
+  private String password;
+  private int picId;
+  private String description;
+  private Instant lastActivity;
+  private int gamesPlayedNumber;
+  private int globalPoints;
+  private int globalPossiblePoints;
+  private int currentGamePoints;
 
   public User() {
 
@@ -43,8 +43,12 @@ public class User {
 
   }
 
+  public void setUserId(int userId) {
+    this.userId = userId;
+  }
+  
   public int getUserId() {
-    return 0;
+    return userId;
   }
 
   public String getUsername() {

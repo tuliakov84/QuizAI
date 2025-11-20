@@ -1,17 +1,17 @@
 package com.mipt.domainModel;
 
 public class Achievement {
-  public int achievementId;
+  private int achievementId;
 
-  public String name;
-  public boolean profilePicNeeded;
-  public boolean descriptionNeeded;
-  public int gamesNumberNeeded;
-  public int globalPointsNeeded;
-  public int globalRatingPlaceNeeded;
-  public int currentGamePointsNeeded;
-  public int currentGameRatingNeeded;
-  public int currentGameLevelDifficultyNeeded;
+  private String name;
+  private boolean profilePicNeeded;
+  private boolean descriptionNeeded;
+  private int gamesNumberNeeded;
+  private int globalPointsNeeded;
+  private int globalRatingPlaceNeeded;
+  private int currentGamePointsNeeded;
+  private int currentGameRatingNeeded;
+  private int currentGameLevelDifficultyNeeded;
 
   public Achievement() {
 

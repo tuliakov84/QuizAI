@@ -75,10 +75,8 @@ CREATE TABLE IF NOT EXISTS questions (
     answer4 TEXT
 );
 
--- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS topics_idx ON topics USING HASH (name);
 CREATE INDEX IF NOT EXISTS users_idx ON users USING HASH (session);
-CREATE INDEX IF NOT EXISTS users_username_idx ON users (username);
+CREATE INDEX IF NOT EXISTS users_username_idx ON users USING HASH (username);
 CREATE INDEX IF NOT EXISTS games_status_idx ON games (status);
 CREATE INDEX IF NOT EXISTS games_topic_idx ON games (topic_id);
-
