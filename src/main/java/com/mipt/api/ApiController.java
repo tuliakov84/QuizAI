@@ -127,6 +127,7 @@ public class ApiController {
 
         game.setNumberOfQuestions(preset[2]);
         game.setParticipantsNumber(preset[3]);
+        game.setCurrentParticipantsNumber(dbService.getCurrentParticipantsNumber(gameId));
 
         int topicId = preset[4];
         game.setTopic(dbService.getTopicById(topicId));

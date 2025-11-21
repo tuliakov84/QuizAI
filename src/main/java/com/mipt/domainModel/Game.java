@@ -17,7 +17,7 @@ public class Game {
   private boolean isPrivate;
   private LevelDifficulty levelDifficulty;
   private int participantsNumber;
-  //private int currentParticipantsNumber;
+  private int currentParticipantsNumber;
 
   public enum Status {
     WAITING,
@@ -146,5 +146,13 @@ public class Game {
 
   public void setParticipantsNumber(int participantsNumber) {
     this.participantsNumber = participantsNumber;
+  }
+
+  public int getCurrentParticipantsNumber() {
+    return currentParticipantsNumber;
+  }
+
+  public void setCurrentParticipantsNumber(int currentParticipantsNumber) {
+    this.currentParticipantsNumber = currentParticipantsNumber;
   }
 }
