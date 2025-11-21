@@ -4,6 +4,7 @@ import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Game;
 import com.mipt.domainModel.User;
+import com.mipt.utils.AccessException;
 import com.mipt.utils.BackendUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,7 @@ public class ApiController {
 
   private final BackendUtils utils;
   private final DbService dbService;
+
   public ApiController(DbService dbService) {
     this.dbService = dbService;
     this.utils = new BackendUtils(dbService);
@@ -32,11 +34,11 @@ public class ApiController {
         dbService.authenticate(user.getUsername(), user.getPassword(), session);
         user.setSession(session);
         user.setUserId(dbService.getUserId(session));
-        Integer currentGame = dbService.getCurrentGame(session);
-        if (currentGame != null) {
-          Game game = new Game();
-          game.setGameId(currentGame);
-          user.setCurrentGame(game);
+        Integer currentGameId = dbService.getCurrentGame(session);
+        if (currentGameId != null) {
+          Game currentGame = new Game();
+          currentGame.setGameId(currentGameId);
+          user.setCurrentGame(currentGame);
         }
         user.setDescription(dbService.getDescription(session));
         user.setGlobalPoints(dbService.getGlobalPoints(session));
@@ -74,6 +76,73 @@ public class ApiController {
       return new ResponseEntity<>("Failed to log out of account '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while logging out of account '" + user.getUsername() + "'", HttpStatus.NOT_FOUND);
+    }
+  }
+
+  @PostMapping("/users/profile")
+  public ResponseEntity<Object> profile(@RequestBody User user) {
+    try {
+      String session = user.getSession();
+      user.setUserId(dbService.getUserId(session));
+
+      Integer currentGameId = dbService.getCurrentGame(session);
+      if (currentGameId != null) {
+        Game currentGame = new Game();
+        currentGame.setGameId(currentGameId);
+        user.setCurrentGame(currentGame);
+      }
+
+      user.setDescription(dbService.getDescription(session));
+      user.setGlobalPoints(dbService.getGlobalPoints(session));
+
+      return new ResponseEntity<>(user, HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get information about account '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting information about account '" + user.getUsername() + "'", HttpStatus.NOT_FOUND);
+    }
+  }
+
+  @PostMapping("/rooms/join")
+  public ResponseEntity<Object> joinRoom(@RequestBody User user, @RequestBody Game game) {
+    try {
+      String session = user.getSession();
+      int gameId = game.getGameId();
+      int status = dbService.getStatus(gameId);
+
+      if (status == 0) {
+
+        dbService.setCurrentGame(session, gameId);
+
+        Integer[] preset = dbService.getPreset(gameId);
+        game.setAuthorId(preset[0]);
+
+        switch (preset[1]) {
+          case 1 -> game.setLevelDifficulty(Game.LevelDifficulty.EASY);
+          case 2 -> game.setLevelDifficulty(Game.LevelDifficulty.MEDIUM);
+          case 3 -> game.setLevelDifficulty(Game.LevelDifficulty.HARD);
+        }
+
+        //Add currentParticipants number to Game, DbService and ApiController
+
+        game.setNumberOfQuestions(preset[2]);
+        game.setParticipantsNumber(preset[3]);
+
+        int topicId = preset[4];
+        game.setTopic(dbService.getTopicById(topicId));
+
+        game.setPrivate(dbService.getPrivate(gameId));
+
+        return new ResponseEntity<>(game, HttpStatus.OK);
+      } else {
+        throw new AccessException();
+      }
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to join room '" + game.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while joining room '" + game.getGameId() + "'", HttpStatus.NOT_FOUND);
+    } catch (AccessException e) {
+      return new ResponseEntity<>("Game already started", HttpStatus.CONFLICT);
     }
   }
 }

@@ -5,19 +5,19 @@ import java.time.Instant;
 public class Game {
 
   private int gameId;
-  private User author;
+  private int authorId;
   private Topic topic;
   private Question question;
   private Status status;
   private Instant createdAt;
   private Instant gameStartTime;
   private Instant gameEndTime;
-  private Instant timeToAnswer;
   private int currentQuestionNumber;
   private int numberOfQuestions;
   private boolean isPrivate;
   private LevelDifficulty levelDifficulty;
   private int participantsNumber;
+  //private int currentParticipantsNumber;
 
   public enum Status {
     WAITING,
@@ -35,9 +35,9 @@ public class Game {
   public Game() {
   }
 
-  public Game(int gameId, User author, Topic topic, LevelDifficulty levelDifficulty) {
+  public Game(int gameId, int authorId, Topic topic, LevelDifficulty levelDifficulty) {
     this.gameId = gameId;
-    this.author = author;
+    this.authorId = authorId;
     this.topic = topic;
     this.levelDifficulty = levelDifficulty;
     this.status = Status.WAITING;
@@ -52,12 +52,12 @@ public class Game {
     this.gameId = gameId;
   }
 
-  public User getAuthor() {
-    return author;
+  public int getAuthorId() {
+    return authorId;
   }
 
-  public void setAuthor(User author) {
-    this.author = author;
+  public void setAuthorId(int authorId) {
+    this.authorId = authorId;
   }
 
   public Topic getTopic() {
@@ -106,14 +106,6 @@ public class Game {
 
   public void setGameEndTime(Instant gameEndTime) {
     this.gameEndTime = gameEndTime;
-  }
-
-  public Instant getTimeToAnswer() {
-    return timeToAnswer;
-  }
-
-  public void setTimeToAnswer(Instant timeToAnswer) {
-    this.timeToAnswer = timeToAnswer;
   }
 
   public int getCurrentQuestionNumber() {
