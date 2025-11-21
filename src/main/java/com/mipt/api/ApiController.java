@@ -103,6 +103,50 @@ public class ApiController {
     }
   }
 
+  @PostMapping("/users/set/profile_pic")
+  public ResponseEntity<Object> changeProfilePic(@RequestBody User user) {
+    try {
+      String session = user.getSession();
+      Integer picId = user.getPicId();
+      if (picId.equals(0)) {
+        dbService.changeProfilePic(session, picId);
+        return new ResponseEntity<>(HttpStatus.OK);
+      } else {
+        return new ResponseEntity<>("Cant change to null picture", HttpStatus.NOT_FOUND);
+      }
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while configuring account " + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to configure information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
+  @PostMapping("/users/set/description")
+  public ResponseEntity<Object> changeDescription(@RequestBody User user) {
+    try {
+      String session = user.getSession();
+      String description = user.getDescription();
+      dbService.changeDescription(session, description);
+      return new ResponseEntity<>(HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while configuring account " + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to configure information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
+  @PostMapping("/users/get-games")
+  public ResponseEntity<Object> getGames(@RequestBody User user) {
+    try {
+      Integer[] games = dbService.getGamesPlayed(user.getSession());
+      return new ResponseEntity<>(games, HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting information about " + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
   @PostMapping("/rooms/join")
   public ResponseEntity<Object> joinRoom(@RequestBody User user, @RequestBody Game game) {
     try {
