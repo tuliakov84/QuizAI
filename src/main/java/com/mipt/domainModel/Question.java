@@ -1,16 +1,16 @@
 package com.mipt.domainModel;
 
 public class Question {
-  public int questionId;
-  public Game game;
+  private int questionId;
+  private Game game;
 
-  public String questionText;
-  public String answer1;
-  public String answer2;
-  public String answer3;
-  public String answer4;
-  public int rightAnswerNumber;
-  public int questionNumber;
+  private String questionText;
+  private String answer1;
+  private String answer2;
+  private String answer3;
+  private String answer4;
+  private int rightAnswerNumber;
+  private int questionNumber;
 
   public Question(){
 

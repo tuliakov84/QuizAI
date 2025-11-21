@@ -6,6 +6,7 @@ import com.mipt.domainModel.Achievement;
 import com.mipt.domainModel.Question;
 import com.mipt.domainModel.Topic;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -67,16 +68,17 @@ public class DbServiceTest {
 
     // authorizing users
     assertNull(dbService.getUserId("SESSION"));
-    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("notExistingTestUser", "1234", "SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authenticate("notExistingTestUser", "1234", "SESSION"));
     assertNull(dbService.getUserId("SESSION"));
-    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("test1", "12345wrong", "SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authenticate("test1", "12345wrong", "SESSION"));
     assertNull(dbService.getUserId("SESSION"));
 
-    assertDoesNotThrow(() -> dbService.authorize("test1", "12345", "SESSION"));
+    assertDoesNotThrow(() -> dbService.authenticate("test1", "12345", "SESSION"));
     assertNotNull(dbService.getUserId("SESSION"));
-    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("test1", "12345", "SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authenticate("test1", "12345", "SESSION"));
 
-    assertDoesNotThrow(() -> dbService.authorize("test2", "1234", "SESSION2"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authenticate("test2", "12345wrong", "SESSION"));
+    assertDoesNotThrow(() -> dbService.authenticate("test2", "1234", "SESSION2"));
 
     assertEquals("test1", dbService.getUsername(dbService.getUserId("SESSION")));
     assertEquals("test2", dbService.getUsername("SESSION2"));
@@ -102,10 +104,10 @@ public class DbServiceTest {
     dbService.logOut("SESSION2");
 
     assertNull(dbService.getUserId("SESSION"));
-    assertDoesNotThrow(() -> dbService.authorize("test1", "12345", "SESSION"));
+    assertDoesNotThrow(() -> dbService.authenticate("test1", "12345", "SESSION"));
 
     assertNull(dbService.getUserId("SESSION2"));
-    assertDoesNotThrow(() -> dbService.authorize("test2", "1234", "SESSION2"));
+    assertDoesNotThrow(() -> dbService.authenticate("test2", "1234", "SESSION2"));
   }
 
   @Test
@@ -116,12 +118,12 @@ public class DbServiceTest {
     dbService.changePassword("SESSION2", "1234new");
 
     dbService.logOut("SESSION");
-    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("test1", "12345", "SESSION"));
-    assertDoesNotThrow(() -> dbService.authorize("test1", "12345new", "SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authenticate("test1", "12345", "SESSION"));
+    assertDoesNotThrow(() -> dbService.authenticate("test1", "12345new", "SESSION"));
 
     dbService.logOut("SESSION2");
-    assertThrows(DatabaseAccessException.class, () -> dbService.authorize("test2", "1234", "SESSION2"));
-    assertDoesNotThrow(() -> dbService.authorize("test2", "1234new", "SESSION2"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.authenticate("test2", "1234", "SESSION2"));
+    assertDoesNotThrow(() -> dbService.authenticate("test2", "1234new", "SESSION2"));
   }
 
   @Test
@@ -175,9 +177,9 @@ public class DbServiceTest {
     dbService.register("user3", "1");
     dbService.register("user4", "1");
     dbService.register("user5", "1");
-    dbService.authorize("user3", "1", "SESSION3");
-    dbService.authorize("user4", "1", "SESSION4");
-    dbService.authorize("user5", "1", "SESSION5");
+    dbService.authenticate("user3", "1", "SESSION3");
+    dbService.authenticate("user4", "1", "SESSION4");
+    dbService.authenticate("user5", "1", "SESSION5");
 
     // joining the game and checking current participants
     assertNull(dbService.getCurrentGame("SESSION"));
@@ -337,7 +339,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testSetPrivate_GetPrivate_GetOpenGames() throws SQLException, DatabaseAccessException {
+  void testSetPrivate_GetPrivate_GetOpenGames() throws SQLException, DatabaseAccessException, JSONException {
     // creating games
     Integer gameId1 = dbService.createGame("SESSION", 1, 5, 4, 1);
     Integer gameId2 = dbService.createGame("SESSION2", 3, 15, 5, 1);
@@ -420,7 +422,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testLoadQuestions_NextQuestion_GetCurrentQuestion_GetRightAnswer() throws SQLException, DatabaseAccessException {
+  void testLoadQuestions_NextQuestion_GetCurrentQuestion_GetRightAnswer() throws SQLException, DatabaseAccessException, JSONException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 10, 4, 1);
     dbService.setStatus(gameId, 2);
@@ -507,11 +509,11 @@ public class DbServiceTest {
 
     if (
         (
-        Objects.equals(result1.questionText, "What the Aglet is?") &&
-            Objects.equals(result1.answer1, "American audit company") &&
-            Objects.equals(result1.answer2, "Programming language") &&
-            Objects.equals(result1.answer3, "Lace tip") &&
-            Objects.equals(result1.answer4, "idk")
+        Objects.equals(result1.getQuestionText(), "What the Aglet is?") &&
+            Objects.equals(result1.getAnswer1(), "American audit company") &&
+            Objects.equals(result1.getAnswer2(), "Programming language") &&
+            Objects.equals(result1.getAnswer3(), "Lace tip") &&
+            Objects.equals(result1.getAnswer4(), "idk")
         ) && (
             dbService.getRightAnswer(gameId, 1).equals(3)
         )
@@ -526,11 +528,11 @@ public class DbServiceTest {
 
     if (
         (
-        Objects.equals(result2.questionText, "What is the punishment for driving drunk in Russia?") &&
-            Objects.equals(result2.answer1, "100 USD") &&
-            Objects.equals(result2.answer2, "Deprivation of driving license") &&
-            Objects.equals(result2.answer3, "Warning") &&
-            Objects.equals(result2.answer4, "None")
+        Objects.equals(result2.getQuestionText(), "What is the punishment for driving drunk in Russia?") &&
+            Objects.equals(result2.getAnswer1(), "100 USD") &&
+            Objects.equals(result2.getAnswer2(), "Deprivation of driving license") &&
+            Objects.equals(result2.getAnswer3(), "Warning") &&
+            Objects.equals(result2.getAnswer4(), "None")
         ) && (
             dbService.getRightAnswer(gameId, 2).equals(2)
         )
@@ -566,7 +568,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testStopGame_DeleteGame_GetGlobalLeaderboards() throws SQLException, DatabaseAccessException {
+  void testStopGame_DeleteGame_GetGlobalLeaderboards() throws SQLException, DatabaseAccessException, JSONException {
     // creating games
     Integer gameId1 = dbService.createGame("SESSION", 1, 5, 5, 1);
     Integer gameId2 = dbService.createGame("SESSION", 1, 5, 5, 1);
@@ -624,12 +626,12 @@ public class DbServiceTest {
 
   Achievement createTestAchievement() {
     Achievement achvm = new Achievement();
-    achvm.name = "testAchvm";
-    achvm.profilePicNeeded = false;
-    achvm.descriptionNeeded = true;
-    achvm.gamesNumberNeeded = 100;
-    achvm.globalPointsNeeded = 150;
-    achvm.currentGameLevelDifficultyNeeded = 1;
+    achvm.setName("testAchvm");
+    achvm.setProfilePicNeeded(false);
+    achvm.setDescriptionNeeded(true);
+    achvm.setGamesNumberNeeded(100);
+    achvm.setGlobalPointsNeeded(150);
+    achvm.setCurrentGameLevelDifficultyNeeded(1);
     return achvm;
   }
 
@@ -641,12 +643,12 @@ public class DbServiceTest {
     Achievement resAchvm = dbService.getAchievementById(achvmId);
 
     // checking fields
-    assertEquals(resAchvm.name, achvm.name);
-    assertEquals(resAchvm.profilePicNeeded, achvm.profilePicNeeded);
-    assertEquals(resAchvm.descriptionNeeded, achvm.descriptionNeeded);
-    assertEquals(resAchvm.gamesNumberNeeded, achvm.gamesNumberNeeded);
-    assertEquals(resAchvm.globalPointsNeeded, achvm.globalPointsNeeded);
-    assertEquals(resAchvm.currentGameLevelDifficultyNeeded, achvm.currentGameLevelDifficultyNeeded);
+    assertEquals(resAchvm.getName(), achvm.getName());
+    assertEquals(resAchvm.isProfilePicNeeded(), achvm.isProfilePicNeeded());
+    assertEquals(resAchvm.isDescriptionNeeded(), achvm.isDescriptionNeeded());
+    assertEquals(resAchvm.getGamesNumberNeeded(), achvm.getGamesNumberNeeded());
+    assertEquals(resAchvm.getGlobalPointsNeeded(), achvm.getGlobalPointsNeeded());
+    assertEquals(resAchvm.getCurrentGameLevelDifficultyNeeded(), achvm.getCurrentGameLevelDifficultyNeeded());
   }
 
   @Test
@@ -658,17 +660,17 @@ public class DbServiceTest {
 
     // creating "achieved" object
     Achievement test1 = new Achievement();
-    test1.profilePicNeeded = true;
-    test1.descriptionNeeded = false;
-    test1.gamesNumberNeeded = 100;
-    test1.globalPointsNeeded = 150;
+    test1.setProfilePicNeeded(true);
+    test1.setDescriptionNeeded(false);
+    test1.setGamesNumberNeeded(100);
+    test1.setGlobalPointsNeeded(150);
     Integer[] emptyArr = new Integer[0];
 
     // testing checkAchievementAchieved
     assertArrayEquals(emptyArr, dbService.checkAchievementAchieved("SESSION", test1));
     // reformatting "achieved" object
-    test1.profilePicNeeded = false;
-    test1.descriptionNeeded = true;
+    test1.setProfilePicNeeded(false);
+    test1.setDescriptionNeeded(true);
     Integer[] testArr1 = {achvmId1};
     assertArrayEquals(testArr1, dbService.checkAchievementAchieved("SESSION", test1));
 
@@ -698,21 +700,21 @@ public class DbServiceTest {
     dbService.addAchievement(achvm);
 
     Achievement achvm1 = new Achievement(); // created above
-    achvm1.name = "testAchvm";
-    achvm1.profilePicNeeded = false;
-    achvm1.descriptionNeeded = true;
-    achvm1.gamesNumberNeeded = 100;
-    achvm1.globalPointsNeeded = 150;
-    achvm1.currentGameLevelDifficultyNeeded = 1;
+    achvm1.setName("testAchvm");
+    achvm1.setProfilePicNeeded(false);
+    achvm1.setDescriptionNeeded(true);
+    achvm1.setGamesNumberNeeded(100);
+    achvm1.setGlobalPointsNeeded(150);
+    achvm1.setCurrentGameLevelDifficultyNeeded(1);
 
     Achievement[] res = dbService.getAllAchievements();
     assertEquals(1, res.length);
-    assertEquals(res[0].name, achvm1.name);
-    assertEquals(res[0].profilePicNeeded, achvm1.profilePicNeeded);
-    assertEquals(res[0].descriptionNeeded, achvm1.descriptionNeeded);
-    assertEquals(res[0].gamesNumberNeeded, achvm1.gamesNumberNeeded);
-    assertEquals(res[0].globalPointsNeeded, achvm1.globalPointsNeeded);
-    assertEquals(res[0].currentGameLevelDifficultyNeeded, achvm1.currentGameLevelDifficultyNeeded);
+    assertEquals(res[0].getName(), achvm1.getName());
+    assertEquals(res[0].isProfilePicNeeded(), achvm1.isProfilePicNeeded());
+    assertEquals(res[0].isDescriptionNeeded(), achvm1.isDescriptionNeeded());
+    assertEquals(res[0].getGamesNumberNeeded(), achvm1.getGamesNumberNeeded());
+    assertEquals(res[0].getGlobalPointsNeeded(), achvm1.getGlobalPointsNeeded());
+    assertEquals(res[0].getCurrentGameLevelDifficultyNeeded(), achvm1.getCurrentGameLevelDifficultyNeeded());
   }
 
   @Test
@@ -732,7 +734,7 @@ public class DbServiceTest {
 
   Topic createTestTopic(String name) {
     Topic topic = new Topic();
-    topic.name = name;
+    topic.setName(name);
     return topic;
   }
 
@@ -746,11 +748,11 @@ public class DbServiceTest {
 
     // testing getTopicById
     Topic res1 = dbService.getTopicById(topicId1);
-    if (!Objects.equals(res1.name, topic1.name)) {
+    if (!Objects.equals(res1.getName(), topic1.getName())) {
       fail("Topic1 dont matches data in DB");
     }
     Topic res2 = dbService.getTopicById(topicId2);
-    if (!Objects.equals(res2.name, topic2.name)) {
+    if (!Objects.equals(res2.getName(), topic2.getName())) {
       fail("Topic2 dont matches data in DB");
     }
   }
@@ -766,9 +768,9 @@ public class DbServiceTest {
     // testing getAllTopics
     Topic[] res = dbService.getAllTopics();
     if (
-        Objects.equals(res[0].name, "testTopic") && // initialized in DB
-            Objects.equals(res[1].name, topic1.name) &&
-            Objects.equals(res[2].name, topic2.name)
+        Objects.equals(res[0].getName(), "testTopic") && // initialized in DB
+            Objects.equals(res[1].getName(), topic1.getName()) &&
+            Objects.equals(res[2].getName(), topic2.getName())
     ) {
       assertTrue(true);
     } else {

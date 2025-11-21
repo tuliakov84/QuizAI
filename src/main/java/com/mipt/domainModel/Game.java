@@ -4,20 +4,20 @@ import java.time.Instant;
 
 public class Game {
 
-  public int gameId;
-  public User author;
-  public Topic topic;
-  public Question question;
-  public Status status;
-  public Instant createdAt;
-  public Instant gameStartTime;
-  public Instant gameEndTime;
-  public Instant timeToAnswer;
-  public int currentQuestionNumber;
-  public int numberOfQuestions;
-  public boolean isPrivate;
-  public LevelDifficulty levelDifficulty;
-  public int participantsNumber;
+  private int gameId;
+  private int authorId;
+  private Topic topic;
+  private Question question;
+  private Status status;
+  private Instant createdAt;
+  private Instant gameStartTime;
+  private Instant gameEndTime;
+  private int currentQuestionNumber;
+  private int numberOfQuestions;
+  private boolean isPrivate;
+  private LevelDifficulty levelDifficulty;
+  private int participantsNumber;
+  private int currentParticipantsNumber;
 
   public enum Status {
     WAITING,
@@ -35,9 +35,9 @@ public class Game {
   public Game() {
   }
 
-  public Game(int gameId, User author, Topic topic, LevelDifficulty levelDifficulty) {
+  public Game(int gameId, int authorId, Topic topic, LevelDifficulty levelDifficulty) {
     this.gameId = gameId;
-    this.author = author;
+    this.authorId = authorId;
     this.topic = topic;
     this.levelDifficulty = levelDifficulty;
     this.status = Status.WAITING;
@@ -52,12 +52,12 @@ public class Game {
     this.gameId = gameId;
   }
 
-  public User getAuthor() {
-    return author;
+  public int getAuthorId() {
+    return authorId;
   }
 
-  public void setAuthor(User author) {
-    this.author = author;
+  public void setAuthorId(int authorId) {
+    this.authorId = authorId;
   }
 
   public Topic getTopic() {
@@ -108,14 +108,6 @@ public class Game {
     this.gameEndTime = gameEndTime;
   }
 
-  public Instant getTimeToAnswer() {
-    return timeToAnswer;
-  }
-
-  public void setTimeToAnswer(Instant timeToAnswer) {
-    this.timeToAnswer = timeToAnswer;
-  }
-
   public int getCurrentQuestionNumber() {
     return currentQuestionNumber;
   }
@@ -154,5 +146,13 @@ public class Game {
 
   public void setParticipantsNumber(int participantsNumber) {
     this.participantsNumber = participantsNumber;
+  }
+
+  public int getCurrentParticipantsNumber() {
+    return currentParticipantsNumber;
+  }
+
+  public void setCurrentParticipantsNumber(int currentParticipantsNumber) {
+    this.currentParticipantsNumber = currentParticipantsNumber;
   }
 }

@@ -73,7 +73,7 @@ public class DbService {
     inpData.executeUpdate();
   }
 
-  public void authorize(String username, String password, String session) throws SQLException, DatabaseAccessException {
+  public void authenticate(String username, String password, String session) throws SQLException, DatabaseAccessException {
     // authorizes user
     
     PreparedStatement selExists = conn.prepareStatement("SELECT password FROM users WHERE username = ?");
@@ -631,11 +631,11 @@ public class DbService {
     ResultSet rsQuestion = selQuestion.executeQuery();
     if (rsQuestion.next()) {
       Question questionObj = new Question();
-      questionObj.questionText = rsQuestion.getString(1);
-      questionObj.answer1 = rsQuestion.getString(2);
-      questionObj.answer2 = rsQuestion.getString(3);
-      questionObj.answer3 = rsQuestion.getString(4);
-      questionObj.answer4 = rsQuestion.getString(5);
+      questionObj.setQuestionText(rsQuestion.getString(1));
+      questionObj.setAnswer1(rsQuestion.getString(2));
+      questionObj.setAnswer2(rsQuestion.getString(3));
+      questionObj.setAnswer3(rsQuestion.getString(4));
+      questionObj.setAnswer4(rsQuestion.getString(5));
 
       return questionObj; // Question
     } else {
@@ -788,15 +788,15 @@ public class DbService {
     PreparedStatement inpAchvm = conn.prepareStatement("INSERT INTO achievements (name, profile_pic_needed, description_needed, " +
         "games_number_needed, global_points_needed, global_rating_place_needed, current_game_points_needed, current_game_rating_needed," +
         "current_game_level_difficulty_needed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
-    inpAchvm.setString(1, achievement.name);
-    inpAchvm.setBoolean(2, achievement.profilePicNeeded);
-    inpAchvm.setBoolean(3, achievement.descriptionNeeded);
-    inpAchvm.setInt(4, achievement.gamesNumberNeeded);
-    inpAchvm.setInt(5, achievement.globalPointsNeeded);
-    inpAchvm.setInt(6, achievement.globalRatingPlaceNeeded);
-    inpAchvm.setInt(7, achievement.currentGamePointsNeeded);
-    inpAchvm.setInt(8, achievement.currentGameRatingNeeded);
-    inpAchvm.setInt(9, achievement.currentGameLevelDifficultyNeeded);
+    inpAchvm.setString(1, achievement.getName());
+    inpAchvm.setBoolean(2, achievement.isProfilePicNeeded());
+    inpAchvm.setBoolean(3, achievement.isDescriptionNeeded());
+    inpAchvm.setInt(4, achievement.getGamesNumberNeeded());
+    inpAchvm.setInt(5, achievement.getGlobalPointsNeeded());
+    inpAchvm.setInt(6, achievement.getGlobalRatingPlaceNeeded());
+    inpAchvm.setInt(7, achievement.getCurrentGamePointsNeeded());
+    inpAchvm.setInt(8, achievement.getCurrentGameRatingNeeded());
+    inpAchvm.setInt(9, achievement.getCurrentGameLevelDifficultyNeeded());
     
     inpAchvm.executeUpdate();
     ResultSet rsInpAchvm = inpAchvm.getGeneratedKeys();
@@ -843,14 +843,14 @@ public class DbService {
     PreparedStatement selAchievement = conn.prepareStatement(sql);
 
     selAchievement.setInt(1, userId);
-    selAchievement.setBoolean(2, achieved.profilePicNeeded);
-    selAchievement.setBoolean(3, achieved.descriptionNeeded);
-    selAchievement.setInt(4, achieved.gamesNumberNeeded);
-    selAchievement.setInt(5, achieved.globalPointsNeeded);
-    selAchievement.setInt(6, achieved.globalRatingPlaceNeeded);
-    selAchievement.setInt(7, achieved.currentGamePointsNeeded);
-    selAchievement.setInt(8, achieved.currentGameRatingNeeded);
-    selAchievement.setInt(9, achieved.currentGameLevelDifficultyNeeded);
+    selAchievement.setBoolean(2, achieved.isProfilePicNeeded());
+    selAchievement.setBoolean(3, achieved.isDescriptionNeeded());
+    selAchievement.setInt(4, achieved.getGamesNumberNeeded());
+    selAchievement.setInt(5, achieved.getGlobalPointsNeeded());
+    selAchievement.setInt(6, achieved.getGlobalRatingPlaceNeeded());
+    selAchievement.setInt(7, achieved.getCurrentGamePointsNeeded());
+    selAchievement.setInt(8, achieved.getCurrentGameRatingNeeded());
+    selAchievement.setInt(9, achieved.getCurrentGameLevelDifficultyNeeded());
 
     ResultSet rsAchievement = selAchievement.executeQuery();
     while (rsAchievement.next()) {
@@ -887,16 +887,16 @@ public class DbService {
     Achievement achievementObj = new Achievement();
 
     if (rsAchievement.next()) {
-      achievementObj.achievementId = rsAchievement.getInt("id");
-      achievementObj.name = rsAchievement.getString("name");
-      achievementObj.profilePicNeeded = rsAchievement.getBoolean("profile_pic_needed");
-      achievementObj.descriptionNeeded = rsAchievement.getBoolean("description_needed");
-      achievementObj.gamesNumberNeeded = rsAchievement.getInt("games_number_needed");
-      achievementObj.globalPointsNeeded = rsAchievement.getInt("global_points_needed");
-      achievementObj.globalRatingPlaceNeeded = rsAchievement.getInt("global_rating_place_needed");
-      achievementObj.currentGamePointsNeeded = rsAchievement.getInt("current_game_points_needed");
-      achievementObj.currentGameRatingNeeded = rsAchievement.getInt("current_game_rating_needed");
-      achievementObj.currentGameLevelDifficultyNeeded = rsAchievement.getInt("current_game_level_difficulty_needed");
+      achievementObj.setAchievementId(rsAchievement.getInt("id"));
+      achievementObj.setName(rsAchievement.getString("name"));
+      achievementObj.setProfilePicNeeded(rsAchievement.getBoolean("profile_pic_needed"));
+      achievementObj.setDescriptionNeeded(rsAchievement.getBoolean("description_needed"));
+      achievementObj.setGamesNumberNeeded(rsAchievement.getInt("games_number_needed"));
+      achievementObj.setGlobalPointsNeeded(rsAchievement.getInt("global_points_needed"));
+      achievementObj.setGlobalRatingPlaceNeeded(rsAchievement.getInt("global_rating_place_needed"));
+      achievementObj.setCurrentGamePointsNeeded(rsAchievement.getInt("current_game_points_needed"));
+      achievementObj.setCurrentGameRatingNeeded(rsAchievement.getInt("current_game_rating_needed"));
+      achievementObj.setCurrentGameLevelDifficultyNeeded(rsAchievement.getInt("current_game_level_difficulty_needed"));
 
       return achievementObj;
     } else {
@@ -914,16 +914,16 @@ public class DbService {
     while (rsAchievement.next()) {
       Achievement achievementObj = new Achievement();
 
-      achievementObj.achievementId = rsAchievement.getInt("id");
-      achievementObj.name = rsAchievement.getString("name");
-      achievementObj.profilePicNeeded = rsAchievement.getBoolean("profile_pic_needed");
-      achievementObj.descriptionNeeded = rsAchievement.getBoolean("description_needed");
-      achievementObj.gamesNumberNeeded = rsAchievement.getInt("games_number_needed");
-      achievementObj.globalPointsNeeded = rsAchievement.getInt("global_points_needed");
-      achievementObj.globalRatingPlaceNeeded = rsAchievement.getInt("global_rating_place_needed");
-      achievementObj.currentGamePointsNeeded = rsAchievement.getInt("current_game_points_needed");
-      achievementObj.currentGameRatingNeeded = rsAchievement.getInt("current_game_rating_needed");
-      achievementObj.currentGameLevelDifficultyNeeded = rsAchievement.getInt("current_game_level_difficulty_needed");
+      achievementObj.setAchievementId(rsAchievement.getInt("id"));
+      achievementObj.setName(rsAchievement.getString("name"));
+      achievementObj.setProfilePicNeeded(rsAchievement.getBoolean("profile_pic_needed"));
+      achievementObj.setDescriptionNeeded(rsAchievement.getBoolean("description_needed"));
+      achievementObj.setGamesNumberNeeded(rsAchievement.getInt("games_number_needed"));
+      achievementObj.setGlobalPointsNeeded(rsAchievement.getInt("global_points_needed"));
+      achievementObj.setGlobalRatingPlaceNeeded(rsAchievement.getInt("global_rating_place_needed"));
+      achievementObj.setCurrentGamePointsNeeded(rsAchievement.getInt("current_game_points_needed"));
+      achievementObj.setCurrentGameRatingNeeded(rsAchievement.getInt("current_game_rating_needed"));
+      achievementObj.setCurrentGameLevelDifficultyNeeded(rsAchievement.getInt("current_game_level_difficulty_needed"));
 
       res.add(achievementObj);
     }
@@ -947,7 +947,7 @@ public class DbService {
     // creates a new topic, returns id of it
 
     PreparedStatement inpTopic = conn.prepareStatement("INSERT INTO topics (name) VALUES (?)", Statement.RETURN_GENERATED_KEYS);
-    inpTopic.setString(1, topic.name);
+    inpTopic.setString(1, topic.getName());
 
     inpTopic.executeUpdate();
     ResultSet rsInpTopic = inpTopic.getGeneratedKeys();
@@ -967,8 +967,8 @@ public class DbService {
     
     ResultSet rsInpTopic = inpTopic.executeQuery();
     if (rsInpTopic.next()) {
-      topic.topicId = id;
-      topic.name = rsInpTopic.getString(1);
+      topic.setTopicId(id);
+      topic.setName(rsInpTopic.getString(1));
       return topic;
     } else {
       throw new DatabaseAccessException();
@@ -980,12 +980,12 @@ public class DbService {
 
     ArrayList<Topic> res = new ArrayList<>();
     Statement selTopic = conn.createStatement();
-    ResultSet rsAchievement = selTopic.executeQuery("SELECT * FROM topics");
+    ResultSet rsTopic = selTopic.executeQuery("SELECT * FROM topics");
 
-    while (rsAchievement.next()) {
+    while (rsTopic.next()) {
       Topic topicObj = new Topic();
-      topicObj.topicId = rsAchievement.getInt("id");
-      topicObj.name = rsAchievement.getString("name");
+      topicObj.setTopicId(rsTopic.getInt("id"));
+      topicObj.setName(rsTopic.getString("name"));
       res.add(topicObj);
     }
     

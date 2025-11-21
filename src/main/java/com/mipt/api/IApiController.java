@@ -6,47 +6,35 @@ import java.time.Instant;
 import java.util.List;
 
 public interface IApiController {
-  //User authentification
-  User register(String userName, String password, String session);
-  User login(String userName, String password, String session);
+  User auth(String username, String password);
+  User register(String username, String password);
   void logout(String session);
 
-  //Show UserData
-  String getUsername(String session);
-  int getProfilePicId(String session);
-  int getCurrentGlobalPoints(String session);
-  int getGlobalPossiblePoints(String session);
-  List<Achievement> getAchievements(String session);
-  List<Game> getGamesPlayed(String session);
+  User getUser(String session);
+  User updateUser(String session, int newPicId, String newDescription, String newUsername);
 
+  List<Game> getLast5GamesPlayed(String session);
+  List<Game> getAllGamesPlayed(String session);
 
-  //Editing profile
-  User updateUserProfilePic(String session, int picId);
-  User updateUsername(String session, String newUserName);
-  User updatePassword(String session, String oldPassword, String newPassword);
-  User updateDescription(String session, String newDescription);
+  List<Achievement> getAllAchievements(String session);
 
-  //Host operations
-  Game createGame(String hostSession, int topicId, Game.LevelDifficulty level,
-                  boolean isPrivate, int maxAmounOfPlayers, Instant timeToAnswer);
-  Game updateMaxAmountOfPlayersInGame(String hostSession, int newMaxAmountOfPlayers);
-  Question startGame(String hostSession);
-  void deleteGame(String hostSession);
-  void pauseGame(String hostSession);
-  void unpauseGame(String hostSession);
+  Game joinGame(String session, int gameId);
+  List<User> getAllParticipants(int gameId);
+  List<Topic> getAllTopics();
+  List<Game> getListOfOpenGames();
 
-  //Nonhost operations
-  List<Game> getListOfWaitingGames();
-  User joinGame(String session, int gameId);
-  User leftGame(String session);
-  List<User> getListOfPlayersInCurrentGame(int gameId);
+  Game createGame(int difficulty, boolean isPrivate, int participantsNumber,
+                  int numberOfQuestions, String topic);
+  Game startGame(String authorSession);
+  Game changeParticipantsNumber(String authorSession, int newParticipantsNumber);
 
-  //Game service
-  Question getNextQuestion(int questionId, int gameId);
-  void getAnswer(String session, int answerNumber, Instant timeToAnswer);
-  int getCurrentGamePoints(String session);
-  void endGame(int gameId);//should it be in ApiController?
+  Game startGameAuto(int gameId);
+  void endGame(int gameId);
 
-  //Show leaderboard
-  List<User> getBestPlayers();
+  List<User> getGlobalLeaderboard();
+  List<User> getGameLeaderboard(int gameId);
+
+  Question nextQuestion(int gameId);
+  User getAnswer(String session, int answerId, Instant timeToAnswer);
+
 }

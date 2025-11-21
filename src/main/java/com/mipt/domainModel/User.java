@@ -1,23 +1,24 @@
 package com.mipt.domainModel;
 
 import java.time.Instant;
+import java.util.List;
 
 public class User {
-  public int userId;
-  public Game currentGame;
-  public Achievement[] achievements;
-  public Game[] gamesPlayed;
+  private int userId;
+  private Game currentGame;
+  private List<Achievement> achievements;
+  private List<Game> gamesPlayed;
 
-  public String session;
-  public String username;
-  public String password;
-  public int picId;
-  public String description;
-  public Instant lastActivity;
-  public int gamesPlayedNumber;
-  public int globalPoints;
-  public int globalPossiblePoints;
-  public int currentGamePoints;
+  private String session;
+  private String username;
+  private String password;
+  private int picId;
+  private String description;
+  private Instant lastActivity;
+  private int gamesPlayedNumber;
+  private int globalPoints;
+  private int globalPossiblePoints;
+  private int currentGamePoints;
 
   public User() {
 
@@ -42,8 +43,12 @@ public class User {
 
   }
 
+  public void setUserId(int userId) {
+    this.userId = userId;
+  }
+  
   public int getUserId() {
-    return 0;
+    return userId;
   }
 
   public String getUsername() {
@@ -134,19 +139,19 @@ public class User {
     this.currentGame = currentGame;
   }
 
-  public Achievement[] getAchievements() {
+  public List<Achievement> getAchievements() {
     return achievements;
   }
 
-  public void setAchievements(Achievement[] achievements) {
+  public void setAchievements(List<Achievement> achievements) {
     this.achievements = achievements;
   }
 
-  public Game[] getGamesPlayed() {
+  public List<Game> getGamesPlayed() {
     return gamesPlayed;
   }
 
-  public void setGamesPlayed(Game[] gamesPlayed) {
+  public void setGamesPlayed(List<Game> gamesPlayed) {
     this.gamesPlayed = gamesPlayed;
   }
 }
