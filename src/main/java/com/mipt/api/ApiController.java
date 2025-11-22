@@ -63,7 +63,7 @@ public class ApiController {
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to register user '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while registering user '" + user.getUsername() + "'", HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Database error occurred while registering user '" + user.getUsername() + "'", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -75,7 +75,7 @@ public class ApiController {
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to log out of account '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while logging out of account '" + user.getUsername() + "'", HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Database error occurred while logging out of account '" + user.getUsername() + "'", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -99,7 +99,7 @@ public class ApiController {
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to get information about account '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while getting information about account '" + user.getUsername() + "'", HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Database error occurred while getting information about account '" + user.getUsername() + "'", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -115,7 +115,7 @@ public class ApiController {
         return new ResponseEntity<>("Cant change to null picture", HttpStatus.NOT_FOUND);
       }
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while configuring account " + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Database error occurred while configuring account " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to configure information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
     }
@@ -129,7 +129,7 @@ public class ApiController {
       dbService.changeDescription(session, description);
       return new ResponseEntity<>(HttpStatus.OK);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while configuring account " + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Database error occurred while configuring account " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to configure information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
     }
@@ -141,7 +141,7 @@ public class ApiController {
       Integer[] games = dbService.getGamesPlayed(user.getSession());
       return new ResponseEntity<>(games, HttpStatus.OK);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while getting information about " + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Database error occurred while getting information about " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to get information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
     }
@@ -172,7 +172,7 @@ public class ApiController {
         game.setNumberOfQuestions(preset[2]);
         game.setParticipantsNumber(preset[3]);
         game.setCurrentParticipantsNumber(dbService.getCurrentParticipantsNumber(gameId));
-
+        // check if topicId is null
         int topicId = preset[4];
         game.setTopic(dbService.getTopicById(topicId));
 
@@ -180,14 +180,12 @@ public class ApiController {
 
         return new ResponseEntity<>(game, HttpStatus.OK);
       } else {
-        throw new AccessException();
+        return new ResponseEntity<>("Failed to join room " + game.getGameId() + " because it's already started", HttpStatus.CONFLICT);
       }
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to join room '" + game.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while joining room '" + game.getGameId() + "'", HttpStatus.NOT_FOUND);
-    } catch (AccessException e) {
-      return new ResponseEntity<>("Game already started", HttpStatus.CONFLICT);
+      return new ResponseEntity<>("Database error occurred while joining room '" + game.getGameId() + "'", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }
