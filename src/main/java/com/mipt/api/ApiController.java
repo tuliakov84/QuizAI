@@ -184,8 +184,7 @@ public class ApiController {
         game.setCurrentParticipantsNumber(dbService.getCurrentParticipantsNumber(gameId));
         // check if topicId is null
         int topicId = preset[4];
-        game.setTopic(dbService.getTopicById(topicId));
-
+        game.setTopicId(topicId);
         game.setPrivate(dbService.getPrivate(gameId));
 
         return new ResponseEntity<>(game, HttpStatus.OK);
@@ -217,7 +216,7 @@ public class ApiController {
       int gameId = dbService.createGame(sessionOfAuthor, levelDifficulty,
           numberOfQuestions, participantsNumber, topicId);
       game.setGameId(gameId);
-      game.setTopic(topic);
+      game.setTopicId(topicId);
       
       return new ResponseEntity<>(game, HttpStatus.OK);
       } catch (DatabaseAccessException e) {
