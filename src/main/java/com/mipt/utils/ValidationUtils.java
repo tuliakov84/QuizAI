@@ -8,14 +8,14 @@ public class ValidationUtils {
   private static final String PASSWORD_REGEX = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\\\d)(?=.*[@$!%*?&])[A-Za-z\\\\d@$!%*?&]{8,}$";
   private static final String DESCRIPTION_REGEX = "^[a-zA-Z0-9.,\\\\s-]{10,200}$";
 
-  public boolean usernameValidation(String userName) {
+  public static boolean usernameValidation(String userName) {
     // validates the username
     Pattern pattern = Pattern.compile(USERNAME_REGEX);
     Matcher matcher = pattern.matcher(userName);
     return matcher.matches();
   }
 
-  public boolean passwordValidation(String password) {
+  public static boolean passwordValidation(String password) {
     // validates the password
     // Regex pattern for a strong password:
     // - At least 8 characters long
@@ -29,7 +29,7 @@ public class ValidationUtils {
     return matcher.matches();
   }
 
-  public boolean descriptionValidation(String description) {
+  public static boolean descriptionValidation(String description) {
     // validates description
     // Regex for a bio: alphanumeric, spaces, periods, commas, hyphens between 10 and 200 characters long.
 
