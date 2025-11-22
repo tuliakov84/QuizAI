@@ -5,6 +5,7 @@ import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.*;
 import com.mipt.utils.BackendUtils;
 import com.mipt.utils.ValidationUtils;
+import org.hibernate.validator.internal.constraintvalidators.bv.time.pastorpresent.PastOrPresentValidatorForReadableInstant;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,10 +24,12 @@ public class ApiController {
 
   private final BackendUtils utils;
   private final DbService dbService;
+  private final PastOrPresentValidatorForReadableInstant pastOrPresentValidatorForReadableInstant;
 
-  public ApiController(DbService dbService) {
+  public ApiController(DbService dbService, PastOrPresentValidatorForReadableInstant pastOrPresentValidatorForReadableInstant) {
     this.dbService = dbService;
     this.utils = new BackendUtils(dbService);
+    this.pastOrPresentValidatorForReadableInstant = pastOrPresentValidatorForReadableInstant;
   }
 
   @PostMapping("/auth/login")
@@ -36,10 +39,10 @@ public class ApiController {
       try {
         String password = user.getPassword();
         String username = user.getUsername();
-        if (!ValidationUtils.passwordValidation(password)){
+        if (!ValidationUtils.passwordValidation(password)) {
           return new ResponseEntity<>("Password validation error. Bad password", HttpStatus.BAD_REQUEST);
         }
-        if (!ValidationUtils.usernameValidation(username)){
+        if (!ValidationUtils.usernameValidation(username)) {
           return new ResponseEntity<>("Username validation error. Bad username", HttpStatus.BAD_REQUEST);
         }
         dbService.authenticate(user.getUsername(), user.getPassword(), session);
@@ -157,6 +160,24 @@ public class ApiController {
     }
   }
 
+  @PostMapping("/users/set/password")
+  public ResponseEntity<Object> changePassword(@RequestBody User user) {
+    try {
+      String session = user.getSession();
+      String password = user.getPassword();
+      if (!ValidationUtils.passwordValidation(password)) {
+        return new ResponseEntity<>("Password validation error. Bad password", HttpStatus.BAD_REQUEST);
+      }
+      dbService.changePassword(session, password);
+
+      return new ResponseEntity<>(HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while configuring account " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to configure information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
   @PostMapping("/users/get-games")
   public ResponseEntity<Object> getGames(@RequestBody User user) {
     try {
@@ -207,6 +228,7 @@ public class ApiController {
       return new ResponseEntity<>("Database error occurred while joining room '" + game.getGameId() + "'", HttpStatus.NOT_FOUND);
     }
   }
+
   @PostMapping("/game/create")
   public ResponseEntity<Object> createGame(@RequestBody User user, @RequestBody Game game, @RequestBody Topic topic) {
     try {
@@ -220,19 +242,40 @@ public class ApiController {
         default -> levelDifficulty = 0;
       }
 
-      int numberOfQuestions =  game.getNumberOfQuestions();
+      int numberOfQuestions = game.getNumberOfQuestions();
       int participantsNumber = game.getParticipantsNumber();
       int topicId = topic.getTopicId();
       int gameId = dbService.createGame(sessionOfAuthor, levelDifficulty,
           numberOfQuestions, participantsNumber, topicId);
       game.setGameId(gameId);
       game.setTopicId(topicId);
-      
+
       return new ResponseEntity<>(game, HttpStatus.OK);
-      } catch (DatabaseAccessException e) {
+    } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to create room '" + game.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while creating game '" + game.getGameId() + "'", HttpStatus.NOT_FOUND);
+    }
+  }
+
+  public ResponseEntity<Object> changeParticipantsNumber(@RequestBody User user, @RequestBody Game game) {
+    try {
+      String session = user.getSession();
+      int userId = dbService.getUserId(session);
+      int participantsNumber = game.getParticipantsNumber();
+      int gameId = game.getGameId();
+
+      Integer[] preset = dbService.getPreset(gameId);
+      if (preset[0] != userId) {
+        return new ResponseEntity<>("User " + userId + " is not the author of game '" + gameId + "'", HttpStatus.BAD_REQUEST);
+      }
+
+      //dbService.changeParticipantsNumber(gameId, participantsNumber);
+      return new ResponseEntity<>(game, HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to update room '" + game.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while updating game '" + game.getGameId() + "'", HttpStatus.NOT_FOUND);
     }
   }
 }
