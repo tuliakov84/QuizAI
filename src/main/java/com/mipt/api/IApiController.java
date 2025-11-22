@@ -10,8 +10,10 @@ public interface IApiController {
   User register(String username, String password);
   void logout(String session);
 
-  User getUser(String session);
-  User updateUser(String session, int newPicId, String newDescription, String newUsername);
+  User getProfile(String session);
+  User changeProfilePic(String session, int newPicId);
+  User changeDescription(String session, String newDescription);
+  User changeUsername(String session, String newUsername);
 
   List<Game> getLast5GamesPlayed(String session);
   List<Game> getAllGamesPlayed(String session);

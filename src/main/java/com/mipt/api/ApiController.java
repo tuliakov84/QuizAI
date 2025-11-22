@@ -78,7 +78,7 @@ public class ApiController {
   }
 
   @PostMapping("/users/profile")
-  public ResponseEntity<Object> profile(@RequestBody User user) {
+  public ResponseEntity<Object> getProfile(@RequestBody User user) {
     try {
       String session = user.getSession();
       user.setUserId(dbService.getUserId(session));
