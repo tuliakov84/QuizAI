@@ -5,7 +5,6 @@ import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.*;
 import com.mipt.utils.BackendUtils;
 import com.mipt.utils.ValidationUtils;
-import org.hibernate.validator.internal.constraintvalidators.bv.time.pastorpresent.PastOrPresentValidatorForReadableInstant;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,12 +23,10 @@ public class ApiController {
 
   private final BackendUtils utils;
   private final DbService dbService;
-  private final PastOrPresentValidatorForReadableInstant pastOrPresentValidatorForReadableInstant;
 
-  public ApiController(DbService dbService, PastOrPresentValidatorForReadableInstant pastOrPresentValidatorForReadableInstant) {
+  public ApiController(DbService dbService) {
     this.dbService = dbService;
     this.utils = new BackendUtils(dbService);
-    this.pastOrPresentValidatorForReadableInstant = pastOrPresentValidatorForReadableInstant;
   }
 
   @PostMapping("/auth/login")
