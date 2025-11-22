@@ -4,10 +4,12 @@ import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.*;
 import com.mipt.utils.BackendUtils;
+import com.mipt.utils.ValidationUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.swing.*;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -32,6 +34,14 @@ public class ApiController {
     for (int attempt = 0; attempt < MAX_SESSION_RETRIES; attempt++) {
       String session = utils.generateSessionId();
       try {
+        String password = user.getPassword();
+        String username = user.getUsername();
+        if (!ValidationUtils.passwordValidation(password)){
+          return new ResponseEntity<>("Password validation error. Bad password", HttpStatus.BAD_REQUEST);
+        }
+        if (!ValidationUtils.usernameValidation(username)){
+          return new ResponseEntity<>("Username validation error. Bad username", HttpStatus.BAD_REQUEST);
+        }
         dbService.authenticate(user.getUsername(), user.getPassword(), session);
         user.setSession(session);
         user.setUserId(dbService.getUserId(session));
@@ -43,7 +53,7 @@ public class ApiController {
         }
         user.setDescription(dbService.getDescription(session));
         user.setGlobalPoints(dbService.getGlobalPoints(session));
-        return new ResponseEntity<>(user, HttpStatus.OK);
+        return new ResponseEntity<>(session, HttpStatus.OK);
       } catch (DatabaseAccessException e) {
         if (utils.isSessionCollision(e)) {
           continue;
@@ -135,6 +145,9 @@ public class ApiController {
     try {
       String session = user.getSession();
       String description = user.getDescription();
+      if (!ValidationUtils.descriptionValidation(description)) {
+        return new ResponseEntity<>("説明検証エラー。説明エラー。説明が無効です。 perepishi", HttpStatus.BAD_REQUEST);
+      }
       dbService.changeDescription(session, description);
       return new ResponseEntity<>(HttpStatus.OK);
     } catch (SQLException e) {
@@ -181,8 +194,7 @@ public class ApiController {
         game.setCurrentParticipantsNumber(dbService.getCurrentParticipantsNumber(gameId));
         // check if topicId is null
         int topicId = preset[4];
-        game.setTopic(dbService.getTopicById(topicId));
-
+        game.setTopicId(topicId);
         game.setPrivate(dbService.getPrivate(gameId));
 
         return new ResponseEntity<>(game, HttpStatus.OK);
@@ -214,7 +226,7 @@ public class ApiController {
       int gameId = dbService.createGame(sessionOfAuthor, levelDifficulty,
           numberOfQuestions, participantsNumber, topicId);
       game.setGameId(gameId);
-      game.setTopic(topic);
+      game.setTopicId(topicId);
       
       return new ResponseEntity<>(game, HttpStatus.OK);
       } catch (DatabaseAccessException e) {

@@ -2,7 +2,7 @@ package com.mipt.domainModel;
 
 public class Question {
   private int questionId;
-  private Game game;
+  private int gameId;
 
   private String questionText;
   private String answer1;
@@ -16,11 +16,11 @@ public class Question {
 
   }
 
-  public Question(int questionId, Game game, String questionText,
+  public Question(int questionId, int gameId, String questionText,
                   String answer1, String answer2, String answer3, String answer4,
                   int rightAnswerNumber, int questionNumber) {
     this.questionId = questionId;
-    this.game = game;
+    this.gameId = gameId;
     this.questionText = questionText;
     this.answer1 = answer1;
     this.answer2 = answer2;
@@ -38,12 +38,12 @@ public class Question {
     this.questionId = questionId;
   }
 
-  public Game getGame() {
-    return game;
+  public int getGameId() {
+    return gameId;
   }
 
-  public void setGame(Game game) {
-    this.game = game;
+  public void setGameId(int gameId) {
+    this.gameId = gameId;
   }
 
   public String getQuestionText() {

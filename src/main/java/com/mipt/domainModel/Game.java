@@ -6,8 +6,8 @@ public class Game {
 
   private int gameId;
   private int authorId;
-  private Topic topic;
-  private Question question;
+  private int topicId;
+  private int questionId;
   private Status status;
   private Instant createdAt;
   private Instant gameStartTime;
@@ -35,10 +35,10 @@ public class Game {
   public Game() {
   }
 
-  public Game(int gameId, int authorId, Topic topic, LevelDifficulty levelDifficulty) {
+  public Game(int gameId, int authorId, int topicId, LevelDifficulty levelDifficulty) {
     this.gameId = gameId;
     this.authorId = authorId;
-    this.topic = topic;
+    this.topicId = topicId;
     this.levelDifficulty = levelDifficulty;
     this.status = Status.WAITING;
     this.createdAt = Instant.now();
@@ -60,20 +60,20 @@ public class Game {
     this.authorId = authorId;
   }
 
-  public Topic getTopic() {
-    return topic;
+  public int getTopicId() {
+    return topicId;
   }
 
-  public void setTopic(Topic topic) {
-    this.topic = topic;
+  public void setTopicId(int topicId) {
+    this.topicId = topicId;
   }
 
-  public Question getQuestion() {
-    return question;
+  public int getQuestionId() {
+    return questionId;
   }
 
-  public void setQuestion(Question question) {
-    this.question = question;
+  public void setQuestionId(int questionId) {
+    this.questionId = questionId;
   }
 
   public Status getStatus() {
