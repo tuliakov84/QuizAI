@@ -2,9 +2,7 @@ package com.mipt.api;
 
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
-import com.mipt.domainModel.Game;
-import com.mipt.domainModel.User;
-import com.mipt.utils.AccessException;
+import com.mipt.domainModel.*;
 import com.mipt.utils.BackendUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -92,6 +90,7 @@ public class ApiController {
         user.setCurrentGame(currentGame);
       }
 
+      user.setUsername(dbService.getUsername(session));
       user.setDescription(dbService.getDescription(session));
       user.setGlobalPoints(dbService.getGlobalPoints(session));
 
@@ -167,8 +166,6 @@ public class ApiController {
           case 3 -> game.setLevelDifficulty(Game.LevelDifficulty.HARD);
         }
 
-        //Add currentParticipants number to Game, DbService and ApiController
-
         game.setNumberOfQuestions(preset[2]);
         game.setParticipantsNumber(preset[3]);
         game.setCurrentParticipantsNumber(dbService.getCurrentParticipantsNumber(gameId));
@@ -185,7 +182,35 @@ public class ApiController {
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to join room '" + game.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while joining room '" + game.getGameId() + "'", HttpStatus.INTERNAL_SERVER_ERROR);
+      return new ResponseEntity<>("Database error occurred while joining room '" + game.getGameId() + "'", HttpStatus.NOT_FOUND);
+    }
+  }
+  @PostMapping("/game/create")
+  public ResponseEntity<Object> createGame(@RequestBody User user, @RequestBody Game game, @RequestBody Topic topic) {
+    try {
+      String sessionOfAuthor = user.getSession();
+
+      int levelDifficulty;
+      switch (game.getLevelDifficulty()) {
+        case EASY -> levelDifficulty = 1;
+        case MEDIUM -> levelDifficulty = 2;
+        case HARD -> levelDifficulty = 3;
+        default -> levelDifficulty = 0;
+      }
+
+      int numberOfQuestions =  game.getNumberOfQuestions();
+      int participantsNumber = game.getParticipantsNumber();
+      int topicId = topic.getTopicId();
+      int gameId = dbService.createGame(sessionOfAuthor, levelDifficulty,
+          numberOfQuestions, participantsNumber, topicId);
+      game.setGameId(gameId);
+      game.setTopic(topic);
+      
+      return new ResponseEntity<>(game, HttpStatus.OK);
+      } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to create room '" + game.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while creating game '" + game.getGameId() + "'", HttpStatus.NOT_FOUND);
     }
   }
 }

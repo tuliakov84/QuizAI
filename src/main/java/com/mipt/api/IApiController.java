@@ -25,8 +25,8 @@ public interface IApiController {
 
   Game createGame(int difficulty, boolean isPrivate, int participantsNumber,
                   int numberOfQuestions, String topic);
-  Game startGame(String authorSession);
-  Game changeParticipantsNumber(String authorSession, int newParticipantsNumber);
+  Game startGame(String sessionOfAuthor);
+  Game changeParticipantsNumber(String sessionOfAuthor, int newParticipantsNumber);
 
   Game startGameAuto(int gameId);
   void endGame(int gameId);
