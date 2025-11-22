@@ -6,8 +6,8 @@ import java.util.List;
 public class User {
   private int userId;
   private Game currentGame;
-  private List<Achievement> achievements;
-  private List<Game> gamesPlayed;
+  private Integer[] achievements;
+  private Integer[] gamesPlayed;
 
   private String session;
   private String username;
@@ -139,19 +139,19 @@ public class User {
     this.currentGame = currentGame;
   }
 
-  public List<Achievement> getAchievements() {
+  public Integer[] getAchievements() {
     return achievements;
   }
 
-  public void setAchievements(List<Achievement> achievements) {
+  public void setAchievements(Integer[] achievements) {
     this.achievements = achievements;
   }
 
-  public List<Game> getGamesPlayed() {
+  public Integer[] getGamesPlayed() {
     return gamesPlayed;
   }
 
-  public void setGamesPlayed(List<Game> gamesPlayed) {
+  public void setGamesPlayed(Integer[] gamesPlayed) {
     this.gamesPlayed = gamesPlayed;
   }
 }

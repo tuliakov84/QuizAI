@@ -304,7 +304,7 @@ public class DbService {
       gameList.add(rsGamesHistory.getInt("game_id")); // array of gameIds
     }
 
-    return gameList.isEmpty() ? null : gameList.toArray(new Integer[0]);
+    return gameList.toArray(new Integer[0]);
   }
 
   public void addGlobalPoints(String session, int points) throws SQLException, DatabaseAccessException {

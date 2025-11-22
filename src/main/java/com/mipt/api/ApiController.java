@@ -9,6 +9,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.List;
 
 
 @RestController
@@ -89,11 +92,18 @@ public class ApiController {
         currentGame.setGameId(currentGameId);
         user.setCurrentGame(currentGame);
       }
-
-      user.setUsername(dbService.getUsername(session));
+      user.setAchievements(dbService.getAchievementsOf(session));
+      Integer[] gamesPlayed = dbService.getGamesPlayed(session);
+      user.setGamesPlayed(gamesPlayed);
+      user.setPicId(dbService.getProfilePic(session));
       user.setDescription(dbService.getDescription(session));
+      user.setUsername(dbService.getUsername(session));
+      Timestamp lastActivity = dbService.getLastActivity(session);
+      if (lastActivity != null) {
+        user.setLastActivity(lastActivity.toInstant());
+      }
       user.setGlobalPoints(dbService.getGlobalPoints(session));
-
+      user.setGamesPlayedNumber(gamesPlayed.length);
       return new ResponseEntity<>(user, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to get information about account '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
@@ -107,7 +117,7 @@ public class ApiController {
     try {
       String session = user.getSession();
       Integer picId = user.getPicId();
-      if (picId.equals(0)) {
+      if (!picId.equals(0)) {
         dbService.changeProfilePic(session, picId);
         return new ResponseEntity<>(HttpStatus.OK);
       } else {
