@@ -136,10 +136,6 @@ public class Game {
     return levelDifficulty;
   }
 
-  public void setLevelDifficulty(LevelDifficulty levelDifficulty) {
-    this.levelDifficulty = levelDifficulty;
-  }
-
   public void setLevelDifficulty(Integer levelDifficulty) {
     switch (levelDifficulty) {
       case 1 -> this.levelDifficulty = LevelDifficulty.EASY;
