@@ -1,40 +1,61 @@
 package com.mipt.utils;
 
 import java.util.regex.Pattern;
-import java.util.regex.Matcher;
 
 public class ValidationUtils {
-  private static final String USERNAME_REGEX = "^[a-zA-Z][a-zA-Z0-9_]{5,29}$";
-  private static final String PASSWORD_REGEX = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\\\d)(?=.*[@$!%*?&])[A-Za-z\\\\d@$!%*?&]{8,}$";
-  private static final String DESCRIPTION_REGEX = "^[a-zA-Z0-9.,\\\\s-]{10,200}$";
+  // Username: 6-30 characters, starts with letter, followed by letters, digits, or underscores
+  private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]{5,29}$");
+  
+  // Password: at least 8 characters, contains uppercase, lowercase, digit, and special character
+  private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");
+  
+  // Description: 10-200 characters, alphanumeric, spaces, periods, commas, hyphens
+  private static final Pattern DESCRIPTION_PATTERN = Pattern.compile("^[a-zA-Z0-9.,\\s-]{10,200}$");
 
+  /**
+   * Validates username format.
+   * Requirements: 6-30 characters, starts with a letter, followed by letters, digits, or underscores.
+   * 
+   * @param userName the username to validate
+   * @return true if valid, false otherwise
+   */
   public static boolean usernameValidation(String userName) {
-    // validates the username
-    Pattern pattern = Pattern.compile(USERNAME_REGEX);
-    Matcher matcher = pattern.matcher(userName);
-    return matcher.matches();
+    if (userName == null || userName.isEmpty()) {
+      return false;
+    }
+    return USERNAME_PATTERN.matcher(userName).matches();
   }
 
+  /**
+   * Validates password strength.
+   * Requirements:
+   * - At least 8 characters long
+   * - At least one uppercase letter
+   * - At least one lowercase letter
+   * - At least one digit
+   * - At least one special character from @$!%*?&
+   * 
+   * @param password the password to validate
+   * @return true if valid, false otherwise
+   */
   public static boolean passwordValidation(String password) {
-    // validates the password
-    // Regex pattern for a strong password:
-    // - At least 8 characters long
-    // - At least one uppercase letter
-    // - At least one lowercase letter
-    // - At least one digit
-    // - At least one special character from @$!%*?&
-
-    Pattern pattern = Pattern.compile(PASSWORD_REGEX);
-    Matcher matcher = pattern.matcher(password);
-    return matcher.matches();
+    if (password == null || password.isEmpty()) {
+      return false;
+    }
+    return PASSWORD_PATTERN.matcher(password).matches();
   }
 
+  /**
+   * Validates description format.
+   * Requirements: 10-200 characters, contains only alphanumeric characters, spaces, periods, commas, and hyphens.
+   * 
+   * @param description the description to validate
+   * @return true if valid, false otherwise
+   */
   public static boolean descriptionValidation(String description) {
-    // validates description
-    // Regex for a bio: alphanumeric, spaces, periods, commas, hyphens between 10 and 200 characters long.
-
-    Pattern pattern = Pattern.compile(DESCRIPTION_REGEX);
-    Matcher matcher = pattern.matcher(description);
-    return matcher.matches();
+    if (description == null || description.isEmpty()) {
+      return false;
+    }
+    return DESCRIPTION_PATTERN.matcher(description).matches();
   }
 }

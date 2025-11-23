@@ -69,7 +69,15 @@ public class ApiController {
   @PostMapping("/auth/register")
   public ResponseEntity<Object> register(@RequestBody User user) {
     try {
-      dbService.register(user.getUsername(), user.getPassword());
+      String username = user.getUsername();
+      String password = user.getPassword();
+      if (!ValidationUtils.passwordValidation(password)) {
+        return new ResponseEntity<>("Password validation error. Bad password", HttpStatus.BAD_REQUEST);
+      }
+      if (!ValidationUtils.usernameValidation(username)) {
+        return new ResponseEntity<>("Username validation error. Bad username", HttpStatus.BAD_REQUEST);
+      }
+      dbService.register(username, password);
       return auth(user);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to register user '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
