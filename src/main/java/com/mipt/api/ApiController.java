@@ -146,7 +146,7 @@ public class ApiController {
       String session = user.getSession();
       String description = user.getDescription();
       if (!ValidationUtils.descriptionValidation(description)) {
-        return new ResponseEntity<>("説明検証エラー。説明エラー。説明が無効です。 perepishi", HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>("Description validation error. Bad description", HttpStatus.BAD_REQUEST);
       }
       dbService.changeDescription(session, description);
       return new ResponseEntity<>(HttpStatus.OK);
@@ -178,7 +178,21 @@ public class ApiController {
   @PostMapping("/users/get-games")
   public ResponseEntity<Object> getGames(@RequestBody User user) {
     try {
-      Integer[] games = dbService.getGamesPlayed(user.getSession());
+      Integer[] gameIds = dbService.getGamesPlayed(user.getSession());
+      Game[] games = new Game[gameIds.length];
+      for (int i = 0; i < gameIds.length; i++) {
+        Game inpGame = new Game();
+        Integer gameId = gameIds[i];
+        inpGame.setGameId(gameId);
+        Integer[] preset = dbService.getPreset(gameId);
+        inpGame.setLevelDifficulty(preset[1]);
+        inpGame.setNumberOfQuestions(preset[2]);
+        inpGame.setParticipantsNumber(preset[3]);
+        inpGame.setTopicId(preset[4]);
+        inpGame.setGameEndTime(dbService.getGameEndTime(gameId).toInstant());
+
+        games[i] = inpGame;
+      }
       return new ResponseEntity<>(games, HttpStatus.OK);
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while getting information about " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
@@ -187,7 +201,7 @@ public class ApiController {
     }
   }
 
-  @PostMapping("/rooms/join")
+  @PostMapping("/game/join")
   public ResponseEntity<Object> joinRoom(@RequestBody User user, @RequestBody Game game) {
     try {
       String session = user.getSession();
@@ -195,22 +209,14 @@ public class ApiController {
       int status = dbService.getStatus(gameId);
 
       if (status == 0) {
-
         dbService.setCurrentGame(session, gameId);
 
         Integer[] preset = dbService.getPreset(gameId);
         game.setAuthorId(preset[0]);
-
-        switch (preset[1]) {
-          case 1 -> game.setLevelDifficulty(Game.LevelDifficulty.EASY);
-          case 2 -> game.setLevelDifficulty(Game.LevelDifficulty.MEDIUM);
-          case 3 -> game.setLevelDifficulty(Game.LevelDifficulty.HARD);
-        }
-
+        game.setLevelDifficulty(preset[1]);
         game.setNumberOfQuestions(preset[2]);
         game.setParticipantsNumber(preset[3]);
         game.setCurrentParticipantsNumber(dbService.getCurrentParticipantsNumber(gameId));
-        // check if topicId is null
         int topicId = preset[4];
         game.setTopicId(topicId);
         game.setPrivate(dbService.getPrivate(gameId));
@@ -247,6 +253,9 @@ public class ApiController {
       game.setGameId(gameId);
       game.setTopicId(topicId);
 
+      // AI LOADQUESTIONS() METHOD NEEDED TO BE HERE !!!
+
+
       return new ResponseEntity<>(game, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to create room '" + game.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
@@ -273,6 +282,20 @@ public class ApiController {
       return new ResponseEntity<>("Failed to update room '" + game.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while updating game '" + game.getGameId() + "'", HttpStatus.NOT_FOUND);
+    }
+  }
+
+  @PostMapping("/game/start")
+  public ResponseEntity<Object> startGame(@RequestBody Game game) {
+    try {
+      int gameId = game.getGameId();
+      dbService.setStatus(gameId, 2);
+      dbService.setGameStartTime(gameId, Instant.now());
+      return new ResponseEntity<>(HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to start the game " + game.getGameId(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while stating game " + game.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

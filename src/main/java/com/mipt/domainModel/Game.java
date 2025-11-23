@@ -140,6 +140,14 @@ public class Game {
     this.levelDifficulty = levelDifficulty;
   }
 
+  public void setLevelDifficulty(Integer levelDifficulty) {
+    switch (levelDifficulty) {
+      case 1 -> this.levelDifficulty = LevelDifficulty.EASY;
+      case 2 -> this.levelDifficulty = LevelDifficulty.MEDIUM;
+      case 3 -> this.levelDifficulty = LevelDifficulty.HARD;
+    }
+  }
+
   public int getParticipantsNumber() {
     return participantsNumber;
   }
