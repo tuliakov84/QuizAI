@@ -409,7 +409,7 @@ public class DbService {
     if (authorId == null) {
       throw new DatabaseAccessException(); // if author not exists
     }
-    if (!(levelDifficulty >= 1 && levelDifficulty <= 3) || participantsNumber < 4) {
+    if (!(levelDifficulty >= 1 && levelDifficulty <= 3) || participantsNumber < 4 || numberOfQuestions < 1) {
       throw new DatabaseAccessException("Bad params"); // if provided bad initialization params while using method
     }
 

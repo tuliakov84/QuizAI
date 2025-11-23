@@ -3,7 +3,6 @@ package com.mipt.domainModel;
 import java.time.Instant;
 
 public class Game {
-
   private int gameId;
   private int authorId;
   private int topicId;

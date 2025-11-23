@@ -13,7 +13,6 @@ import javax.swing.*;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.List;
 
 
 @RestController
@@ -34,14 +33,6 @@ public class ApiController {
     for (int attempt = 0; attempt < MAX_SESSION_RETRIES; attempt++) {
       String session = utils.generateSessionId();
       try {
-        String password = user.getPassword();
-        String username = user.getUsername();
-        if (!ValidationUtils.passwordValidation(password)) {
-          return new ResponseEntity<>("Password validation error. Bad password", HttpStatus.BAD_REQUEST);
-        }
-        if (!ValidationUtils.usernameValidation(username)) {
-          return new ResponseEntity<>("Username validation error. Bad username", HttpStatus.BAD_REQUEST);
-        }
         dbService.authenticate(user.getUsername(), user.getPassword(), session);
         user.setSession(session);
         user.setUserId(dbService.getUserId(session));
@@ -210,74 +201,76 @@ public class ApiController {
   }
 
   @PostMapping("/game/join")
-  public ResponseEntity<Object> joinRoom(@RequestBody User user, @RequestBody Game game) {
+  public ResponseEntity<Object> joinRoom(@RequestBody RoomJoinObject data) {
     try {
-      String session = user.getSession();
-      int gameId = game.getGameId();
-      int status = dbService.getStatus(gameId);
+      String session = data.getSession();
+      int dataId = data.getGameId();
+      int status = dbService.getStatus(dataId);
 
       if (status == 0) {
-        dbService.setCurrentGame(session, gameId);
+        dbService.setCurrentGame(session, dataId);
 
-        Integer[] preset = dbService.getPreset(gameId);
-        game.setAuthorId(preset[0]);
-        game.setLevelDifficulty(preset[1]);
-        game.setNumberOfQuestions(preset[2]);
-        game.setParticipantsNumber(preset[3]);
-        game.setCurrentParticipantsNumber(dbService.getCurrentParticipantsNumber(gameId));
+        Integer[] preset = dbService.getPreset(dataId);
+        data.setAuthorId(preset[0]);
+        data.setLevelDifficulty(preset[1]);
+        data.setNumberOfQuestions(preset[2]);
+        data.setParticipantsNumber(preset[3]);
+        data.setCurrentParticipantsNumber(dbService.getCurrentParticipantsNumber(dataId));
         int topicId = preset[4];
-        game.setTopicId(topicId);
-        game.setPrivate(dbService.getPrivate(gameId));
+        data.setTopicId(topicId);
+        data.setPrivate(dbService.getPrivate(dataId));
 
-        return new ResponseEntity<>(game, HttpStatus.OK);
+        return new ResponseEntity<>(data, HttpStatus.OK);
       } else {
-        return new ResponseEntity<>("Failed to join room " + game.getGameId() + " because it's already started", HttpStatus.CONFLICT);
+        return new ResponseEntity<>("Failed to join room " + data.getGameId() + " because it's already started", HttpStatus.CONFLICT);
       }
     } catch (DatabaseAccessException e) {
-      return new ResponseEntity<>("Failed to join room '" + game.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Failed to join room '" + data.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while joining room '" + game.getGameId() + "'", HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Database error occurred while joining room '" + data.getGameId() + "'", HttpStatus.NOT_FOUND);
     }
   }
 
   @PostMapping("/game/create")
-  public ResponseEntity<Object> createGame(@RequestBody User user, @RequestBody Game game, @RequestBody Topic topic) {
+  public ResponseEntity<Object> createGame(@RequestBody RoomJoinObject data) {
     try {
-      String sessionOfAuthor = user.getSession();
+      String sessionOfAuthor = data.getSession();
 
       int levelDifficulty;
-      switch (game.getLevelDifficulty()) {
+      switch (data.getLevelDifficulty()) {
         case EASY -> levelDifficulty = 1;
         case MEDIUM -> levelDifficulty = 2;
         case HARD -> levelDifficulty = 3;
         default -> levelDifficulty = 0;
       }
 
-      int numberOfQuestions = game.getNumberOfQuestions();
-      int participantsNumber = game.getParticipantsNumber();
-      int topicId = topic.getTopicId();
+      int numberOfQuestions = data.getNumberOfQuestions();
+      int participantsNumber = data.getParticipantsNumber();
+      int topicId = data.getTopicId();
       int gameId = dbService.createGame(sessionOfAuthor, levelDifficulty,
           numberOfQuestions, participantsNumber, topicId);
-      game.setGameId(gameId);
-      game.setTopicId(topicId);
+      data.setGameId(gameId);
+      data.setTopicId(topicId);
+      Integer[] preset = dbService.getPreset(gameId);
+      data.setAuthorId(preset[0]);
 
-      // AI LOADQUESTIONS() METHOD NEEDED TO BE HERE !!!
+      // AI loadQuestions() METHOD NEEDED TO BE HERE !!!
 
-
-      return new ResponseEntity<>(game, HttpStatus.OK);
+      return joinRoom(data);
     } catch (DatabaseAccessException e) {
-      return new ResponseEntity<>("Failed to create room '" + game.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Failed to create room '" + data.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while creating game '" + game.getGameId() + "'", HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Database error occurred while creating game '" + data.getGameId() + "'", HttpStatus.NOT_FOUND);
     }
   }
 
-  public ResponseEntity<Object> changeParticipantsNumber(@RequestBody User user, @RequestBody Game game) {
+  @PostMapping("/game/set/participants-number")
+  public ResponseEntity<Object> changeParticipantsNumber(@RequestBody RoomJoinObject data) {
     try {
-      String session = user.getSession();
+      String session = data.getSession();
       int userId = dbService.getUserId(session);
-      int participantsNumber = game.getParticipantsNumber();
-      int gameId = game.getGameId();
+      int participantsNumber = data.getParticipantsNumber();
+      int gameId = data.getGameId();
 
       Integer[] preset = dbService.getPreset(gameId);
       if (preset[0] != userId) {
@@ -285,11 +278,11 @@ public class ApiController {
       }
 
       dbService.changeParticipantsNumber(gameId, participantsNumber);
-      return new ResponseEntity<>(game, HttpStatus.OK);
+      return new ResponseEntity<>(data, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
-      return new ResponseEntity<>("Failed to update room '" + game.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Failed to update room '" + data.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while updating game '" + game.getGameId() + "'", HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Database error occurred while updating game '" + data.getGameId() + "'", HttpStatus.NOT_FOUND);
     }
   }
 
