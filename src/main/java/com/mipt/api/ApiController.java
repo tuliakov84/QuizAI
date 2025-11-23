@@ -276,7 +276,7 @@ public class ApiController {
         return new ResponseEntity<>("User " + userId + " is not the author of game '" + gameId + "'", HttpStatus.BAD_REQUEST);
       }
 
-      //dbService.changeParticipantsNumber(gameId, participantsNumber);
+      dbService.changeParticipantsNumber(gameId, participantsNumber);
       return new ResponseEntity<>(game, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to update room '" + game.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);

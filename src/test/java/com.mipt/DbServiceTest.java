@@ -210,7 +210,8 @@ public class DbServiceTest {
   void testAddGamePlayed_GetGamesPlayed() throws SQLException, DatabaseAccessException {
     // test working OUT OF THE GAME
     assertThrows(DatabaseAccessException.class, () -> dbService.addGamePlayed("SESSION"));
-    assertNull(dbService.getGamesPlayed("SESSION")); // NOT IN GAME
+    Integer[] emptyArr = new Integer[0];
+    assertArrayEquals(emptyArr, dbService.getGamesPlayed("SESSION")); // NOT IN GAME
 
     // test working IN GAME
 
@@ -323,7 +324,7 @@ public class DbServiceTest {
 
   @Test
   @Order(1)
-  void testCreateGame_CheckGameExists() throws SQLException, DatabaseAccessException {
+  void testCreateGame_CheckGameExists_setParticipantsNumber() throws SQLException, DatabaseAccessException {
     // testing not existing sessions
     assertThrows(DatabaseAccessException.class, () -> dbService.createGame("NOT_EXISTING_SESSION", 1, 1, 4, 1));
 
@@ -336,6 +337,11 @@ public class DbServiceTest {
     assertFalse(dbService.checkGameExists(2)); // we can say it's gameId=2 because the test goes firstly
     assertEquals(2, dbService.createGame("SESSION", 1, 1, 4, 1)); // checking gameId=2
     assertTrue(dbService.checkGameExists(2));
+
+    // testing setParticipantsNumber method
+    dbService.changeParticipantsNumber(2, 6);
+    assertEquals(6, dbService.getPreset(2)[3]);
+    assertEquals(1, dbService.getPreset(1)[3]);
   }
 
   @Test

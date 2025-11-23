@@ -756,6 +756,16 @@ public class DbService {
     }
   }
 
+  public void changeParticipantsNumber(int gameId, int participantsNumber) throws SQLException, DatabaseAccessException {
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException(); // game not found
+    }
+    PreparedStatement updData = conn.prepareStatement("UPDATE games SET participants_number = ? WHERE id = ?");
+    updData.setInt(1, participantsNumber);
+    updData.setInt(2, gameId);
+    updData.executeUpdate();
+  }
+
   public JSONArray getOpenGames() throws SQLException, DatabaseAccessException {
     // gets currently open games as JSONArray, sorted by id ascending
     // return [[gameId, topicId, currentParticipantsNumber, participantsNumber], ...]
