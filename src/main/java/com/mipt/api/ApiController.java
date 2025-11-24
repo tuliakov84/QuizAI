@@ -9,7 +9,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.swing.*;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -219,7 +218,7 @@ public class ApiController {
         data.setCurrentParticipantsNumber(dbService.getCurrentParticipantsNumber(gameId));
         int topicId = preset[4];
         data.setTopicId(topicId);
-        data.setPrivate(dbService.getPrivate(gameId));
+        data.setIsPrivate(dbService.getPrivate(gameId));
 
         return new ResponseEntity<>(data, HttpStatus.OK);
       } else {
@@ -248,7 +247,7 @@ public class ApiController {
       int numberOfQuestions = data.getNumberOfQuestions();
       int participantsNumber = data.getParticipantsNumber();
       int topicId = data.getTopicId();
-      boolean isPrivate = data.isPrivate();
+      boolean isPrivate = data.getIsPrivate();
       int gameId = dbService.createGame(sessionOfAuthor, levelDifficulty,
           numberOfQuestions, participantsNumber, topicId, isPrivate);
       data.setGameId(gameId);
@@ -292,7 +291,7 @@ public class ApiController {
   public ResponseEntity<Object> setPrivate(@RequestBody Game game) {
     try {
       int gameId = game.getGameId();
-      boolean isPrivate = game.isPrivate();
+      boolean isPrivate = game.getIsPrivate();
       dbService.setPrivate(gameId, isPrivate);
       return new ResponseEntity<>(HttpStatus.OK);
     } catch (DatabaseAccessException e) {
