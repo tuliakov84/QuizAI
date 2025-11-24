@@ -434,8 +434,7 @@ public class DbServiceTest {
     dbService.setStatus(gameId, 2);
 
     // testing not existing game getCurrentQuestionNumber and nextQuestion
-    assertThrows(DatabaseAccessException.class, () -> dbService.getCurrentQuestionNumber(145));
-    assertThrows(DatabaseAccessException.class, () -> dbService.nextQuestion(145));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getQuestion(145, 1));
 
     // load questions
     String jsonString = "[\n" +
@@ -509,9 +508,7 @@ public class DbServiceTest {
     assertEquals(2, dbService.getRightAnswer(gameId, 2));
 
     // testing nextQuestion
-    assertEquals(0, dbService.getCurrentQuestionNumber(gameId));
-    Question result1 = dbService.nextQuestion(gameId);
-    assertEquals(1, dbService.getCurrentQuestionNumber(gameId));
+    Question result1 = dbService.getQuestion(gameId, 1);
 
     if (
         (
@@ -529,8 +526,7 @@ public class DbServiceTest {
       fail();
     }
 
-    Question result2 = dbService.nextQuestion(gameId);
-    assertEquals(2, dbService.getCurrentQuestionNumber(gameId));
+    Question result2 = dbService.getQuestion(gameId, 2);
 
     if (
         (
@@ -549,7 +545,7 @@ public class DbServiceTest {
     }
 
     // testing the bound of loaded questions
-    assertThrows(DatabaseAccessException.class, () -> dbService.nextQuestion(gameId));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getQuestion(gameId, 3));
   }
 
 
@@ -574,7 +570,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testStopGame_DeleteGame_GetGlobalLeaderboards() throws SQLException, DatabaseAccessException, JSONException {
+  void testStopGame_DeleteGame_GetGlobalLeaderboards_GetParticipantUsernames() throws SQLException, DatabaseAccessException, JSONException {
     // creating games
     Integer gameId1 = dbService.createGame("SESSION", 1, 5, 5, 1);
     Integer gameId2 = dbService.createGame("SESSION", 1, 5, 5, 1);
@@ -582,10 +578,18 @@ public class DbServiceTest {
     // testing not existing games
     assertThrows(DatabaseAccessException.class, () -> dbService.stopGame(145));
     assertThrows(DatabaseAccessException.class, () -> dbService.deleteGame(145));
+    assertThrows(DatabaseAccessException.class, () -> dbService.getParticipantUsernames(145));
 
-    // joining the games
+    // joining the games and getting participant usernames
+    String[] testGet1 = {"test1"};
+    String[] testGet2 = {"test1", "test2"};
+
     dbService.setCurrentGame("SESSION", gameId1);
+    assertArrayEquals(testGet1, dbService.getParticipantUsernames(gameId1));
+    dbService.setCurrentGame("SESSION2", gameId1);
+    assertArrayEquals(testGet2, dbService.getParticipantUsernames(gameId1));
     dbService.setCurrentGame("SESSION2", gameId2);
+
 
     // stopping game 1
     assertThrows(DatabaseAccessException.class, () -> dbService.stopGame(145));

@@ -11,7 +11,6 @@ public class Game {
   private Instant createdAt;
   private Instant gameStartTime;
   private Instant gameEndTime;
-  private int currentQuestionNumber;
   private int numberOfQuestions;
   private boolean isPrivate;
   private LevelDifficulty levelDifficulty;
@@ -105,14 +104,6 @@ public class Game {
 
   public void setGameEndTime(Instant gameEndTime) {
     this.gameEndTime = gameEndTime;
-  }
-
-  public int getCurrentQuestionNumber() {
-    return currentQuestionNumber;
-  }
-
-  public void setCurrentQuestionNumber(int currentQuestionNumber) {
-    this.currentQuestionNumber = currentQuestionNumber;
   }
 
   public int getNumberOfQuestions() {

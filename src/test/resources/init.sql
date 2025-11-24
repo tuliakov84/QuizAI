@@ -40,7 +40,6 @@ CREATE TABLE IF NOT EXISTS games (
     game_end_time TIMESTAMP,
     is_private BOOLEAN,
     level_difficulty SMALLINT,
-    current_question_number INT,
     number_of_questions INT,
     participants_number SMALLINT,
     topic_id INT REFERENCES topics (id) ON DELETE SET NULL

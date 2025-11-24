@@ -11,6 +11,7 @@ public class Question {
   private String answer4;
   private int rightAnswerNumber;
   private int questionNumber;
+  private int submittedAnswerNumber;
 
   public Question(){
 
@@ -100,5 +101,13 @@ public class Question {
 
   public void setQuestionNumber(int questionNumber) {
     this.questionNumber = questionNumber;
+  }
+
+  public int getSubmittedAnswerNumber() {
+    return submittedAnswerNumber;
+  }
+
+  public void setSubmittedAnswerNumber(int submittedAnswerNumber) {
+    this.submittedAnswerNumber = submittedAnswerNumber;
   }
 }

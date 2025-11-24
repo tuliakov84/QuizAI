@@ -211,15 +211,9 @@
 **принимает:** int gameId  
 **выбрасывает:** Not found
 
-**function** getCurrentQuestionNumber  
-**описание:** Получает текущий номер вопроса в игре  
-**принимает:** int gameId  
-**возвращает:** Integer currentQuestionNumber  
-**выбрасывает:** Not found
-
-**function** nextQuestion  
-**описание:** Возвращает следующий вопрос в игре  
-**принимает:** int gameId  
+**function** getQuestion  
+**описание:** Возвращает вопрос в игре  
+**принимает:** int gameId, int questionNumber  
 **возвращает:** Question questionObj (null, если вопросов больше нет)  
 **выбрасывает:** Not found, Next question not exists
 

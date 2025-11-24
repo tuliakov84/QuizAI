@@ -287,6 +287,34 @@ public class ApiController {
     }
   }
 
+  @PostMapping("/game/set/private")
+  public ResponseEntity<Object> setPrivate(@RequestBody Game game) {
+    try {
+      int gameId = game.getGameId();
+      boolean isPrivate = game.isPrivate();
+      dbService.setPrivate(gameId, isPrivate);
+      return new ResponseEntity<>(HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to modify privateness option for game " + game.getGameId(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while modifying privateness option for game " + game.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/game/get/lobby")
+  public ResponseEntity<Object> getLobby(@RequestBody LobbyObject lobby) {
+    try {
+      int gameId = lobby.getGameId();
+      lobby.setStatus(dbService.getStatus(gameId));
+
+      return new ResponseEntity<>(HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to modify privateness option for game " + lobby.getGameId(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while modifying privateness option for game " + lobby.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   @PostMapping("/game/start")
   public ResponseEntity<Object> startGame(@RequestBody Game game) {
     try {
@@ -298,6 +326,35 @@ public class ApiController {
       return new ResponseEntity<>("Failed to start the game " + game.getGameId(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while stating game " + game.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/game/get/question")
+  public ResponseEntity<Object> getQuestion(@RequestBody Question question) {
+    try {
+      int gameId = question.getGameId();
+      int questionNumber = question.getQuestionNumber();
+      Question res = dbService.getQuestion(gameId, questionNumber);
+      return new ResponseEntity<>(res, HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get question " + question.getQuestionNumber() + " for game " + question.getQuestionId(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting question " + question.getQuestionNumber() + " for game " + question.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/game/verify-answer")
+  public ResponseEntity<Object> verifyAnswer(@RequestBody Question question) {
+    try {
+      int gameId = question.getGameId();
+      int questionNumber = question.getQuestionNumber();
+      int submittedAnswerNumber = question.getSubmittedAnswerNumber();
+      int rightAnswer = dbService.getRightAnswer(gameId, questionNumber);
+      return new ResponseEntity<>(rightAnswer == submittedAnswerNumber, HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get verify " + question.getQuestionNumber() + " for game " + question.getQuestionId(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while verifying question " + question.getQuestionNumber() + " for game " + question.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 

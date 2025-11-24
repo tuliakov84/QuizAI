@@ -414,8 +414,8 @@ public class DbService {
     }
 
     PreparedStatement inpGame = conn.prepareStatement("INSERT INTO games " +
-      "(status, author_id, created_at, is_private, level_difficulty, current_question_number, number_of_questions, participants_number, topic_id) " +
-      "VALUES (0, ?, ?, TRUE, ?, 0, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
+      "(status, author_id, created_at, is_private, level_difficulty, number_of_questions, participants_number, topic_id) " +
+      "VALUES (0, ?, ?, TRUE, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
     inpGame.setInt(1, authorId);
     inpGame.setTimestamp(2, Timestamp.from(Instant.now()));
     inpGame.setInt(3, levelDifficulty);
@@ -590,42 +590,15 @@ public class DbService {
     }
   }
 
-  public Integer getCurrentQuestionNumber(int gameId) throws SQLException, DatabaseAccessException {
-    // gets the current question number of the game
-    
-    PreparedStatement selCurrQuestion = conn.prepareStatement("SELECT current_question_number FROM games WHERE id = ?");
-    selCurrQuestion.setInt(1, gameId);
-    ResultSet rsCurrQuestion = selCurrQuestion.executeQuery();
-    if (rsCurrQuestion.next()) {
-      return rsCurrQuestion.getInt(1); // currentQuestionNumber
-    } else {
-      throw new DatabaseAccessException(); // if not exists
-    }
-  }
-
-  public Question nextQuestion(int gameId) throws SQLException, DatabaseAccessException {
+  public Question getQuestion(int gameId, int questionNumber) throws SQLException, DatabaseAccessException {
     // returns a new object of next question
     if (!checkGameExists(gameId)) {
       throw new DatabaseAccessException(); // game not found
     }
 
-    PreparedStatement updData = conn.prepareStatement("UPDATE games SET current_question_number = current_question_number + 1 WHERE id = ?");
-    updData.setInt(1, gameId);
-    updData.executeUpdate();
-
-    PreparedStatement selCurrentNum = conn.prepareStatement("SELECT current_question_number FROM games WHERE id = ?");
-    selCurrentNum.setInt(1, gameId);
-    ResultSet rsCurrentNum = selCurrentNum.executeQuery();
-    int currentNum;
-    if (rsCurrentNum.next()) {
-      currentNum = rsCurrentNum.getInt(1);
-    } else {
-      throw new DatabaseAccessException(); // game not found
-    }
-
     PreparedStatement selQuestion = conn.prepareStatement("SELECT question_text, answer1, answer2, answer3, answer4" +
       " FROM questions WHERE question_number = ? AND game_id = ?");
-    selQuestion.setInt(1, currentNum);
+    selQuestion.setInt(1, questionNumber);
     selQuestion.setInt(2, gameId);
 
     ResultSet rsQuestion = selQuestion.executeQuery();
@@ -639,7 +612,7 @@ public class DbService {
 
       return questionObj; // Question
     } else {
-      throw new DatabaseAccessException("Next question not exists"); // questions not found
+      throw new DatabaseAccessException("Question not exists"); // questions not found
     }
   }
 
@@ -697,6 +670,22 @@ public class DbService {
       }
       inpQuestion.executeUpdate();
     }
+  }
+
+  public String[] getParticipantUsernames(int gameId) throws SQLException, DatabaseAccessException {
+    // gets participants usernames
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException(); // game not found
+    }
+
+    PreparedStatement selUsers = conn.prepareStatement("SELECT username FROM users WHERE current_game_id = ?");
+    selUsers.setInt(1, gameId);
+    ResultSet rsUsers = selUsers.executeQuery();
+    ArrayList<String> res = new ArrayList<>();
+    while (rsUsers.next()) {
+      res.add(rsUsers.getString("username"));
+    }
+    return res.toArray(new String[0]);
   }
 
   public JSONArray getGameLeaderboards(int gameId) throws SQLException, DatabaseAccessException {
