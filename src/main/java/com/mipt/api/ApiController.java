@@ -307,8 +307,9 @@ public class ApiController {
     try {
       int gameId = lobby.getGameId();
       lobby.setStatus(dbService.getStatus(gameId));
-
-      return new ResponseEntity<>(HttpStatus.OK);
+      List<String> usernames = List.of(dbService.getParticipantUsernames(gameId));
+      lobby.setPlayersUsernames(usernames);
+      return new ResponseEntity<>(lobby, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to modify privateness option for game " + lobby.getGameId(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
