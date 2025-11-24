@@ -2,39 +2,47 @@ package com.mipt.initialization;
 
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Topic;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.io.FileReader;
-import java.io.IOException;
-import java.sql.SQLException;
+import java.io.*;
 
 public class TopicsInit {
-  private final DbService dbService;
+  private DbService dbService;
 
   public TopicsInit(DbService dbService) {
     this.dbService = dbService;
   }
 
-  public void topicsInit() throws SQLException {
-    Topic[] dbTopicList = dbService.getAllTopics();
-    if (dbTopicList.length == 0) {
-      JSONParser parser = new JSONParser();
+  public void topicsInit() {
+    try {
+      Topic[] dbTopicList = dbService.getAllTopics();
 
-      try (FileReader reader = new FileReader("topics.json")) {
-        Object obj = parser.parse(reader);
-        JSONObject jsonObject = (JSONObject) obj;
-        
-        String name = (String) jsonObject.get("name");
-        long age = (long) jsonObject.get("age");
+      if (dbTopicList.length == 0) {
+        JSONParser parser = new JSONParser();
 
-        System.out.println("Name: " + name);
-        System.out.println("Age: " + age);
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("topics.json")) {
+          if (inputStream == null) {
+            throw new FileNotFoundException("File topics.json not found in classpath");
+          }
 
-      } catch (IOException | ParseException e) {
-        System.out.println(e.getMessage());
+          try (InputStreamReader reader = new InputStreamReader(inputStream)) {
+            Object globalObj = parser.parse(reader);
+            JSONArray jsonArray = (JSONArray) globalObj;
+            for (Object element : jsonArray) {
+              JSONObject obj = (JSONObject) element;
+              Topic topic = new Topic((String) obj.get("name"));
+              dbService.addTopic(topic);
+            }
+          }
+        } catch (IOException | ParseException e) {
+          System.out.println("Error reading topics.json: " + e.getMessage());
+        }
       }
+    } catch (Exception e) {
+      System.out.println("Error during topics initialization: " + e.getMessage());
     }
   }
 }

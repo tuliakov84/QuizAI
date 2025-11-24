@@ -8,8 +8,7 @@ public class Topic {
 
   }
 
-  public Topic(int topicId, String name) {
-    this.topicId = topicId;
+  public Topic(String name) {
     this.name = name;
   }
 

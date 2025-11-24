@@ -3,6 +3,7 @@ package com.mipt.api;
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.*;
+import com.mipt.initialization.TopicsInit;
 import com.mipt.utils.BackendUtils;
 import com.mipt.utils.ValidationUtils;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,9 @@ public class ApiController {
   public ApiController(DbService dbService) {
     this.dbService = dbService;
     this.utils = new BackendUtils(dbService);
+
+    TopicsInit topicsInit = new TopicsInit(dbService);
+    topicsInit.topicsInit();
   }
 
   @PostMapping("/auth/login")
