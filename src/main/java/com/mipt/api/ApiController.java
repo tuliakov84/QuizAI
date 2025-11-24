@@ -205,21 +205,21 @@ public class ApiController {
   public ResponseEntity<Object> joinRoom(@RequestBody RoomJoinObject data) {
     try {
       String session = data.getSession();
-      int dataId = data.getGameId();
-      int status = dbService.getStatus(dataId);
+      int gameId = data.getGameId();
+      int status = dbService.getStatus(gameId);
 
       if (status == 0) {
-        dbService.setCurrentGame(session, dataId);
+        dbService.setCurrentGame(session, gameId);
 
-        Integer[] preset = dbService.getPreset(dataId);
+        Integer[] preset = dbService.getPreset(gameId);
         data.setAuthorId(preset[0]);
         data.setLevelDifficulty(preset[1]);
         data.setNumberOfQuestions(preset[2]);
         data.setParticipantsNumber(preset[3]);
-        data.setCurrentParticipantsNumber(dbService.getCurrentParticipantsNumber(dataId));
+        data.setCurrentParticipantsNumber(dbService.getCurrentParticipantsNumber(gameId));
         int topicId = preset[4];
         data.setTopicId(topicId);
-        data.setPrivate(dbService.getPrivate(dataId));
+        data.setPrivate(dbService.getPrivate(gameId));
 
         return new ResponseEntity<>(data, HttpStatus.OK);
       } else {
