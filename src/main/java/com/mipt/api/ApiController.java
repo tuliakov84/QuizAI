@@ -248,8 +248,9 @@ public class ApiController {
       int numberOfQuestions = data.getNumberOfQuestions();
       int participantsNumber = data.getParticipantsNumber();
       int topicId = data.getTopicId();
+      boolean isPrivate = data.isPrivate();
       int gameId = dbService.createGame(sessionOfAuthor, levelDifficulty,
-          numberOfQuestions, participantsNumber, topicId);
+          numberOfQuestions, participantsNumber, topicId, isPrivate);
       data.setGameId(gameId);
       data.setTopicId(topicId);
       Integer[] preset = dbService.getPreset(gameId);

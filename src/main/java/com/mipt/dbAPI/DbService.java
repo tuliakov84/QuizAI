@@ -432,6 +432,37 @@ public class DbService {
     }
   }
 
+  public Integer createGame(String sessionOfAuthor, int levelDifficulty, int numberOfQuestions, int participantsNumber, int topicId, boolean isPrivate) throws SQLException, DatabaseAccessException {
+    // creates the game room, returns gameId
+    // default isPrivate = true
+    Integer authorId = getUserId(sessionOfAuthor);
+    if (authorId == null) {
+      throw new DatabaseAccessException(); // if author not exists
+    }
+    if (!(levelDifficulty >= 1 && levelDifficulty <= 3) || participantsNumber < 4 || numberOfQuestions < 1) {
+      throw new DatabaseAccessException("Bad params"); // if provided bad initialization params while using method
+    }
+
+    PreparedStatement inpGame = conn.prepareStatement("INSERT INTO games " +
+      "(status, author_id, created_at, is_private, level_difficulty, number_of_questions, participants_number, topic_id) " +
+      "VALUES (0, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
+    inpGame.setInt(1, authorId);
+    inpGame.setTimestamp(2, Timestamp.from(Instant.now()));
+    inpGame.setBoolean(3, isPrivate);
+    inpGame.setInt(4, levelDifficulty);
+    inpGame.setInt(5, numberOfQuestions);
+    inpGame.setInt(6, participantsNumber);
+    inpGame.setInt(7, topicId);
+
+    inpGame.executeUpdate();
+    ResultSet rsInpGame = inpGame.getGeneratedKeys();
+    if (rsInpGame.next()) {
+      return rsInpGame.getInt(1);
+    } else {
+      return null;
+    }
+  }
+
   public Boolean checkGameExists(int gameId) throws SQLException {
     // checks if game exists or not
     
