@@ -402,6 +402,20 @@ public class ApiController {
     }
   }
 
+  @PostMapping("/game/delete")
+  public ResponseEntity<Object> deleteGame(@RequestBody Game game) {
+    try {
+      int gameId = game.getGameId();
+      dbService.stopGame(gameId);
+      dbService.deleteGame(gameId);
+      return new ResponseEntity<>(HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to stop the game " + game.getGameId(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while stopping game " + game.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   @PostMapping("/topic/get")
   public ResponseEntity<Object> getTopic(@RequestBody Topic topic) {
     try {
