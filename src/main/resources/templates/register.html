@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="styles/reg_style.css">
+  <link rel="stylesheet" href="/styles/reg_style.css">
   <title>QUIZAI</title>
 </head>
 
@@ -45,5 +45,94 @@
     </main>
   </div>
 </body>
+
+<script src="/js/auth.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const registerForm = document.querySelector('.main_rect');
+
+    registerForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const username = document.querySelector('input[name="username"]').value;
+      const password1 = document.querySelector('input[password1="password1"]').value;
+      const password2 = document.querySelector('input[password2="password2"]').value;
+
+      // Валидация
+      if (!username || !password1 || !password2) {
+        alert('Пожалуйста, заполните все поля');
+        return;
+      }
+
+      if (password1 !== password2) {
+        alert('Пароли не совпадают');
+        return;
+      }
+
+      if (password1.length < 6) {
+        alert('Пароль должен быть не менее 6 символов');
+        return;
+      }
+
+      if (username.length < 3) {
+        alert('Имя пользователя должно быть не менее 3 символов');
+        return;
+      }
+
+      try {
+        const submitBtn = document.querySelector('.enter .btn');
+        submitBtn.textContent = 'РЕГИСТРАЦИЯ...';
+        submitBtn.disabled = true;
+
+        // Отправляем запрос на бэкенд
+        const response = await fetch('http://localhost:8080/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: username,
+            password: password1
+          })
+        });
+
+        const data = await response.json();
+        console.log('Response status:', response.status);
+        console.log('Response data:', data);
+
+        // Проверяем статус ответа и наличие данных
+        if (response.ok && data.username) {
+          // Сохраняем токен и данные пользователя
+          localStorage.setItem('session', data.session);
+          localStorage.setItem('user', JSON.stringify(data));
+
+          alert('Регистрация успешна!');
+          window.location.href = 'main.html';
+        } else {
+          // Если пришла ошибка от сервера
+          const errorMessage = data.message || data.error || 'Неизвестная ошибка';
+          alert('Ошибка: ' + errorMessage);
+
+          const submitBtn = document.querySelector('.enter .btn');
+          submitBtn.textContent = 'ЗАРЕГИСТРИРОВАТЬСЯ';
+          submitBtn.disabled = false;
+        }
+      } catch (error) {
+        console.error('Registration error:', error);
+        alert('Ошибка соединения с сервером');
+        const submitBtn = document.querySelector('.enter .btn');
+        submitBtn.textContent = 'ЗАРЕГИСТРИРОВАТЬСЯ';
+        submitBtn.disabled = false;
+      }
+    });
+
+    const registerBtn = document.querySelector('.enter .btn');
+    registerBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      registerForm.dispatchEvent(new Event('submit'));
+    });
+  });
+</script>
+
 
 </html>

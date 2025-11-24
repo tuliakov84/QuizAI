@@ -1,20 +1,64 @@
 * {
   padding: 0;
   margin: 0;
+  box-sizing: border-box;
 }
 
 html, body {
   height: 100%;
   width: 100%;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+/* Выбранная сложность */
+.btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: #fff;
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Выбранная приватность */
+.btnprivate.active {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border-color: #fff;
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Стили для активных полей ввода */
+.input-group input:focus {
+    border-color: #583bff;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(88, 59, 255, 0.1);
+}
+
+.input-group input.active {
+    border-color: #667eea;
+    background-color: #f8f9ff;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+/* Анимация при выборе */
+.btn, .btnprivate {
+    transition: all 0.3s ease;
+}
+
+.btn:hover, .btnprivate:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 
 .btn_back {
-  margin: 15px  ;
-  display: block;           
-  width: 100px;
+  margin: 15px;
+  display: block;
+  width: 150px;
   padding: 22px 24px;
-  text-align: center;                  
-  text-decoration: none;    
+  text-align: center;
+  text-decoration: none;
   border-radius: 28px;
   font-size: 20px;
   background: linear-gradient(0deg, rgb(255, 76, 76), rgb(255, 151, 151));
@@ -25,11 +69,11 @@ html, body {
 }
 
 .h11 {
-  font-size: clamp(1.5rem, 4vw, 3rem); 
+  font-size: clamp(1.5rem, 4vw, 3rem);
   background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip: text; /* для будущей совместимости */
+  background-clip: text;
 }
 
 .h12 {
@@ -39,7 +83,7 @@ html, body {
   background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip: text; /* для будущей совместимости */
+  background-clip: text;
 }
 
 .tablehead {
@@ -52,33 +96,35 @@ html, body {
 
 header {
   display: flex;
-  width: auto;
+  width: 100%;
   flex-wrap: wrap;
   flex-direction: row;
   align-items: center;
+  padding: 0 20px;
 }
 
 .main_cont {
   background: linear-gradient(0deg, rgb(255, 255, 255), rgb(138, 128, 217));
   display: flex;
-  min-height: 100vh; /* минимум — высота экрана */
-  min-width: 100vw;
+  min-height: 100vh;
+  width: 100%;
   flex-direction: column;
   flex-wrap: wrap;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
-
 
 main {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 20px; 
+  gap: 20px;
   align-items: start;
   justify-content: center;
   width: 100%;
-
+  padding: 0 20px;
+  box-sizing: border-box;
 }
-
 
 .main_blockl {
   margin-top: 40px;
@@ -93,23 +139,28 @@ main {
   border-radius: 3em;
   align-items: center;
   justify-content: space-around;
-  align-self: center;
   height: auto;
+  width: 90%;
+  max-width: 500px;
 }
 
 .btn {
-  display: block;           
+  display: block;
   width: 90%;
   padding: 18px 24px;
-  text-align: center;                  
-  text-decoration: none;    
+  text-align: center;
+  text-decoration: none;
   border-radius: 18px;
   font-size: 20px;
   background: linear-gradient(0deg, rgb(225, 224, 224), rgb(255, 255, 255));
   border-style: solid;
   border-width: 2px;
   border-color: #7f7b7b;
-  color: #000
+  color: #000;
+}
+
+.topic-card {
+  text-align: center;
 }
 
 .text {
@@ -121,9 +172,12 @@ main {
   display: flex;
   flex-direction: column;
   margin-bottom: 140px;
+  width: 90%;
+  max-width: 500px;
 }
+
 .main_blockr {
-  margin-top: 1px;
+  margin-top: 40px;
   display: flex;
   flex-direction: column;
   border-style: solid;
@@ -135,7 +189,9 @@ main {
   justify-content: space-around;
   height: auto;
   min-height: 500px;
-  flex: 0.6 1 300px;
+  width: 100%;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 span {
@@ -149,27 +205,22 @@ span {
   flex-direction: row;
   width: 90%;
   height: auto;
-  /* background-color: #000000; */
   justify-content: space-between;
 }
 
 .btnprivate {
-  display: block;           
+  display: block;
   width: 80%;
   padding: 10px 10px;
-  text-align: center;                  
-  text-decoration: none;    
+  text-align: center;
+  text-decoration: none;
   border-radius: 30px;
   font-size: 20px;
   background: linear-gradient(0deg, rgb(255, 76, 76), rgb(255, 151, 151));
   border-style: solid;
   border-width: 2px;
   border-color: #291818;
-  color: #000000
-}
-.btnprivate:focus {
-  border-color: #b87e7e;
-  background:linear-gradient(0deg, rgb(255, 215, 215), rgb(255, 151, 151));
+  color: #000000;
 }
 
 .input-group input {
@@ -193,28 +244,27 @@ span {
   background-color: #ffffff;
 }
 
-
 .btnd, .btncreate {
   margin: 20px;
-  display: block;           
+  display: block;
   width: 80%;
   padding: 26px 24px;
-  text-align: center;                  
-  text-decoration: none;    
+  text-align: center;
+  text-decoration: none;
   border-radius: 30px;
   font-size: 20px;
   background: linear-gradient(0deg, rgb(255, 76, 76), rgb(255, 151, 151));
   border-style: solid;
   border-width: 2px;
   border-color: #291818;
-  color: #000000
+  color: #000000;
 }
 
 .btncreate {
   padding-top: 20px;
   padding-bottom: 20px;
   width: auto;
-  justify-content: center;  
+  justify-content: center;
   align-items: center;
   display: flex;
   flex-direction: row;
@@ -223,37 +273,44 @@ span {
 
 .btnr {
   margin: 10px;
-  display: block;           
+  display: block;
   width: 20%;
   padding: 18px 24px;
-  text-align: center;                  
-  text-decoration: none;    
+  text-align: center;
+  text-decoration: none;
   border-radius: 25px;
   font-size: 20px;
   background: linear-gradient(0deg, rgb(255, 76, 76), rgb(255, 151, 151));
   border-style: solid;
   border-width: 2px;
   border-color: #291818;
-  color: #000000
+  color: #000000;
 }
 
-
-
 @media screen and (width<786px) {
-  .main_block {
-    width: 80%;
+  .main_blockl, .right {
+    width: 95%;
+    max-width: none;
   }
+
   .btn_back {
     width: 80%;
     align-self: center;
   }
-  
+
   header {
     align-items: center;
     justify-content: center;
+    padding: 0 10px;
   }
+
+  main {
+    padding: 0 10px;
+  }
+
   .main_blockr {
-  flex: 1 1 500px;
-  min-width: 90vw;
-}
+    flex: 1 1 auto;
+    min-width: auto;
+    width: 100%;
+  }
 }

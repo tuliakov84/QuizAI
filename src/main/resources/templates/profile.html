@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="styles/profile_style.css">
+  <link rel="stylesheet" href="/styles/profile_style.css">
   <title>QUIZAI</title>
 </head>
 
@@ -18,7 +18,7 @@
           <h1 class="h12">AREA</h1>
         </div>
         <p class="btnl">
-          <span class="default">ВАШ РЕЙТИНГ:</span>
+          <span class="default">ВАШИ ОЧКИ:</span>
           <span class="hover-text" id="user-rating">1000</span>
         </p>
         <a href="history.html" class="btnl">ИСТОРИЯ КВИЗОВ</a>
@@ -35,5 +35,15 @@
   </div>
 </body>
 
+
+<script src="/js/auth.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!AuthService.requireAuth()) return;
+
+    const userData = AuthService.getUser();
+    AuthService.displayUserProfile(userData);
+  });
+</script>
 
 </html>

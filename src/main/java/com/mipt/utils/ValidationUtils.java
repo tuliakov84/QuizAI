@@ -4,7 +4,7 @@ import java.util.regex.Pattern;
 
 public class ValidationUtils {
   // Username: 6-30 characters, starts with letter, followed by letters, digits, or underscores
-  private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]{5,29}$");
+  private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]{3,29}$");
   
   // Password: at least 8 characters, contains uppercase, lowercase, digit, and special character
   private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");

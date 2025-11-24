@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="styles/style.css">
+  <link rel="stylesheet" href="/styles/style.css">
   <title>QUIZAI</title>
 </head>
 
@@ -41,73 +41,104 @@
   </div>
 </body>
 
-<script src="js/auth.js"></script>
+<script src="/js/auth.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const loginForm = document.querySelector('.main_rect');//ищем main_rest и сохра сыылку на него
-    
-    loginForm.addEventListener('submit', async function (e) {
-      e.preventDefault(); // Предотвращаем стандартную отправку формы
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('DOM loaded - setting up login form');
 
-      const username = document.querySelector('input[name="username"]').value;
-      const password = document.querySelector('input[password="password"]').value;
+        const loginBtn = document.querySelector('.enter .btn');
+        const usernameInput = document.querySelector('input[name="username"]');
+        const passwordInput = document.querySelector('input[password="password"]');
 
-      // Валидация
-      if (!username || !password) {
-        alert('Пожалуйста, заполните все поля'); //кидаем предупреждение
-        return;
-      }
+        // Прямой обработчик на кнопку
+        loginBtn.addEventListener('click', async function (e) {
+            e.preventDefault();
+            console.log('Login button clicked');
 
-      try {
-        // Показываем загрузку
-        const submitBtn = document.querySelector('.enter .btn');
-        submitBtn.textContent = 'ВХОД...';//меняем текст кнопки
-        submitBtn.disabled = true;//выключаем кнопку
+            const username = usernameInput.value;
+            const password = passwordInput.value;
 
-        // Отправляем запрос на бэкенд
-        const response = await fetch('http://localhost:8080/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            username: username,
-            password: password
-          })
+            console.log('Username:', username, 'Password:', password);
+
+            // Валидация
+            if (!username || !password) {
+                alert('Пожалуйста, заполните все поля');
+                return;
+            }
+
+            try {
+                // Показываем загрузку
+                loginBtn.textContent = 'ВХОД...';
+                loginBtn.disabled = true;
+
+                console.log('Sending request to /api/auth/login');
+
+                // Отправляем запрос на бэкенд
+                const response = await fetch('http://localhost:8080/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+
+                console.log('Response status:', response.status);
+
+                // Получаем текст ответа для отладки
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+
+                // Пробуем распарсить JSON
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    alert('Ошибка сервера: неверный формат ответа');
+                    return;
+                }
+
+                console.log('Parsed data:', data);
+
+                // Проверяем успешный ответ
+                if (response.ok && data.username) {
+                    // Сохраняем токен и данные пользователя
+                    localStorage.setItem('session', data.session);
+                    localStorage.setItem('user', JSON.stringify(data));
+
+                    console.log('Login successful!');
+                    alert('Вход выполнен успешно!');
+                    window.location.href = 'main.html';
+                } else {
+                    // Если пришла ошибка от сервера
+                    const errorMessage = data.message || data.error || 'Неизвестная ошибка';
+                    alert('Ошибка: ' + errorMessage);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('Ошибка соединения с сервером: ' + error.message);
+            } finally {
+                // Всегда возвращаем кнопку в исходное состояние
+                loginBtn.textContent = 'ВОЙТИ';
+                loginBtn.disabled = false;
+            }
         });
 
-        const data = await response.json();
-
-        if (data.success) {
-          // Сохраняем токен и данные пользователя
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-
-          // Перенаправляем на главную страницу
-          window.location.href = 'main.html';
-        } else {
-          alert('Ошибка: ' + data.message);
-          // Возвращаем кнопку в исходное состояние
-          submitBtn.textContent = 'ВОЙТИ';
-          submitBtn.disabled = false;
+        // Также добавим обработчик на Enter в полях ввода
+        function handleEnterKey(e) {
+            if (e.key === 'Enter') {
+                loginBtn.click();
+            }
         }
-      } catch (error) {
-        console.error('Login error:', error);
-        alert('Ошибка соединения с сервером');
-        // Возвращаем кнопку в исходное состояние
-        const submitBtn = document.querySelector('.enter .btn');
-        submitBtn.textContent = 'ВОЙТИ';
-        submitBtn.disabled = false;
-      }
-    });
 
-    // Превращаем кнопку в submit button(добавляем обработчик событий)
-    const loginBtn = document.querySelector('.enter .btn');
-    loginBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      loginForm.dispatchEvent(new Event('submit'));
+        usernameInput.addEventListener('keypress', handleEnterKey);
+        passwordInput.addEventListener('keypress', handleEnterKey);
+
+        console.log('Login form setup complete');
     });
-  });
 </script>
 
 
