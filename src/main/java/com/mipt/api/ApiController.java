@@ -45,7 +45,7 @@ public class ApiController {
         }
         user.setDescription(dbService.getDescription(session));
         user.setGlobalPoints(dbService.getGlobalPoints(session));
-        return new ResponseEntity<>(session, HttpStatus.OK);
+        return new ResponseEntity<>(user, HttpStatus.OK);
       } catch (DatabaseAccessException e) {
         if (utils.isSessionCollision(e)) {
           continue;
