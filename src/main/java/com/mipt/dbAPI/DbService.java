@@ -548,6 +548,7 @@ public class DbService {
     if (!checkGameExists(gameId)) {
       throw new DatabaseAccessException(); // game not found
     }
+
     PreparedStatement updData = conn.prepareStatement("UPDATE games SET is_private = ? WHERE id = ?");
     updData.setBoolean(1, isPrivate);
     updData.setInt(2, gameId);
