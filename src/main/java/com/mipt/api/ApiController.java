@@ -13,6 +13,7 @@ import javax.swing.*;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 
 
 @RestController
@@ -297,6 +298,68 @@ public class ApiController {
       return new ResponseEntity<>("Failed to start the game " + game.getGameId(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while stating game " + game.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/game/pause")
+  public ResponseEntity<Object> pauseGame(@RequestBody Game game) {
+    try {
+      int gameId = game.getGameId();
+      dbService.setStatus(gameId, 1);
+      return new ResponseEntity<>(HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to pause the game " + game.getGameId(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while pausing game " + game.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/game/resume")
+  public ResponseEntity<Object> resumeGame(@RequestBody Game game) {
+    try {
+      int gameId = game.getGameId();
+      dbService.setStatus(gameId, 2);
+      return new ResponseEntity<>(HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to resume the game " + game.getGameId(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while pausing game " + game.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/game/stop")
+  public ResponseEntity<Object> stopGame(@RequestBody Game game) {
+    try {
+      int gameId = game.getGameId();
+      dbService.stopGame(gameId);
+      return new ResponseEntity<>(HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to stop the game " + game.getGameId(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while stopping game " + game.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/topic/get")
+  public ResponseEntity<Object> getTopic(@RequestBody Topic topic) {
+    try {
+      int topicId = topic.getTopicId();
+      Topic res = dbService.getTopicById(topicId);
+      return new ResponseEntity<>(res, HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get the topic with id " + topic.getTopicId(), HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting topic with id " + topic.getTopicId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/topic/get-all")
+  public ResponseEntity<Object> getAllTopics() {
+    try {
+      List<Topic> res = List.of(dbService.getAllTopics());
+      return new ResponseEntity<>(res, HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting all topics", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }
