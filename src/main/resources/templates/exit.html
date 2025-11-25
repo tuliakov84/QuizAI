@@ -57,7 +57,7 @@
   // Дополнительная функция для уведомления сервера о выходе для времени последней активности
   async function logoutOnServer() {
     try {
-      const username = localStorage.getItem('username')
+      const session = localStorage.getItem('session')
       await fetch('http://localhost:8080/api/auth/logout', {
         method: 'POST',
         headers: {
@@ -65,7 +65,7 @@
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          username: username,
+          session: session,
         })
       });
     } catch (error) {

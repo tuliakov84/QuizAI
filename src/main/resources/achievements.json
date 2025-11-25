@@ -1,0 +1,24 @@
+[
+  {
+    "name": "Начинающий",
+    "profilePicNeeded": true,
+    "descriptionNeeded": true,
+    "gamesNumberNeeded": 1,
+    "globalPointsNeeded": 0,
+    "glonalRatingPlaceNeeded": 0,
+    "currentGamePointsNeeded": 0,
+    "currentGameRatingNeeded": 0,
+    "currentGameLevelDifficultyNeeded": 0
+  },
+  {
+    "name": "Стажер",
+    "profilePicNeeded": true,
+    "descriptionNeeded": true,
+    "gamesNumberNeeded": 10,
+    "globalPointsNeeded": 100,
+    "glonalRatingPlaceNeeded": 0,
+    "currentGamePointsNeeded": 50,
+    "currentGameRatingNeeded": 5,
+    "currentGameLevelDifficultyNeeded": 1
+  }
+]

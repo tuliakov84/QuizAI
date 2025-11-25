@@ -1,18 +1,23 @@
 package com.mipt.api;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.*;
 import com.mipt.initialization.TopicsInit;
 import com.mipt.utils.BackendUtils;
 import com.mipt.utils.ValidationUtils;
+import org.json.JSONArray;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -235,6 +240,19 @@ public class ApiController {
     }
   }
 
+  @PostMapping("/game/get-open")
+  public ResponseEntity<Object> getOpenGames(@RequestBody Topic topic) {
+    try {
+      int topicId = topic.getTopicId();
+      return new ResponseEntity<>(dbService.getOpenGames(topicId).toString(), HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get open games", HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting open games", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+
   @PostMapping("/game/create")
   public ResponseEntity<Object> createGame(@RequestBody RoomJoinObject data) {
     try {
@@ -436,6 +454,87 @@ public class ApiController {
       return new ResponseEntity<>(res, HttpStatus.OK);
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while getting all topics", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/leaderboard/get/by-game")
+  public ResponseEntity<Object> getLeaderboardsByGame(@RequestBody Game game) {
+    try {
+      int gameId = game.getGameId();
+      JSONArray res = dbService.getGameLeaderboards(gameId);
+      return new ResponseEntity<>(res.toString(), HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting the leaderboards of game " + game.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get the leaderboards of game " + game.getGameId(), HttpStatus.NOT_FOUND);
+    }
+  }
+
+  @PostMapping("/leaderboard/get/global")
+  public ResponseEntity<Object> getGlobalLeaderboards() {
+    try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("global-leaderboards.json")) {
+      if (inputStream == null) {
+        throw new FileNotFoundException("File global-leaderboards.json not found in classpath");
+      }
+
+      String jsonContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+      Object jsonObject = new ObjectMapper().readValue(jsonContent, Object.class);
+
+      return new ResponseEntity<>(jsonContent, HttpStatus.OK);
+    } catch (Exception e) {
+      System.out.println("Error reading global-leaderboards.json: " + e.getMessage());
+      return new ResponseEntity<>("Error reading global leaderboards", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+  
+  @PostMapping("/achievement/get-all")
+  public ResponseEntity<Object> getAllAchievements() {
+    try {
+      List<Achievement> res = List.of(dbService.getAllAchievements());
+      return new ResponseEntity<>(res, HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting all achievements", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/achievement/get")
+  public ResponseEntity<Object> getAchievementList(@RequestBody List<Integer> achievementIds) {
+    try {
+      ArrayList<Achievement> res = new ArrayList<>();
+      for (Integer achievementId : achievementIds) {
+        res.add(dbService.getAchievementById(achievementId));
+      }
+      return new ResponseEntity<>(res, HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get the achievements", HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting achievements", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/achievement/check-achieved")
+  public ResponseEntity<Object> checkAchieved(@RequestBody Achieved achieved) {
+    try {
+      Integer[] achievementIds = dbService.checkAchievementAchieved(achieved.getSession(), achieved);
+      return getAchievementList(List.of(achievementIds));
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting all achievements", HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (DatabaseAccessException e) {
+    return new ResponseEntity<>("Failed to get the achievements", HttpStatus.NOT_FOUND);
+    }
+  }
+
+  @PostMapping("/achievement/attach")
+  public ResponseEntity<Object> attachAchievementList(@RequestBody List<Achieved> achievements) {
+    try {
+      for (Achieved achievement : achievements) {
+        dbService.attachAchievement(achievement.getSession(), achievement.getAchievementId());
+      }
+      return new ResponseEntity<>(HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to attach the achievements", HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while attaching achievements", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

@@ -10,7 +10,7 @@ public class ValidationUtils {
   private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");
   
   // Description: 10-200 characters, alphanumeric, spaces, periods, commas, hyphens
-  private static final Pattern DESCRIPTION_PATTERN = Pattern.compile("^[a-zA-Z0-9.,\\s-]{10,200}$");
+  private static final Pattern DESCRIPTION_PATTERN = Pattern.compile("^[a-zA-Zа-яА-Я0-9.,\\s-]{1,200}$");
 
   /**
    * Validates username format.
