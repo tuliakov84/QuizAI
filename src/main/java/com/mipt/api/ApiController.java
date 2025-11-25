@@ -240,6 +240,19 @@ public class ApiController {
     }
   }
 
+  @PostMapping("/user/leave")
+  public ResponseEntity<Object> leaveRoom(@RequestBody User user) {
+    try {
+      String session = user.getSession();
+      dbService.leaveGame(session);
+      return new ResponseEntity<>(HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to leave the game", HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while leaving the game", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   @PostMapping("/game/get-open")
   public ResponseEntity<Object> getOpenGames(@RequestBody Topic topic) {
     try {
@@ -251,7 +264,6 @@ public class ApiController {
       return new ResponseEntity<>("Database error occurred while getting open games", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-
 
   @PostMapping("/game/create")
   public ResponseEntity<Object> createGame(@RequestBody RoomJoinObject data) {
@@ -478,7 +490,7 @@ public class ApiController {
       }
 
       String jsonContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-      Object jsonObject = new ObjectMapper().readValue(jsonContent, Object.class);
+      new ObjectMapper().readValue(jsonContent, Object.class);
 
       return new ResponseEntity<>(jsonContent, HttpStatus.OK);
     } catch (Exception e) {

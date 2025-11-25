@@ -5,6 +5,7 @@ import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Achievement;
 import com.mipt.domainModel.Question;
 import com.mipt.domainModel.Topic;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.junit.jupiter.api.*;
@@ -13,7 +14,8 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.sql.*;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
@@ -53,6 +55,64 @@ public class DbServiceTest {
     dbService = new DbService(jdbcUrl, username, password);
   }
 
+  private static @NotNull JSONArray getJsonArrayOfTestQuestions() throws JSONException {
+    String jsonString = """
+        [
+            {
+                "question_number": 1,
+                "question_text": "What the Aglet is?",
+                "available_answers":\s
+                [
+                    {
+                        "index": 1,
+                        "answer": "American audit company"
+                    },
+                    {
+                        "index": 2,
+                        "answer": "Programming language"
+                    },
+                    {
+                        "index": 3,
+                        "answer": "Lace tip"
+                    },
+                    {
+                        "index": 4,
+                        "answer": "idk"
+                    }
+                ],
+                "right_answer_number": 3
+            },
+            {
+                "question_number": 2,
+                "question_text": "What is the punishment for driving drunk in Russia?",
+                "available_answers":\s
+                [
+                    {
+                        "index": 1,
+                        "answer": "100 USD"
+                    },
+                    {
+                        "index": 2,
+                        "answer": "Deprivation of driving license"
+                    },
+                    {
+                        "index": 3,
+                        "answer": "Warning"
+                    },
+                    {
+                        "index": 4,
+                        "answer": "None"
+                    }
+                ],
+                "right_answer_number": 2
+            }
+        ]
+        """;
+
+    // performing loadQuestions and testing not existing game
+    return new JSONArray(jsonString);
+  }
+
   @BeforeEach
   void setInitRecords() throws SQLException, DatabaseAccessException {
     // creating users
@@ -84,15 +144,15 @@ public class DbServiceTest {
     assertEquals("test2", dbService.getUsername("SESSION2"));
   }
 
-  @AfterEach
-  void eraseRecords() throws SQLException, DatabaseAccessException {
-    // deleting all data
-    dbService.eraseAllData("DELETE_ALL_RECORDS_IN_DATABASE");
-  }
-
   //
   // Users TEST UNITS
   //
+
+  @AfterEach
+  void eraseRecords() throws SQLException {
+    // deleting all data
+    dbService.eraseAllData("DELETE_ALL_RECORDS_IN_DATABASE");
+  }
 
   @Test
   void testLogOut() throws SQLException, DatabaseAccessException {
@@ -165,7 +225,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testSetCurrentGame_GetCurrentGame_GetCurrentParticipantsNumber() throws SQLException, DatabaseAccessException {
+  void testSetCurrentGame_GetCurrentGame_GetCurrentParticipantsNumber_LeaveGame() throws SQLException, DatabaseAccessException {
     // creating game
     Integer gameId = dbService.createGame("SESSION", 1, 5, 4, 1);
 
@@ -204,6 +264,16 @@ public class DbServiceTest {
     assertThrows(DatabaseAccessException.class, () -> dbService.setCurrentGame("SESSION5", gameId));
     assertNull(dbService.getCurrentGame("SESSION5"));
     assertEquals(4, dbService.getCurrentParticipantsNumber(gameId));
+
+    // leaving game
+    assertThrows(DatabaseAccessException.class, () -> dbService.leaveGame("SESSION100000"));
+    assertDoesNotThrow(() -> dbService.leaveGame("SESSION"));
+    assertThrows(DatabaseAccessException.class, () -> dbService.leaveGame("SESSION"));
+    assertNull(dbService.getCurrentGame("SESSION"));
+    assertEquals(gameId, dbService.getCurrentGame("SESSION2"));
+    assertEquals(gameId, dbService.getCurrentGame("SESSION3"));
+    assertDoesNotThrow(() -> dbService.leaveGame("SESSION3"));
+    assertEquals(gameId, dbService.getCurrentGame("SESSION2"));
   }
 
   @Test
@@ -292,6 +362,10 @@ public class DbServiceTest {
     assertEquals(0, dbService.getGlobalPossiblePoints("SESSION2"));
   }
 
+  //
+  // Game TEST UNITS
+  //
+
   @Test
   void testAddCurrentGamePoints_GetCurrentGamePoints() throws SQLException, DatabaseAccessException {
     // creating game
@@ -317,10 +391,6 @@ public class DbServiceTest {
 
     assertEquals(0, dbService.getCurrentGamePoints("SESSION2"));
   }
-
-  //
-  // Game TEST UNITS
-  //
 
   @Test
   @Order(1)
@@ -437,59 +507,7 @@ public class DbServiceTest {
     assertThrows(DatabaseAccessException.class, () -> dbService.getQuestion(145, 1));
 
     // load questions
-    String jsonString = "[\n" +
-        "    {\n" +
-        "        \"question_number\": 1,\n" +
-        "        \"question_text\": \"What the Aglet is?\",\n" +
-        "        \"available_answers\": \n" +
-        "        [\n" +
-        "            {\n" +
-        "                \"index\": 1,\n" +
-        "                \"answer\": \"American audit company\"\n" +
-        "            },\n" +
-        "            {\n" +
-        "                \"index\": 2,\n" +
-        "                \"answer\": \"Programming language\"\n" +
-        "            },\n" +
-        "            {\n" +
-        "                \"index\": 3,\n" +
-        "                \"answer\": \"Lace tip\"\n" +
-        "            },\n" +
-        "            {\n" +
-        "                \"index\": 4,\n" +
-        "                \"answer\": \"idk\"\n" +
-        "            }\n" +
-        "        ],\n" +
-        "        \"right_answer_number\": 3\n" +
-        "    },\n" +
-        "    {\n" +
-        "        \"question_number\": 2,\n" +
-        "        \"question_text\": \"What is the punishment for driving drunk in Russia?\",\n" +
-        "        \"available_answers\": \n" +
-        "        [\n" +
-        "            {\n" +
-        "                \"index\": 1,\n" +
-        "                \"answer\": \"100 USD\"\n" +
-        "            },\n" +
-        "            {\n" +
-        "                \"index\": 2,\n" +
-        "                \"answer\": \"Deprivation of driving license\"\n" +
-        "            },\n" +
-        "            {\n" +
-        "                \"index\": 3,\n" +
-        "                \"answer\": \"Warning\"\n" +
-        "            },\n" +
-        "            {\n" +
-        "                \"index\": 4,\n" +
-        "                \"answer\": \"None\"\n" +
-        "            }\n" +
-        "        ],\n" +
-        "        \"right_answer_number\": 2\n" +
-        "    }\n" +
-        "]\n";
-
-    // performing loadQuestions and testing not existing game
-    JSONArray jsonObject = new JSONArray(jsonString);
+    JSONArray jsonObject = getJsonArrayOfTestQuestions();
     assertThrows(DatabaseAccessException.class, () -> dbService.loadQuestions(145, jsonObject));
     dbService.loadQuestions(gameId, jsonObject);
 
@@ -512,11 +530,11 @@ public class DbServiceTest {
 
     if (
         (
-        Objects.equals(result1.getQuestionText(), "What the Aglet is?") &&
-            Objects.equals(result1.getAnswer1(), "American audit company") &&
-            Objects.equals(result1.getAnswer2(), "Programming language") &&
-            Objects.equals(result1.getAnswer3(), "Lace tip") &&
-            Objects.equals(result1.getAnswer4(), "idk")
+            Objects.equals(result1.getQuestionText(), "What the Aglet is?") &&
+                Objects.equals(result1.getAnswer1(), "American audit company") &&
+                Objects.equals(result1.getAnswer2(), "Programming language") &&
+                Objects.equals(result1.getAnswer3(), "Lace tip") &&
+                Objects.equals(result1.getAnswer4(), "idk")
         ) && (
             dbService.getRightAnswer(gameId, 1).equals(3)
         )
@@ -530,11 +548,11 @@ public class DbServiceTest {
 
     if (
         (
-        Objects.equals(result2.getQuestionText(), "What is the punishment for driving drunk in Russia?") &&
-            Objects.equals(result2.getAnswer1(), "100 USD") &&
-            Objects.equals(result2.getAnswer2(), "Deprivation of driving license") &&
-            Objects.equals(result2.getAnswer3(), "Warning") &&
-            Objects.equals(result2.getAnswer4(), "None")
+            Objects.equals(result2.getQuestionText(), "What is the punishment for driving drunk in Russia?") &&
+                Objects.equals(result2.getAnswer1(), "100 USD") &&
+                Objects.equals(result2.getAnswer2(), "Deprivation of driving license") &&
+                Objects.equals(result2.getAnswer3(), "Warning") &&
+                Objects.equals(result2.getAnswer4(), "None")
         ) && (
             dbService.getRightAnswer(gameId, 2).equals(2)
         )
@@ -547,7 +565,6 @@ public class DbServiceTest {
     // testing the bound of loaded questions
     assertThrows(DatabaseAccessException.class, () -> dbService.getQuestion(gameId, 3));
   }
-
 
   @Test
   void testGetGameLeaderboards_GetCurrentGameParticipantsNumber() throws SQLException, DatabaseAccessException {
@@ -704,7 +721,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testGetAllAchievements() throws SQLException, DatabaseAccessException {
+  void testGetAllAchievements() throws SQLException {
     // creating achievement
     Achievement achvm = createTestAchievement();
     dbService.addAchievement(achvm);
@@ -728,7 +745,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testRemoveAchievement() throws SQLException, DatabaseAccessException {
+  void testRemoveAchievement() throws SQLException {
     // creating achievement
     Achievement achvm = createTestAchievement();
     Integer achvmId = dbService.addAchievement(achvm);
@@ -768,7 +785,7 @@ public class DbServiceTest {
   }
 
   @Test
-  void testGetAllTopics() throws SQLException, DatabaseAccessException {
+  void testGetAllTopics() throws SQLException {
     // creating topics
     Topic topic1 = createTestTopic("testTopic1");
     Topic topic2 = createTestTopic("testTopic2");
