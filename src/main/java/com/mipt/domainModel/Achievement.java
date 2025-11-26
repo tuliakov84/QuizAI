@@ -38,7 +38,7 @@ public class Achievement {
     this.name = name;
   }
 
-  public boolean isProfilePicNeeded() {
+  public boolean getProfilePicNeeded() {
     return profilePicNeeded;
   }
   
@@ -46,7 +46,7 @@ public class Achievement {
     this.profilePicNeeded = profilePicNeeded;
   }
   
-  public boolean isDescriptionNeeded() {
+  public boolean getDescriptionNeeded() {
     return descriptionNeeded;
   }
   

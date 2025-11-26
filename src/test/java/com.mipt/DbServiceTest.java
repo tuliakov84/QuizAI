@@ -671,8 +671,8 @@ public class DbServiceTest {
 
     // checking fields
     assertEquals(resAchvm.getName(), achvm.getName());
-    assertEquals(resAchvm.isProfilePicNeeded(), achvm.isProfilePicNeeded());
-    assertEquals(resAchvm.isDescriptionNeeded(), achvm.isDescriptionNeeded());
+    assertEquals(resAchvm.getProfilePicNeeded(), achvm.getProfilePicNeeded());
+    assertEquals(resAchvm.getDescriptionNeeded(), achvm.getDescriptionNeeded());
     assertEquals(resAchvm.getGamesNumberNeeded(), achvm.getGamesNumberNeeded());
     assertEquals(resAchvm.getGlobalPointsNeeded(), achvm.getGlobalPointsNeeded());
     assertEquals(resAchvm.getCurrentGameLevelDifficultyNeeded(), achvm.getCurrentGameLevelDifficultyNeeded());
@@ -737,8 +737,8 @@ public class DbServiceTest {
     Achievement[] res = dbService.getAllAchievements();
     assertEquals(1, res.length);
     assertEquals(res[0].getName(), achvm1.getName());
-    assertEquals(res[0].isProfilePicNeeded(), achvm1.isProfilePicNeeded());
-    assertEquals(res[0].isDescriptionNeeded(), achvm1.isDescriptionNeeded());
+    assertEquals(res[0].getProfilePicNeeded(), achvm1.getProfilePicNeeded());
+    assertEquals(res[0].getDescriptionNeeded(), achvm1.getDescriptionNeeded());
     assertEquals(res[0].getGamesNumberNeeded(), achvm1.getGamesNumberNeeded());
     assertEquals(res[0].getGlobalPointsNeeded(), achvm1.getGlobalPointsNeeded());
     assertEquals(res[0].getCurrentGameLevelDifficultyNeeded(), achvm1.getCurrentGameLevelDifficultyNeeded());

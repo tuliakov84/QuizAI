@@ -864,8 +864,8 @@ public class DbService {
         "games_number_needed, global_points_needed, global_rating_place_needed, current_game_points_needed, current_game_rating_needed," +
         "current_game_level_difficulty_needed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
     inpAchvm.setString(1, achievement.getName());
-    inpAchvm.setBoolean(2, achievement.isProfilePicNeeded());
-    inpAchvm.setBoolean(3, achievement.isDescriptionNeeded());
+    inpAchvm.setBoolean(2, achievement.getProfilePicNeeded());
+    inpAchvm.setBoolean(3, achievement.getDescriptionNeeded());
     inpAchvm.setInt(4, achievement.getGamesNumberNeeded());
     inpAchvm.setInt(5, achievement.getGlobalPointsNeeded());
     inpAchvm.setInt(6, achievement.getGlobalRatingPlaceNeeded());
@@ -918,8 +918,8 @@ public class DbService {
     PreparedStatement selAchievement = conn.prepareStatement(sql);
 
     selAchievement.setInt(1, userId);
-    selAchievement.setBoolean(2, achieved.isProfilePicNeeded());
-    selAchievement.setBoolean(3, achieved.isDescriptionNeeded());
+    selAchievement.setBoolean(2, achieved.getProfilePicNeeded());
+    selAchievement.setBoolean(3, achieved.getDescriptionNeeded());
     selAchievement.setInt(4, achieved.getGamesNumberNeeded());
     selAchievement.setInt(5, achieved.getGlobalPointsNeeded());
     selAchievement.setInt(6, achieved.getGlobalRatingPlaceNeeded());
