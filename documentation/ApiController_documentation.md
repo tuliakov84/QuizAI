@@ -161,7 +161,7 @@
 
 **function** verifyAnswer  
 **описание:** Проверяет правильность ответа на вопрос, начисляет очки за правильный ответ и обновляет статистику игрока  
-**принимает:** AnswerObject answerObject (объект с gameId, questionNumber, submittedAnswerNumber, levelDifficulty, session, timeTakenToAnswer)  
+**принимает:** AnswerObject answerObject (объект с gameId, questionNumber, submittedAnswerNumber, levelDifficulty, session, timeTakenToAnswerInSeconds)  
 **возвращает:** ResponseEntity<Object> (boolean - правильный ответ или нет)  
 **выбрасывает:**
 - "Failed to get verify" (404)

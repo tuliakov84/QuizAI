@@ -4,7 +4,7 @@ import java.time.Instant;
 
 public class AnswerObject extends Question {
   private String session;
-  private Instant timeTakenToAnswer;
+  private int timeTakenToAnswerInSeconds;
   private Game.LevelDifficulty levelDifficulty;
 
   public String getSession() {
@@ -15,12 +15,12 @@ public class AnswerObject extends Question {
     this.session = session;
   }
 
-  public Instant getTimeTakenToAnswer() {
-    return timeTakenToAnswer;
+  public int getTimeTakenToAnswerInSeconds() {
+    return timeTakenToAnswerInSeconds;
   }
 
-  public void setTimeTakenToAnswer(Instant timeTakenToAnswer) {
-    this.timeTakenToAnswer = timeTakenToAnswer;
+  public void setTimeTakenToAnswerInSeconds(int timeTakenToAnswerInSeconds) {
+    this.timeTakenToAnswerInSeconds = timeTakenToAnswerInSeconds;
   }
 
   public Game.LevelDifficulty getLevelDifficulty() {

@@ -455,8 +455,8 @@ public class ApiController {
       String session = answerObject.getSession();
 
       if (submittedAnswerNumber == rightAnswer) {
-        Instant timeTakenToAnswer = answerObject.getTimeTakenToAnswer();
-        int pointsForAnswer = utils.countPoints(levelDifficulty, timeTakenToAnswer);
+        int timeTakenToAnswerInSeconds = answerObject.getTimeTakenToAnswerInSeconds();
+        int pointsForAnswer = utils.countPoints(levelDifficulty, timeTakenToAnswerInSeconds);
 
         dbService.addCurrentGamePoints(session, pointsForAnswer);
         dbService.addGlobalPoints(session, pointsForAnswer);
