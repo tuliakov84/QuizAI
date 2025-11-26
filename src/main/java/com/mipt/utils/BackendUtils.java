@@ -1,23 +1,12 @@
 package com.mipt.utils;
 
 import com.mipt.dbAPI.DatabaseAccessException;
-import com.mipt.dbAPI.DbService;
-
 import com.mipt.domainModel.Game;
-
-import java.sql.SQLException;
 import java.time.Instant;
-import java.util.List;
 
 public class BackendUtils {
 
   private static final double MAX_TIME_TO_ANSWER_IN_SECONDS = 20;
-
-  private final DbService dbService;
-
-  public BackendUtils(DbService dbService) {
-    this.dbService = dbService;
-  }
 
   public int countPoints(Game.LevelDifficulty levelDifficulty, Instant timeTakenToAnswer) {
     int difficultMultiplier;

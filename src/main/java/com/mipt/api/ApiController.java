@@ -36,7 +36,7 @@ public class ApiController {
    */
   public ApiController(DbService dbService, BasicErrorController basicErrorController) {
     this.dbService = dbService;
-    this.utils = new BackendUtils(dbService);
+    this.utils = new BackendUtils();
 
     TopicsInit topicsInit = new TopicsInit(dbService);
     topicsInit.topicsInit();
