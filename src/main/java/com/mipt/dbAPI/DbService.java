@@ -844,7 +844,6 @@ public class DbService {
       JSONArray putObj = new JSONArray();
       int gameId = rsGames.getInt("id");
       putObj.put(gameId);
-      putObj.put(rsGames.getInt("topic_id"));
       putObj.put(getCurrentParticipantsNumber(gameId));
       putObj.put(rsGames.getInt("participants_number"));
       res.put(putObj);
