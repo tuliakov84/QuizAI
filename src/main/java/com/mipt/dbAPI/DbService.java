@@ -832,8 +832,8 @@ public class DbService {
 
   public JSONArray getOpenGames(int topicId) throws SQLException, DatabaseAccessException {
     // gets currently open games as JSONArray, sorted by id ascending
-    // return [[gameId, topicId, currentParticipantsNumber, participantsNumber], ...]
-    // example : [[25, 2, 4, 5], [36, 3, 4, 6], ...]
+    // return [[gameId, currentParticipantsNumber, participantsNumber], ...]
+    // example : [[25, 4, 5], [36, 4, 6], ...]
 
     PreparedStatement selGames = conn.prepareStatement("SELECT id, participants_number " +
         "FROM games WHERE is_private = FALSE AND status = 0 AND topic_id = ?");
