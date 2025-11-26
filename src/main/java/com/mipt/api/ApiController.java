@@ -8,6 +8,7 @@ import com.mipt.initialization.TopicsInit;
 import com.mipt.utils.BackendUtils;
 import com.mipt.utils.ValidationUtils;
 import org.json.JSONArray;
+import org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,7 +34,7 @@ public class ApiController {
    * Wires the controller with the database layer and ensures that the topics
    * table is populated before serving requests.
    */
-  public ApiController(DbService dbService) {
+  public ApiController(DbService dbService, BasicErrorController basicErrorController) {
     this.dbService = dbService;
     this.utils = new BackendUtils(dbService);
 
@@ -440,20 +441,33 @@ public class ApiController {
   }
 
   /**
-   * Checks whether the submitted answer index matches the stored correct answer.
+   * Checks whether the submitted answer index matches the stored correct answer + counts points user will get.
    */
   @PostMapping("/game/verify-answer")
-  public ResponseEntity<Object> verifyAnswer(@RequestBody Question question) {
+  public ResponseEntity<Object> verifyAnswer(@RequestBody AnswerObject answerObject) {
     try {
-      int gameId = question.getGameId();
-      int questionNumber = question.getQuestionNumber();
-      int submittedAnswerNumber = question.getSubmittedAnswerNumber();
+      int gameId = answerObject.getGameId();
+      int questionNumber = answerObject.getQuestionNumber();
+      int submittedAnswerNumber = answerObject.getSubmittedAnswerNumber();
       int rightAnswer = dbService.getRightAnswer(gameId, questionNumber);
+
+      if (submittedAnswerNumber == rightAnswer) {
+        String session = answerObject.getSession();
+        Instant timeTakenToAnswer = answerObject.getTimeTakenToAnswer();
+        Game.LevelDifficulty levelDifficulty = answerObject.getLevelDifficulty();
+        int pointsForAnswer = utils.countPoints(levelDifficulty, timeTakenToAnswer);
+        int possiblePointsForAnswer = utils.countPossiblePoints(levelDifficulty);
+
+        dbService.addCurrentGamePoints(session, pointsForAnswer);
+        dbService.addGlobalPoints(session, pointsForAnswer);
+        dbService.addGlobalPossiblePoints(session, possiblePointsForAnswer);
+      }
+
       return new ResponseEntity<>(rightAnswer == submittedAnswerNumber, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
-      return new ResponseEntity<>("Failed to get verify " + question.getQuestionNumber() + " for game " + question.getQuestionId(), HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Failed to get verify " + answerObject.getQuestionNumber() + " for game " + answerObject.getQuestionId(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while verifying question " + question.getQuestionNumber() + " for game " + question.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+      return new ResponseEntity<>("Database error occurred while verifying question " + answerObject.getQuestionNumber() + " for game " + answerObject.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
