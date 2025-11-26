@@ -451,18 +451,19 @@ public class ApiController {
       int submittedAnswerNumber = answerObject.getSubmittedAnswerNumber();
       int rightAnswer = dbService.getRightAnswer(gameId, questionNumber);
 
+      Game.LevelDifficulty levelDifficulty = answerObject.getLevelDifficulty();
+      String session = answerObject.getSession();
+
       if (submittedAnswerNumber == rightAnswer) {
-        String session = answerObject.getSession();
         Instant timeTakenToAnswer = answerObject.getTimeTakenToAnswer();
-        Game.LevelDifficulty levelDifficulty = answerObject.getLevelDifficulty();
         int pointsForAnswer = utils.countPoints(levelDifficulty, timeTakenToAnswer);
-        int possiblePointsForAnswer = utils.countPossiblePoints(levelDifficulty);
 
         dbService.addCurrentGamePoints(session, pointsForAnswer);
         dbService.addGlobalPoints(session, pointsForAnswer);
-        dbService.addGlobalPossiblePoints(session, possiblePointsForAnswer);
       }
 
+      int possiblePointsForAnswer = utils.countPossiblePoints(levelDifficulty);
+      dbService.addGlobalPossiblePoints(session, possiblePointsForAnswer);
       return new ResponseEntity<>(rightAnswer == submittedAnswerNumber, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to get verify " + answerObject.getQuestionNumber() + " for game " + answerObject.getQuestionId(), HttpStatus.NOT_FOUND);
