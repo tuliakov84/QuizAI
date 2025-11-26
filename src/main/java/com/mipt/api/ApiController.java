@@ -29,6 +29,10 @@ public class ApiController {
   private final BackendUtils utils;
   private final DbService dbService;
 
+  /**
+   * Wires the controller with the database layer and ensures that the topics
+   * table is populated before serving requests.
+   */
   public ApiController(DbService dbService) {
     this.dbService = dbService;
     this.utils = new BackendUtils(dbService);
@@ -37,6 +41,10 @@ public class ApiController {
     topicsInit.topicsInit();
   }
 
+  /**
+   * Authenticates a user via username/password and establishes a new session
+   * token. Retries on session collisions and returns the hydrated {@link User}.
+   */
   @PostMapping("/auth/login")
   public ResponseEntity<Object> auth(@RequestBody User user) {
     for (int attempt = 0; attempt < MAX_SESSION_RETRIES; attempt++) {
@@ -66,6 +74,10 @@ public class ApiController {
     return new ResponseEntity<>("Unable to generate unique session token", HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
+  /**
+   * Registers a new account after validating username and password, then logs
+   * the user in to provide the usual session payload.
+   */
   @PostMapping("/auth/register")
   public ResponseEntity<Object> register(@RequestBody User user) {
     try {
@@ -86,6 +98,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Revokes the active session for the supplied user.
+   */
   @PostMapping("/auth/logout")
   public ResponseEntity<Object> logout(@RequestBody User user) {
     try {
@@ -98,6 +113,10 @@ public class ApiController {
     }
   }
 
+  /**
+   * Returns an enriched snapshot of the requesting user profile, including
+   * achievements, stats, avatar and currently joined game.
+   */
   @PostMapping("/users/profile")
   public ResponseEntity<Object> getProfile(@RequestBody User user) {
     try {
@@ -130,6 +149,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Updates the profile picture reference for the active session.
+   */
   @PostMapping("/users/set/profile_pic")
   public ResponseEntity<Object> changeProfilePic(@RequestBody User user) {
     try {
@@ -148,6 +170,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Persists a validated free-form profile description for the user.
+   */
   @PostMapping("/users/set/description")
   public ResponseEntity<Object> changeDescription(@RequestBody User user) {
     try {
@@ -165,6 +190,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Changes the user password after running standard password validation.
+   */
   @PostMapping("/users/set/password")
   public ResponseEntity<Object> changePassword(@RequestBody User user) {
     try {
@@ -183,6 +211,10 @@ public class ApiController {
     }
   }
 
+  /**
+   * Returns historical game metadata for the requesting user, derived from
+   * per-game presets and cached end times.
+   */
   @PostMapping("/users/get-games")
   public ResponseEntity<Object> getGames(@RequestBody User user) {
     try {
@@ -209,6 +241,10 @@ public class ApiController {
     }
   }
 
+  /**
+   * Joins an open lobby if it has not started yet and returns the resolved game
+   * preset together with lobby occupancy and privacy info.
+   */
   @PostMapping("/game/join")
   public ResponseEntity<Object> joinRoom(@RequestBody RoomJoinObject data) {
     try {
@@ -240,6 +276,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Removes the current user from their game lobby.
+   */
   @PostMapping("/user/leave")
   public ResponseEntity<Object> leaveRoom(@RequestBody User user) {
     try {
@@ -253,6 +292,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Lists open games for the selected topic, allowing room discovery.
+   */
   @PostMapping("/game/get-open")
   public ResponseEntity<Object> getOpenGames(@RequestBody Topic topic) {
     try {
@@ -265,6 +307,10 @@ public class ApiController {
     }
   }
 
+  /**
+   * Creates a new lobby owned by the author session and reuses join logic to
+   * return the hydrated room payload.
+   */
   @PostMapping("/game/create")
   public ResponseEntity<Object> createGame(@RequestBody RoomJoinObject data) {
     try {
@@ -299,6 +345,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Allows a game author to modify the lobby capacity.
+   */
   @PostMapping("/game/set/participants-number")
   public ResponseEntity<Object> changeParticipantsNumber(@RequestBody RoomJoinObject data) {
     try {
@@ -321,6 +370,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Toggles the privacy flag for a game.
+   */
   @PostMapping("/game/set/private")
   public ResponseEntity<Object> setPrivate(@RequestBody Game game) {
     try {
@@ -335,6 +387,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Retrieves lobby metadata including current status and participant usernames.
+   */
   @PostMapping("/game/get/lobby")
   public ResponseEntity<Object> getLobby(@RequestBody LobbyObject lobby) {
     try {
@@ -350,6 +405,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Moves a game into the running state and records the start timestamp.
+   */
   @PostMapping("/game/start")
   public ResponseEntity<Object> startGame(@RequestBody Game game) {
     try {
@@ -364,6 +422,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Fetches a single question by its sequential number inside a game.
+   */
   @PostMapping("/game/get/question")
   public ResponseEntity<Object> getQuestion(@RequestBody Question question) {
     try {
@@ -378,6 +439,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Checks whether the submitted answer index matches the stored correct answer.
+   */
   @PostMapping("/game/verify-answer")
   public ResponseEntity<Object> verifyAnswer(@RequestBody Question question) {
     try {
@@ -393,6 +457,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Puts a game into the paused status.
+   */
   @PostMapping("/game/pause")
   public ResponseEntity<Object> pauseGame(@RequestBody Game game) {
     try {
@@ -406,6 +473,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Resumes a paused game.
+   */
   @PostMapping("/game/resume")
   public ResponseEntity<Object> resumeGame(@RequestBody Game game) {
     try {
@@ -419,6 +489,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Stops an active game without deleting it.
+   */
   @PostMapping("/game/stop")
   public ResponseEntity<Object> stopGame(@RequestBody Game game) {
     try {
@@ -432,6 +505,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Stops and then permanently deletes the specified game.
+   */
   @PostMapping("/game/delete")
   public ResponseEntity<Object> deleteGame(@RequestBody Game game) {
     try {
@@ -446,6 +522,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Returns a single topic description by id.
+   */
   @PostMapping("/topic/get")
   public ResponseEntity<Object> getTopic(@RequestBody Topic topic) {
     try {
@@ -459,6 +538,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Returns the catalog of all available topics.
+   */
   @PostMapping("/topic/get-all")
   public ResponseEntity<Object> getAllTopics() {
     try {
@@ -469,6 +551,10 @@ public class ApiController {
     }
   }
 
+  /**
+   * Returns the per-game leaderboard as a JSON string for compatibility with
+   * the web client.
+   */
   @PostMapping("/leaderboard/get/by-game")
   public ResponseEntity<Object> getLeaderboardsByGame(@RequestBody Game game) {
     try {
@@ -482,6 +568,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Serves the static global leaderboard file bundled with the application.
+   */
   @PostMapping("/leaderboard/get/global")
   public ResponseEntity<Object> getGlobalLeaderboards() {
     try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("global-leaderboards.json")) {
@@ -499,6 +588,9 @@ public class ApiController {
     }
   }
   
+  /**
+   * Lists all achievements supported by the platform.
+   */
   @PostMapping("/achievement/get-all")
   public ResponseEntity<Object> getAllAchievements() {
     try {
@@ -509,6 +601,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Resolves a list of achievement ids into their full DTO representations.
+   */
   @PostMapping("/achievement/get")
   public ResponseEntity<Object> getAchievementList(@RequestBody List<Integer> achievementIds) {
     try {
@@ -524,6 +619,10 @@ public class ApiController {
     }
   }
 
+  /**
+   * Determines which achievement conditions were just satisfied and returns the
+   * corresponding achievement objects.
+   */
   @PostMapping("/achievement/check-achieved")
   public ResponseEntity<Object> checkAchieved(@RequestBody Achieved achieved) {
     try {
@@ -536,6 +635,9 @@ public class ApiController {
     }
   }
 
+  /**
+   * Bulk-attaches a list of achievements to the provided user sessions.
+   */
   @PostMapping("/achievement/attach")
   public ResponseEntity<Object> attachAchievementList(@RequestBody List<Achieved> achievements) {
     try {
