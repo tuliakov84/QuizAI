@@ -160,8 +160,8 @@
 - "Database error occurred while getting question" (500)
 
 **function** verifyAnswer  
-**описание:** Проверяет правильность ответа на вопрос  
-**принимает:** Question question (объект с gameId, questionNumber и submittedAnswerNumber)  
+**описание:** Проверяет правильность ответа на вопрос, начисляет очки за правильный ответ и обновляет статистику игрока  
+**принимает:** AnswerObject answerObject (объект с gameId, questionNumber, submittedAnswerNumber, levelDifficulty, session, timeTakenToAnswer)  
 **возвращает:** ResponseEntity<Object> (boolean - правильный ответ или нет)  
 **выбрасывает:**
 - "Failed to get verify" (404)
