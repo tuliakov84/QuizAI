@@ -1,6 +1,6 @@
 [
   {
-    "name": "Начинающий",
+    "name": "Welcome to the club, buddy",
     "profilePicNeeded": true,
     "descriptionNeeded": true,
     "gamesNumberNeeded": 1,
@@ -15,10 +15,21 @@
     "profilePicNeeded": true,
     "descriptionNeeded": true,
     "gamesNumberNeeded": 10,
-    "globalPointsNeeded": 100,
+    "globalPointsNeeded": 1000,
     "globalRatingPlaceNeeded": 0,
-    "currentGamePointsNeeded": 50,
+    "currentGamePointsNeeded": 300,
     "currentGameRatingNeeded": 5,
     "currentGameLevelDifficultyNeeded": 1
+  },
+  {
+    "name": "Настоящий 職業選手",
+    "profilePicNeeded": true,
+    "descriptionNeeded": true,
+    "gamesNumberNeeded": 10000,
+    "globalPointsNeeded": 10000000,
+    "globalRatingPlaceNeeded": 0,
+    "currentGamePointsNeeded": 25000,
+    "currentGameRatingNeeded": 1,
+    "currentGameLevelDifficultyNeeded": 3
   }
 ]
