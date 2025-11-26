@@ -2,137 +2,196 @@
 <html lang="ru">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="/styles/reg_style.css">
-  <title>QUIZAI</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/styles/reg_style.css">
+    <title>QUIZAI</title>
 </head>
 
 <body>
-  <div class="main_cont">
+<div class="main_cont">
     <header>
-      <h1>QUIZ AI</h1>
-      <p>Регистрация в системе</p>
+        <h1>QUIZ AI</h1>
+        <p>Регистрация в системе</p>
     </header>
     <main>
-      <div class="main_rect">
-        <div class="name">
-          <span>Имя пользователя</span>
-          <div class="input-group">
-            <input type="text" name="username" placeholder="Имя пользователя" required>
-          </div>
+        <div class="main_rect">
+            <div class="name">
+                <span>Имя пользователя</span>
+                <div class="input-group">
+                    <input type="text" name="username" placeholder="Имя пользователя" required>
+                </div>
+            </div>
+            <div class="password">
+                <span>Пароль</span>
+                <div class="input-group">
+                    <input type="password" name="password1" placeholder="Пароль" required>
+                </div>
+            </div>
+            <div class="password">
+                <span>Повторите ваш пароль</span>
+                <div class="input-group">
+                    <input type="password" name="password2" placeholder="Повторите ваш пароль" required>
+                </div>
+            </div>
+            <div class="enter">
+                <button type="button" class="btn">ЗАРЕГИСТРИРОВАТЬСЯ</button>
+            </div>
+            <div class="ent_href">
+                <span>Уже есть аккаунт?</span>
+                <a href="index.html">Войти в аккаунт</a>
+            </div>
         </div>
-        <div class="password">
-          <span>Пароль</span>
-          <div class="input-group">
-            <input type="password" password1="password1" placeholder="Пароль" required>
-          </div>
-        </div>
-        <div class="password">
-          <span>Повторите ваш пароль</span>
-          <div class="input-group">
-            <input type="password" password2="password2" placeholder="Повторите ваш пароль" required>
-          </div>
-        </div>
-        <div class="enter">
-          <button type="button" class="btn">ЗАРЕГИСТРИРОВАТЬСЯ</button>
-        </div>
-        <div class="ent_href">
-          <span>Уже есть аккаунт?</span>
-          <a href="index.html">Войти в аккаунт</a>
-        </div>
-      </div>
     </main>
-  </div>
+</div>
 </body>
 
 <script src="/js/auth.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const registerForm = document.querySelector('.main_rect');
+    document.addEventListener('DOMContentLoaded', function () {
+      const registerForm = document.querySelector('.main_rect');
+      const registerBtn = document.querySelector('.enter .btn');
 
-    registerForm.addEventListener('submit', async function (e) {
-      e.preventDefault();
+      async function handleRegistration(e) {
+        e.preventDefault();
 
-      const username = document.querySelector('input[name="username"]').value;
-      const password1 = document.querySelector('input[password1="password1"]').value;
-      const password2 = document.querySelector('input[password2="password2"]').value;
+        const username = document.querySelector('input[name="username"]').value;
+        const password1 = document.querySelector('input[name="password1"]').value;
+        const password2 = document.querySelector('input[name="password2"]').value;
 
-      // Валидация
-      if (!username || !password1 || !password2) {
-        alert('Пожалуйста, заполните все поля');
-        return;
-      }
-
-      if (password1 !== password2) {
-        alert('Пароли не совпадают');
-        return;
-      }
-
-      if (password1.length < 6) {
-        alert('Пароль должен быть не менее 6 символов');
-        return;
-      }
-
-      if (username.length < 3) {
-        alert('Имя пользователя должно быть не менее 3 символов');
-        return;
-      }
-
-      try {
-        const submitBtn = document.querySelector('.enter .btn');
-        submitBtn.textContent = 'РЕГИСТРАЦИЯ...';
-        submitBtn.disabled = true;
-
-        // Отправляем запрос на бэкенд
-        const response = await fetch('http://localhost:8080/api/auth/register', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            username: username,
-            password: password1
-          })
-        });
-
-        const data = await response.json();
-        console.log('Response status:', response.status);
-        console.log('Response data:', data);
-
-        // Проверяем статус ответа и наличие данных
-        if (response.ok && data.username) {
-          // Сохраняем токен и данные пользователя
-          localStorage.setItem('session', data.session);
-          localStorage.setItem('user', JSON.stringify(data));
-
-          alert('Регистрация успешна!');
-          window.location.href = 'main.html';
-        } else {
-          // Если пришла ошибка от сервера
-          const errorMessage = data.message || data.error || 'Неизвестная ошибка';
-          alert('Ошибка: ' + errorMessage);
-
-          const submitBtn = document.querySelector('.enter .btn');
-          submitBtn.textContent = 'ЗАРЕГИСТРИРОВАТЬСЯ';
-          submitBtn.disabled = false;
+        // Валидация
+        if (!username || !password1 || !password2) {
+          alert('Пожалуйста, заполните все поля');
+          return;
         }
-      } catch (error) {
-        console.error('Registration error:', error);
-        alert('Ошибка соединения с сервером');
-        const submitBtn = document.querySelector('.enter .btn');
-        submitBtn.textContent = 'ЗАРЕГИСТРИРОВАТЬСЯ';
-        submitBtn.disabled = false;
+
+        if (password1 !== password2) {
+          alert('Пароли не совпадают');
+          return;
+        }
+
+        if (password1.length < 6) {
+          alert('Пароль должен быть не менее 6 символов');
+          return;
+        }
+
+        if (username.length < 3) {
+          alert('Имя пользователя должно быть не менее 3 символов');
+          return;
+        }
+
+        try {
+          registerBtn.textContent = 'РЕГИСТРАЦИЯ...';
+          registerBtn.disabled = true;
+
+          console.log('Sending registration request...');
+
+          // Отправляем запрос на бэкенд
+          const response = await fetch('http://localhost:8080/api/auth/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              username: username,
+              password: password1
+            })
+          });
+
+          console.log('Response status:', response.status);
+
+          // Проверяем Content-Type перед парсингом
+          const contentType = response.headers.get('content-type');
+          let data;
+
+          if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+          } else {
+            // Если сервер вернул не JSON (например, текст ошибки валидации)
+            const errorText = await response.text();
+            console.log('Non-JSON response:', errorText);
+
+            // Пробуем найти JSON в тексте или создаем объект ошибки
+            try {
+              data = JSON.parse(errorText);
+            } catch (parseError) {
+              // Если это plain text ошибка валидации
+              data = {
+                error: errorText || 'Ошибка валидации данных',
+                message: errorText || 'Проверьте введенные данные'
+              };
+            }
+          }
+
+          console.log('Response data:', data);
+
+          // Проверяем успешный ответ
+          if (response.ok && data.username) {
+            // Сохраняем токен и данные пользователя
+            localStorage.setItem('session', data.session);
+            localStorage.setItem('user', JSON.stringify(data));
+
+            alert('Регистрация успешна!');
+            window.location.href = 'main.html';
+          } else {
+            // Обрабатываем ошибки валидации от сервера
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (response.status === 400) {
+              // Ошибка валидации
+              errorMessage = data.message || data.error || 'Ошибка валидации данных. Проверьте введенные данные.';
+
+              // Конкретные сообщения для разных ошибок валидации
+              if (errorMessage.toLowerCase().includes('password')) {
+                errorMessage = errorMessage;
+              } else if (errorMessage.toLowerCase().includes('username')) {
+                errorMessage = errorMessage;
+              }
+            } else if (response.status === 409) {
+              errorMessage = 'Пользователь с таким именем уже существует';
+            } else if (response.status >= 500) {
+              errorMessage = 'Ошибка сервера. Попробуйте позже.';
+            } else {
+              errorMessage = data.message || data.error || `Ошибка ${response.status}`;
+            }
+
+            alert('Ошибка регистрации: ' + errorMessage);
+          }
+
+        } catch (error) {
+          console.error('Registration error:', error);
+          alert('Ошибка соединения с сервером: ' + error.message);
+        } finally {
+          // Всегда возвращаем кнопку в исходное состояние
+          registerBtn.textContent = 'ЗАРЕГИСТРИРОВАТЬСЯ';
+          registerBtn.disabled = false;
+        }
+      }
+
+      // Обработчики событий
+      registerBtn.addEventListener('click', handleRegistration);
+
+      // Также обрабатываем Enter в полях ввода
+      const inputs = document.querySelectorAll('input');
+      inputs.forEach(input => {
+        input.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            handleRegistration(e);
+          }
+        });
+      });
+
+      // Исправляем неправильные атрибуты в HTML
+      const password1Input = document.querySelector('input[password1="password1"]');
+      const password2Input = document.querySelector('input[password2="password2"]');
+
+      if (password1Input) {
+        password1Input.setAttribute('name', 'password1');
+      }
+      if (password2Input) {
+        password2Input.setAttribute('name', 'password2');
       }
     });
-
-    const registerBtn = document.querySelector('.enter .btn');
-    registerBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      registerForm.dispatchEvent(new Event('submit'));
-    });
-  });
 </script>
-
 
 </html>

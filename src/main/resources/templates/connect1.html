@@ -2,199 +2,243 @@
 <html lang="ru">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="/styles/connect1_style.css">
-  <title>QUIZAI</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/styles/connect1_style.css">
+    <title>QUIZAI</title>
 </head>
 
 <body>
-  <div class="main_cont">
+<div class="main_cont">
     <header>
-      <a href="main.html" class="btn_back">НАЗАД</a>
-      <h1 class="h11">QUIZ AI AREA</h1>
+        <a href="main.html" class="btn_back">НАЗАД</a>
+        <h1 class="h11">QUIZ AI AREA</h1>
     </header>
 
     <p class="h12">ХОЧУ ИГРАТЬ!</p>
 
     <main>
-      <div class="main_block">
-        <div class="block_hor">
-          <div class="input-group">
-            <input type="text" id="invite-link" name="link" placeholder="Ссылка-приглашение" required>
-          </div>
-          <button id="join-btn" class="btnr">ВОЙТИ</button>
+        <div class="main_block">
+            <div class="block_hor">
+                <div class="input-group">
+                    <input type="text" id="game-id-input" name="gameId" placeholder="Введите ID квиза" required>
+                </div>
+                <a href="#" id="join-btn" class="btnr">ВОЙТИ</a>
+            </div>
+            <span> ИЛИ </span>
+            <a href="themesToJoin.html" class="btnd">ВЫБРАТЬ ТЕМУ И ПРИСОЕДИНИТЬСЯ К ОТКРЫТОМУ КВИЗУ</a>
         </div>
-        <span> ИЛИ </span>
-        <a href="themesToJoin.html" class="btnd">ВЫБРАТЬ ТЕМУ И ПРИСОЕДИНИТЬСЯ К ОТКРЫТОМУ КВИЗУ</a>
-      </div>
     </main>
-  </div>
+</div>
 </body>
 
 
 <script src="/js/auth.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    if (!AuthService.requireAuth()) return;
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!AuthService.requireAuth()) return;
 
-    initializeEventHandlers();
-  });
+      initializeEventHandlers();
+    });
 
-  function initializeEventHandlers() {
-    const joinBtn = document.getElementById('join-btn');
-    const inviteLinkInput = document.getElementById('invite-link');
+    function initializeEventHandlers() {
+      const joinBtn = document.getElementById('join-btn');
+      const gameIdInput = document.getElementById('game-id-input');
 
-    joinBtn.addEventListener('click', handleJoinRoom);
-  }
+      joinBtn.addEventListener('click', handleJoinRoom);
 
-  async function handleJoinRoom() {
-    const inviteLink = document.getElementById('invite-link').value.trim();
-
-    if (!inviteLink) {
-      showError('Пожалуйста, введите ссылку-приглашение');
-      return;
-    }
-
-    // Извлекаем код комнаты из ссылки
-    const roomCode = extractRoomCode(inviteLink);
-    if (!roomCode) {
-      showError('Неверный формат ссылки-приглашения');
-      return;
-    }
-
-    // Показываем индикатор загрузки
-    const joinBtn = document.getElementById('join-btn');
-    joinBtn.textContent = 'ПОДКЛЮЧЕНИЕ...';
-    joinBtn.disabled = true;
-
-    try {
-      // Пытаемся подключиться к комнате
-      const result = await joinRoomByCode(roomCode);
-
-      if (result.success) {
-        // Сохраняем информацию о комнате
-        localStorage.setItem('currentRoom', JSON.stringify(result.room));
-
-        // Перенаправляем в комнату
-        window.location.href = 'roommember.html';
-      } else {
-        showError(result.message || 'Не удалось подключиться к комнате');
-      }
-    } catch (error) {
-      console.error('Ошибка подключения к комнате:', error);
-      showError('Ошибка подключения к серверу');
-    } finally {
-      // Восстанавливаем кнопку
-      joinBtn.textContent = 'ВОЙТИ';
-      joinBtn.disabled = false;
-    }
-  }
-
-  function extractRoomCode(inviteLink) {
-    // Обрабатываем разные форматы ссылок:
-
-    // 1. Прямой код комнаты (например: "ABC123")
-    if (/^[A-Z0-9]{6}$/i.test(inviteLink)) {
-      return inviteLink.toUpperCase();
-    }
-
-    // 2. Полная ссылка (например: "https://quizai.com/join/ABC123")
-    const urlPatterns = [
-      /\/join\/([A-Z0-9]{6})/i,
-      /room\/([A-Z0-9]{6})/i,
-      /code=([A-Z0-9]{6})/i,
-      /invite\/([A-Z0-9]{6})/i
-    ];
-
-    for (const pattern of urlPatterns) {
-      const match = inviteLink.match(pattern);
-      if (match && match[1]) {
-        return match[1].toUpperCase();
-      }
-    }
-
-    return null;
-  }
-
-  async function joinRoomByCode(roomCode) {
-    const session = AuthService.getsession();
-
-    try {
-      const response = await fetch(`http://localhost:8080/api/rooms/join`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          code: gameCode
-        })
+      // Добавляем обработчик нажатия Enter в поле ввода
+      gameIdInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          handleJoinRoom();
+        }
       });
+    }
 
-      if (response.ok) {
-        const roomData = await response.json();
-        return {
-          success: true,
-          game: gameData
-        };
-      } else if (response.status === 404) {
+    async function handleJoinRoom() {
+      const gameId = document.getElementById('game-id-input').value.trim();
+
+      if (!gameId) {
+        showError('Пожалуйста, введите ID квиза');
+        return;
+      }
+
+      // Проверяем, что ID состоит только из цифр
+      if (!/^\d+$/.test(gameId)) {
+        showError('ID квиза должен содержать только цифры');
+        return;
+      }
+
+      // Показываем индикатор загрузки
+      const joinBtn = document.getElementById('join-btn');
+      joinBtn.textContent = 'ПОДКЛЮЧЕНИЕ...';
+      joinBtn.style.pointerEvents = 'none';
+
+      try {
+        // Пытаемся подключиться к комнате по ID
+        const result = await joinRoomById(gameId);
+
+        if (result.success) {
+          // Сохраняем информацию о комнате
+          localStorage.setItem('currentGameId', gameId);
+
+          // Сохраняем topicId и получаем название темы
+          if (result.game && result.game.topicId) {
+            localStorage.setItem('currentTopicId', result.game.topicId.toString());
+            console.log('TopicId сохранен:', result.game.topicId);
+
+            // Получаем название темы
+            const topicResult = await getTopicName(result.game.topicId);
+            if (topicResult.success) {
+              // Сохраняем полную информацию о теме
+              const topicData = {
+                id: result.game.topicId,
+                name: topicResult.topicName
+              };
+              localStorage.setItem('selectedTopic', JSON.stringify(topicData));
+              console.log('Название темы сохранено:', topicResult.topicName);
+            }
+          }
+
+          // Перенаправляем в комнату участника
+          window.location.href = `roommember.html?gameId=${gameId}`;
+        } else {
+          showError(result.message || 'Не удалось подключиться к комнате');
+        }
+      } catch (error) {
+        console.error('Ошибка подключения к комнате:', error);
+        showError('Ошибка подключения к серверу');
+      } finally {
+        // Восстанавливаем кнопку
+        joinBtn.textContent = 'ВОЙТИ';
+        joinBtn.style.pointerEvents = 'auto';
+      }
+    }
+
+    async function getTopicName(topicId) {
+      const session = AuthService.getsession();
+
+      try {
+        console.log('Запрос названия темы для topicId:', topicId);
+
+        const response = await fetch(`http://localhost:8080/api/topic/get`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            topicId: parseInt(topicId)
+          })
+        });
+
+        console.log('Статус ответа topic/get:', response.status);
+
+        if (response.ok) {
+          const topicData = await response.json();
+          console.log('Данные темы:', topicData);
+
+          return {
+            success: true,
+            topicName: topicData.name
+          };
+        } else {
+          const errorText = await response.text();
+          console.error('Ошибка получения темы:', errorText);
+          return {
+            success: false,
+            error: errorText
+          };
+        }
+      } catch (error) {
+        console.error('Ошибка при получении темы:', error);
         return {
           success: false,
-          message: 'Комната не найдена'
-        };
-      } else if (response.status === 400) {
-        return {
-          success: false,
-          message: 'Комната уже начата или завершена'
-        };
-      } else if (response.status === 403) {
-        return {
-          success: false,
-          message: 'Нет доступа к комнате'
-        };
-      } else {
-        return {
-          success: false,
-          message: 'Ошибка подключения к комнате'
+          error: error.message
         };
       }
-    } catch (error) {
-      console.error('Ошибка при подключении к комнате:', error);
-      throw error;
-    }
-  }
-
-  function showError(message) {
-    // Удаляем существующие сообщения об ошибках
-    const existingError = document.querySelector('.error-message');
-    if (existingError) {
-      existingError.remove();
     }
 
-    // Создаем элемент для отображения ошибки
-    const errorElement = document.createElement('div');
-    errorElement.className = 'error-message';
-    errorElement.textContent = message;
-    errorElement.style.cssText = `
-        background-color: #ffebee;
-        color: #c62828;
-        padding: 15px;
-        margin: 20px 0;
-        border-radius: 5px;
-        text-align: center;
-        border: 1px solid #ffcdd2;
-    `;
+    async function joinRoomById(gameId) {
+      const session = AuthService.getsession();
 
-    // Вставляем сообщение об ошибке после блока с полем ввода
-    const mainBlock = document.querySelector('.main_block');
-    mainBlock.parentNode.insertBefore(errorElement, mainBlock);
+      try {
+        const response = await fetch(`http://localhost:8080/api/game/join`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            gameId: parseInt(gameId),
+            session: session
+          })
+        });
 
-    // Автоматически скрываем через 5 секунд
-    setTimeout(() => {
-      errorElement.remove();
-    }, 5000);
-  }
+        if (response.ok) {
+          const gameData = await response.json();
+          console.log('Данные квиза:', gameData);
+
+          return {
+            success: true,
+            game: gameData
+          };
+        } else if (response.status === 404) {
+          return {
+            success: false,
+            message: 'Квиз с таким ID не найден или количество участников максимально'
+          };
+        } else if (response.status === 409) {
+          return {
+            success: false,
+            message: 'Квиз уже начат или завершен'
+          };
+        } else {
+          const errorText = await response.text();
+          return {
+            success: false,
+            message: 'Ошибка подключения к квизу: ' + (errorText || response.status)
+          };
+        }
+      } catch (error) {
+        console.error('Ошибка при подключении к квизу:', error);
+        throw error;
+      }
+    }
+
+    function showError(message) {
+      // Удаляем существующие сообщения об ошибках
+      const existingError = document.querySelector('.error-message');
+      if (existingError) {
+        existingError.remove();
+      }
+
+      // Создаем элемент для отображения ошибки
+      const errorElement = document.createElement('div');
+      errorElement.className = 'error-message';
+      errorElement.textContent = message;
+      errorElement.style.cssText = `
+          background-color: #ffebee;
+          color: #c62828;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 5px;
+          text-align: center;
+          border: 1px solid #ffcdd2;
+          font-weight: bold;
+      `;
+
+      // Вставляем сообщение об ошибке после блока с полем ввода
+      const mainBlock = document.querySelector('.main_block');
+      mainBlock.parentNode.insertBefore(errorElement, mainBlock);
+
+      // Автоматически скрываем через 3 секунды
+      setTimeout(() => {
+        if (errorElement.parentNode) {
+          errorElement.remove();
+        }
+      }, 3000);
+    }
 </script>
 
 </html>

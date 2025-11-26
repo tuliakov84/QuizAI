@@ -2,76 +2,77 @@
 <html lang="ru">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="/styles/exit_style.css">
-  <title>QUIZAI</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles/exit_style.css">
+    <title>QUIZAI</title>
 </head>
 
 <body>
-  <div class="main_cont">
+<div class="main_cont">
     <h1>QUIZ AI</h1>
     <div class="main_rect">
-      <span>ВЫ УВЕРЕНЫ, ЧТО ХОТИТЕ ВЫЙТИ?</span>
-      <button class="btn1">ЕЩЁ ПО КВИЗУ!</button>
-      <button class="btn2">ВЫЙТИ</button>
+        <span>ВЫ УВЕРЕНЫ, ЧТО ХОТИТЕ ВЫЙТИ?</span>
+        <button class="btn1">ЕЩЁ ПО КВИЗУ!</button>
+        <button class="btn2">ВЫЙТИ</button>
     </div>
-  </div>
+</div>
 </body>
 
 
-<script src="/js/auth.js"></script>
+<script src="js/auth.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    if (!AuthService.requireAuth()) return;
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!AuthService.requireAuth()) return;
 
-    // Обработчик кнопки "ЕЩЁ ПО КВИЗУ!"
-    document.querySelector('.btn1').addEventListener('click', function () {
-      // Возвращаемся на главную страницу
-      window.location.href = 'main.html';
-    });
-
-    // Обработчик кнопки "ВЫЙТИ"
-    document.querySelector('.btn2').addEventListener('click', function () {
-      performLogout();
-    });
-  });
-
-  function performLogout() {
-    // Показываем подтверждение (дополнительная проверка)
-    if (!confirm('Точно выйти из системы?')) {
-      return;
-    }
-
-    logoutOnServer();
-
-    // Удаляем данные авторизации из localStorage
-    localStorage.removeItem('session');
-    localStorage.removeItem('user');
-
-    alert('Вы успешно вышли из системы');
-
-    window.location.href = 'index.html';
-  }
-
-  // Дополнительная функция для уведомления сервера о выходе для времени последней активности
-  async function logoutOnServer() {
-    try {
-      const session = localStorage.getItem('session')
-      await fetch('http://localhost:8080/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + localStorage.getItem('session'),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          session: session,
-        })
+      // Обработчик кнопки "ЕЩЁ ПО КВИЗУ!"
+      document.querySelector('.btn1').addEventListener('click', function () {
+        // Возвращаемся на главную страницу
+        window.location.href = 'main.html';
       });
-    } catch (error) {
-      console.error('Ошибка при logout на сервере:', error);
+
+      // Обработчик кнопки "ВЫЙТИ"
+      document.querySelector('.btn2').addEventListener('click', function () {
+        performLogout();
+      });
+    });
+
+    function performLogout() {
+      // Показываем подтверждение (дополнительная проверка)
+      if (!confirm('Точно выйти из системы?')) {
+        return;
+      }
+
+      logoutOnServer();
+
+      // Удаляем данные авторизации из localStorage
+      localStorage.removeItem('session');
+      localStorage.removeItem('user');
+      localStorage.removeItem('currentTopicId');
+
+      alert('Вы успешно вышли из системы');
+
+      window.location.href = 'index.html';
     }
-  }
+
+    // Дополнительная функция для уведомления сервера о выходе для времени последней активности
+    async function logoutOnServer() {
+      try {
+        const username = localStorage.getItem('username')
+        await fetch('http://localhost:8080/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('session'),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            username: username,
+          })
+        });
+      } catch (error) {
+        console.error('Ошибка при logout на сервере:', error);
+      }
+    }
 </script>
 
 </html>

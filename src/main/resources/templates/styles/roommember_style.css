@@ -121,8 +121,8 @@ main {
   align-self: center;
   width: 85%;
   flex-grow: 1;
-  height: 600px;           /* или любая нужная вам высота */
-  overflow-y: auto;        /* включает вертикальную прокрутку при переполнении */
+  height: 600px;
+  overflow-y: auto;
   padding: 10px;  
 }
 
@@ -175,7 +175,7 @@ main {
 
 .link {
   margin-top: 1px;
-  padding: 5px;
+  padding: 15px;
   display: flex;
   border-style: solid;
   border-color: #e2deff;
@@ -184,7 +184,7 @@ main {
   border-radius: 3em;
   text-align: start;
   height: auto;
-  width: 50%;
+  width: auto;
 }
 
 .main_blockr {
@@ -209,7 +209,7 @@ span {
   background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip: text; /* для будущей совместимости */
+  background-clip: text;
 }
 
 .theme {
@@ -225,6 +225,90 @@ span {
   text-align: start;
   height: auto;
   width: 95%;
+}
+
+.players-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 20px;
+  padding: 0 10px;
+}
+
+.players-title {
+  font-size: clamp(1rem, 2vw, 2rem);
+  background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: center;
+  flex: 1;
+}
+
+.players-count {
+  font-size: clamp(0.8rem, 1.5vw, 1.5rem);
+  background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: center;
+}
+
+.players-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  flex-grow: 1;
+  justify-content: flex-start;
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 95%;
+  min-height: 50px;
+  margin: 5px 0;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 18px;
+  font-size: 20px;
+  background: linear-gradient(0deg, rgb(225, 224, 224), rgb(255, 255, 255));
+  border-style: solid;
+  border-width: 2px;
+  border-color: #7f7b7b;
+}
+
+.no-players {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 1.2rem;
+  color: #666;
+  text-align: center;
+}
+
+.players {
+  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+  border-style: solid;
+  border-color: #8279CF;
+  border-width: 10px;
+  background: white;
+  border-radius: 3em;
+  align-items: center;
+  justify-content: flex-start;
+  align-self: center;
+  width: 85%;
+  flex-grow: 1;
+  height: 600px;
+  overflow-y: auto;
+  padding: 10px;
 }
 
 @media screen and (width<786px) {
