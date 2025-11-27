@@ -8,7 +8,6 @@ import com.mipt.initialization.TopicsInit;
 import com.mipt.utils.BackendUtils;
 import com.mipt.utils.ValidationUtils;
 import org.json.JSONArray;
-import org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -34,7 +33,7 @@ public class ApiController {
    * Wires the controller with the database layer and ensures that the topics
    * table is populated before serving requests.
    */
-  public ApiController(DbService dbService, BasicErrorController basicErrorController) {
+  public ApiController(DbService dbService) {
     this.dbService = dbService;
     this.utils = new BackendUtils();
 
