@@ -2,64 +2,328 @@
 <html lang="ru">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="/styles/connect2_style.css">
-  <title>QUIZAI</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/styles/connect2_style.css">
+    <title>QUIZAI</title>
 </head>
 
 <body>
-  <div class="main_cont">
+<div class="main_cont">
     <header>
-      <a href="themesToJoin.html" class="btn_back">НАЗАД</a>
-      <h1 class="h11">QUIZ AI AREA</h1>
+        <a href="themesToJoin.html" class="btn_back">НАЗАД</a>
+        <h1 class="h11">QUIZ AI AREA</h1>
     </header>
 
     <main>
-      <div class="main_blockl">
-        <div class="tablehead">
-          <p class="h12">ID КОМНАТЫ</p>
-          <p class="h12">УЧАСТНИКОВ</p>
+        <div class="main_blockl">
+            <div class="tablehead">
+                <p class="h12">ID КОМНАТЫ</p>
+                <p class="h12">УЧАСТНИКОВ</p>
+            </div>
+            <div id="rooms-container">
+                <!-- Комнаты будут загружены динамически -->
+            </div>
         </div>
-        <a href="connect2.html" class="btn">
-          <div class="text">
-            <p>98768912</p>
-            <p>12/20</p>
-          </div>
-        </a>
-        <a href="connect2.html" class="btn">
-          <div class="text">
-            <p>98768912</p>
-            <p>12/20</p>
-          </div>
-        </a>
-        <a href="connect2.html" class="btn">
-          <div class="text">
-            <p>98768912</p>
-            <p>12/20</p>
-          </div>
-        </a>
-        <a href="connect2.html" class="btn">
-          <div class="text">
-            <p>98768912</p>
-            <p>12/20</p>
-          </div>
-        </a>
-        <a href="connect2.html" class="btn">
-          <div class="text">
-            <p>98768912</p>
-            <p>12/20</p>
-          </div>
-        </a>
 
-      </div>
-
-      <div class="main_blockr">
-        <span>ID:988765434567</span>
-        <a href="roommember.html" class="btnd">ПРИСОЕДИНИТЬСЯ</a>
-      </div>
+        <div class="main_blockr">
+            <span id="selected-room-id">ВЫБЕРИТЕ КОМНАТУ</span>
+            <a href="#" id="join-btn" class="btnd" style="display: none;">ПРИСОЕДИНИТЬСЯ</a>
+        </div>
     </main>
-  </div>
+</div>
+
+<script src="/js/auth.js"></script>
+<script>
+    let selectedGameId = null;
+    let availableRooms = [];
+    let refreshInterval;
+
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!AuthService.requireAuth()) return;
+      loadOpenRooms();
+      initializeEventHandlers();
+
+      // Запускаем автоматическое обновление каждые 10 секунд
+      refreshInterval = setInterval(loadOpenRooms, 10000);
+    });
+
+    // Очистка интервала при уходе со страницы
+    window.addEventListener('beforeunload', function() {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    });
+
+    function initializeEventHandlers() {
+      const joinBtn = document.getElementById('join-btn');
+      joinBtn.addEventListener('click', handleJoinRoom);
+    }
+
+    // Загрузка открытых комнат по выбранной теме
+    async function loadOpenRooms() {
+      try {
+        // Получаем выбранную тему из localStorage
+        const selectedTopic = JSON.parse(localStorage.getItem('selectedTopic'));
+        if (!selectedTopic) {
+          showErrorMessage('Тема не выбрана');
+          return;
+        }
+
+        console.log('Загружаем комнаты для темы:', selectedTopic);
+
+        // Загружаем открытые комнаты
+        availableRooms = await fetchOpenRooms(selectedTopic.topicId);
+        displayRooms(availableRooms);
+
+      } catch (error) {
+        console.error('Ошибка загрузки комнат:', error);
+        showErrorMessage('Ошибка загрузки комнат');
+      }
+    }
+
+    // Получение открытых комнат с сервера
+    async function fetchOpenRooms(topicId) {
+      const session = AuthService.getsession();
+
+      const response = await fetch('http://localhost:8080/api/game/get-open', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          topicId: topicId
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ошибка HTTP: ${response.status}`);
+      }
+
+      const roomsData = await response.json();
+      console.log('Получены комнаты:', roomsData);
+
+      // Обрабатываем новый формат данных: [[gameId, currentParticipantsNumber, participantsNumber], ...]
+      const roomsWithDetails = roomsData.map(roomArray => {
+        const [gameId, currentParticipants, maxParticipants] = roomArray;
+        return {
+          gameId: gameId,
+          currentParticipants: currentParticipants,
+          maxParticipants: maxParticipants
+        };
+      });
+
+      // Фильтруем только незаполненные комнаты
+      return roomsWithDetails.filter(room => room.currentParticipants < room.maxParticipants);
+    }
+
+    // Отображение списка комнат
+    function displayRooms(rooms) {
+      const container = document.getElementById('rooms-container');
+
+      // Сохраняем выбранную комнату, если она есть
+      const previouslySelected = selectedGameId;
+
+      container.innerHTML = '';
+
+      if (rooms.length === 0) {
+        container.innerHTML = '<div class="no-rooms">Нет открытых комнат для выбранной темы</div>';
+        document.getElementById('selected-room-id').textContent = 'ВЫБЕРИТЕ КОМНАТУ';
+        document.getElementById('join-btn').style.display = 'none';
+        selectedGameId = null;
+        return;
+      }
+
+      rooms.forEach(room => {
+        const roomElement = document.createElement('a');
+        roomElement.href = '#';
+        roomElement.className = 'btn room-item';
+        if (room.gameId === previouslySelected) {
+          roomElement.classList.add('selected');
+        }
+        roomElement.innerHTML = `
+          <div class="text">
+            <p>${room.gameId}</p>
+            <p>${room.currentParticipants}/${room.maxParticipants}</p>
+          </div>
+        `;
+
+        roomElement.addEventListener('click', (e) => {
+          e.preventDefault();
+          selectRoom(room);
+        });
+
+        container.appendChild(roomElement);
+      });
+
+      // Восстанавливаем выбор, если комната все еще существует
+      if (previouslySelected && rooms.some(room => room.gameId === previouslySelected)) {
+        const roomToSelect = rooms.find(room => room.gameId === previouslySelected);
+        // Находим элемент и принудительно применяем стиль selected
+        const roomElements = container.querySelectorAll('.room-item');
+        roomElements.forEach(element => {
+          if (element.querySelector('p').textContent === previouslySelected.toString()) {
+            element.classList.add('selected');
+          }
+        });
+      } else {
+        // Сбрасываем выбор, если комната больше не существует
+        selectedGameId = null;
+        document.getElementById('selected-room-id').textContent = 'ВЫБЕРИТЕ КОМНАТУ';
+        document.getElementById('join-btn').style.display = 'none';
+      }
+    }
+
+    // Выбор комнаты
+    function selectRoom(room) {
+      selectedGameId = room.gameId;
+
+      // Обновляем отображение выбранной комнаты
+      document.getElementById('selected-room-id').textContent = `ID: ${room.gameId}`;
+      document.getElementById('join-btn').style.display = 'block';
+
+      // Подсвечиваем выбранную комнату
+      document.querySelectorAll('.room-item').forEach(item => {
+        item.classList.remove('selected');
+      });
+      event.currentTarget.classList.add('selected');
+    }
+
+    // Обработка присоединения к комнате
+    async function handleJoinRoom() {
+      if (!selectedGameId) {
+        showErrorMessage('Выберите комнату для присоединения');
+        return;
+      }
+
+      // Показываем индикатор загрузки
+      const joinBtn = document.getElementById('join-btn');
+      joinBtn.textContent = 'ПОДКЛЮЧЕНИЕ...';
+      joinBtn.style.pointerEvents = 'none';
+
+      try {
+        // Пытаемся подключиться к комнате по ID
+        const result = await joinRoomById(selectedGameId);
+
+        if (result.success) {
+          // Сохраняем информацию о комнате
+          localStorage.setItem('currentGameId', selectedGameId.toString());
+
+          // Сохраняем topicId
+          if (result.game && result.game.topicId) {
+            localStorage.setItem('currentTopicId', result.game.topicId.toString());
+          }
+
+          // Останавливаем обновление перед переходом
+          if (refreshInterval) {
+            clearInterval(refreshInterval);
+          }
+
+          // Перенаправляем в комнату участника
+          window.location.href = `roommember.html?gameId=${selectedGameId}`;
+        } else {
+          showErrorMessage(result.message || 'Не удалось подключиться к комнате');
+          // Обновляем список комнат (возможно, комната уже заполнена)
+          loadOpenRooms();
+        }
+      } catch (error) {
+        console.error('Ошибка подключения к комнате:', error);
+        showErrorMessage('Ошибка подключения к серверу');
+      } finally {
+        // Восстанавливаем кнопку
+        joinBtn.textContent = 'ПРИСОЕДИНИТЬСЯ';
+        joinBtn.style.pointerEvents = 'auto';
+      }
+    }
+
+    // Функция присоединения к комнате (аналогичная connect1.html)
+    async function joinRoomById(gameId) {
+      const session = AuthService.getsession();
+
+      try {
+        const response = await fetch(`http://localhost:8080/api/game/join`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            gameId: parseInt(gameId),
+            session: session
+          })
+        });
+
+        if (response.ok) {
+          const gameData = await response.json();
+          console.log('Данные квиза:', gameData);
+
+          return {
+            success: true,
+            game: gameData
+          };
+        } else if (response.status === 404) {
+          return {
+            success: false,
+            message: 'Квиз с таким ID не найден или количество участников максимально'
+          };
+        } else if (response.status === 409) {
+          return {
+            success: false,
+            message: 'Квиз уже начат или завершен'
+          };
+        } else {
+          const errorText = await response.text();
+          return {
+            success: false,
+            message: 'Ошибка подключения к квизу: ' + (errorText || response.status)
+          };
+        }
+      } catch (error) {
+        console.error('Ошибка при подключении к квизу:', error);
+        throw error;
+      }
+    }
+
+    function showLoadingMessage(text) {
+      const container = document.getElementById('rooms-container');
+      container.innerHTML = `<div class="loading-message">${text}</div>`;
+    }
+
+    function showErrorMessage(message) {
+      // Удаляем существующие сообщения об ошибках
+      const existingError = document.querySelector('.error-message');
+      if (existingError) {
+        existingError.remove();
+      }
+
+      // Создаем элемент для отображения ошибки
+      const errorElement = document.createElement('div');
+      errorElement.className = 'error-message';
+      errorElement.textContent = message;
+      errorElement.style.cssText = `
+          background-color: #ffebee;
+          color: #c62828;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 5px;
+          text-align: center;
+          border: 1px solid #ffcdd2;
+          font-weight: bold;
+      `;
+
+      // Вставляем сообщение об ошибке после header
+      const header = document.querySelector('header');
+      header.parentNode.insertBefore(errorElement, header.nextSibling);
+
+      // Автоматически скрываем через 3 секунды
+      setTimeout(() => {
+        if (errorElement.parentNode) {
+          errorElement.remove();
+        }
+      }, 3000);
+    }
+</script>
 </body>
 
 </html>
