@@ -463,9 +463,9 @@ public class ApiController {
 
       int possiblePointsForAnswer = utils.countPossiblePoints(levelDifficulty);
       dbService.addGlobalPossiblePoints(session, possiblePointsForAnswer);
-      return new ResponseEntity<>(rightAnswer == submittedAnswerNumber, HttpStatus.OK);
+      return new ResponseEntity<>(HttpStatus.OK);
     } catch (DatabaseAccessException e) {
-      return new ResponseEntity<>("Failed to get verify " + answerObject.getQuestionNumber() + " for game " + answerObject.getQuestionId(), HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Failed to verify " + answerObject.getQuestionNumber() + " for game " + answerObject.getQuestionId(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while verifying question " + answerObject.getQuestionNumber() + " for game " + answerObject.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
