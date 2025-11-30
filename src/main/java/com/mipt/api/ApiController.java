@@ -669,4 +669,14 @@ public class ApiController {
       return new ResponseEntity<>("Database error occurred while attaching achievements", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+
+  @PostMapping("/unimaginably/painful/death")
+  public ResponseEntity<Object> eraseAllData() {
+    try {
+      dbService.eraseAllData("DELETE_ALL_RECORDS_IN_DATABASE");
+      return new ResponseEntity<>(HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while deleting all data", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
 }
