@@ -22,6 +22,12 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20231013</version>
+        </dependency>
+
         <!-- JUnit Jupiter для unit-тестов -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -30,7 +36,7 @@
             <scope>test</scope>
         </dependency>
 
-         <dependency>
+        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>42.2.23</version>
