@@ -175,8 +175,8 @@
       const questionsCount = document.getElementById('questions-count').value;
 
       // Валидация
-      if (!participantsCount || participantsCount < 2 || participantsCount > 50) {
-        showMessage('Количество участников должно быть от 2 до 50', 'error');
+      if (!participantsCount || participantsCount < 4 || participantsCount > 50) {
+        showMessage('Количество участников должно быть от 4 до 50', 'error');
         return;
       }
 

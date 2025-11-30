@@ -62,6 +62,10 @@
     let refreshInterval = null;
     let maxPlayers = 10;
     let isNavigating = false;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
+    const BASE_INTERVAL = 500; // Базовый интервал 500мс
+    let currentInterval = BASE_INTERVAL;
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
@@ -94,11 +98,8 @@
       // Загружаем данные комнаты
       loadRoomData();
 
-      // Начинаем периодическое обновление данных комнаты каждые 5 секунд
-      refreshInterval = setInterval(loadRoomData, 5000);
-
-      // Сразу загружаем данные при инициализации
-      loadRoomData();
+      // Начинаем периодическое обновление данных комнаты с быстрым интервалом
+      startFastPolling();
 
       // Загружаем тему из localStorage
       loadThemeFromLocalStorage();
@@ -113,6 +114,34 @@
         e.preventDefault();
         confirmExit();
       });
+    }
+
+    // Запуск быстрого опроса сервера
+    function startFastPolling() {
+      // Останавливаем предыдущий интервал, если он есть
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+
+      // Запускаем быстрый опрос с интервалом 500мс
+      refreshInterval = setInterval(loadRoomData, currentInterval);
+      console.log(`Запущено быстрое обновление с интервалом ${currentInterval}мс`);
+    }
+
+    // Адаптивное изменение интервала опроса
+    function adjustPollingInterval(success) {
+      if (success) {
+        // При успешном запросе сбрасываем счетчик ошибок и интервал
+        retryCount = 0;
+        currentInterval = BASE_INTERVAL;
+      } else {
+        // При ошибке увеличиваем интервал с экспоненциальной задержкой
+        retryCount++;
+        currentInterval = Math.min(BASE_INTERVAL * Math.pow(2, retryCount), 5000); // Макс 5 секунд
+      }
+
+      // Перезапускаем опрос с новым интервалом
+      startFastPolling();
     }
 
     // Обновление отображения ID квиза на странице
@@ -181,6 +210,7 @@
             alert('Квиз не найден или у вас нет доступа. Пожалуйста, подключитесь заново.');
             localStorage.removeItem('currentGameId');
             window.location.href = 'connect1.html';
+            adjustPollingInterval(false);
             return;
           }
 
@@ -193,6 +223,7 @@
 
         if (!responseText) {
           console.warn('Пустой ответ от сервера');
+          adjustPollingInterval(false);
           return;
         }
 
@@ -202,8 +233,12 @@
         // Обрабатываем данные комнаты
         processRoomData(lobbyData);
 
+        // Успешный запрос - сбрасываем интервал
+        adjustPollingInterval(true);
+
       } catch (error) {
         console.error('Ошибка загрузки данных комнаты:', error);
+        adjustPollingInterval(false);
 
         // Если ошибка связана с отсутствием комнаты, перенаправляем
         if (error.message.includes('404') || error.message.includes('403')) {
@@ -267,29 +302,37 @@
       // Обновляем текст статуса
       const statusElement = document.getElementById('room-status');
       if (statusElement) {
-        if (status === 'WAITING') {
+        if (status === 'WAITING' || status === 'CREATED') {
           statusElement.textContent = 'КВИЗ СКОРО НАЧНЕТСЯ! ЖДЕМ СОЗДАТЕЛЯ КОМНАТЫ';
-        } else if (status === 'IN_PROGRESS') {
-          statusElement.textContent = 'КВИЗ НАЧАЛСЯ! ПОДГОТОВЬТЕСЬ К ВОПРОСАМ';
+          statusElement.style.color = '#ffa500'; // Оранжевый
+        } else if (status === 'IN_PROGRESS' || status === 'STARTED') {
+          statusElement.textContent = 'КВИЗ НАЧАЛСЯ! ПЕРЕХОДИМ К ВОПРОСАМ...';
+          statusElement.style.color = '#4CAF50'; // Зеленый
+
+          // Немедленный переход при начале квиза
+          redirectToQuiz();
         } else if (status === 'ENDED') {
           statusElement.textContent = 'КВИЗ ЗАВЕРШЕН';
+          statusElement.style.color = '#f44336'; // Красный
         }
       }
+    }
 
-      // Если квиз начался, перенаправляем на страницу с вопросами
-      if (status === 'STARTED' || status === 'IN_PROGRESS') {
-        isNavigating = true;
+    // Немедленный переход на страницу с вопросами
+    function redirectToQuiz() {
+      if (isNavigating) return; // Предотвращаем множественные переходы
 
-        // Останавливаем обновление данных комнаты
-        if (refreshInterval) {
-          clearInterval(refreshInterval);
-        }
+      isNavigating = true;
 
-        // Перенаправляем на страницу с вопросами
-        setTimeout(() => {
-          window.location.href = `question.html?gameId=${gameId}`;
-        }, 1000);
+      // Останавливаем обновление данных комнаты
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
       }
+
+      console.log('Квиз начался! Переходим к вопросам...');
+
+      // Немедленный переход без задержки
+      window.location.href = `question.html?gameId=${gameId}`;
     }
 
     // Обновление информации о комнате
@@ -316,7 +359,6 @@
     }
 
     // Функция подтверждения выхода
-    // Функция подтверждения выхода
     function confirmExit() {
       const confirmed = confirm('Вы уверены, что хотите выйти из комнаты?');
 
@@ -327,7 +369,6 @@
 
     // Функция выхода из комнаты
     async function leaveRoom() {
-
       try {
         const session = AuthService.getsession();
 
@@ -372,12 +413,15 @@
         window.location.href = 'connect1.html';
       }
     }
-    // Останавливаем обновление данных комнаты при любом уходе со страницы
-    if (refreshInterval) {
-      clearInterval(refreshInterval);
-    }
 
     // Очистка интервалов при размонтировании
+    window.addEventListener('beforeunload', function () {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    });
+
+    // Останавливаем обновление данных комнаты при любом уходе со страницы
     window.addEventListener('unload', function () {
       if (refreshInterval) {
         clearInterval(refreshInterval);

@@ -57,6 +57,7 @@
                 </div>
 
                 <a href="#" class="btnstart" id="start-quiz-btn">НАЧАТЬ КВИЗ ДОСРОЧНО</a>
+                <div id="start-quiz-message" class="message" style="display: none;"></div>
             </div>
         </div>
     </main>
@@ -68,6 +69,8 @@
     let refreshInterval = null;
     let maxPlayers = 10; // Максимальное количество игроков
     let isPrivate = false; // Текущая приватность комнаты
+    let currentPlayers = []; // Текущий список игроков
+    let isQuizStarting = false; // Флаг, что квиз начинается
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
@@ -227,10 +230,24 @@
 
         // TODO: Заменить на реальный эндпоинт для получения списка игроков
         const players = await fetchPlayersFromServer();
+        currentPlayers = players; // Сохраняем текущий список игроков
         displayPlayers(players);
+
+        // Проверяем, заполнена ли комната
+        checkRoomFull(players);
 
       } catch (error) {
         console.error('Ошибка загрузки списка игроков:', error);
+      }
+    }
+
+    // Проверка заполнения комнаты
+    function checkRoomFull(players) {
+      if (players.length >= maxPlayers && !isQuizStarting) {
+        // Комната заполнена - автоматически начинаем квиз
+        showMessage('Комната заполнена! Начинаем квиз...', 'info');
+        disableStartButton();
+        startQuiz();
       }
     }
 
@@ -303,6 +320,9 @@
       if (players.length === 0) {
         container.innerHTML = '<div class="no-players">Нет участников</div>';
         countElement.textContent = '0/' + maxPlayers;
+
+        // Если нет игроков, блокируем кнопку старта
+        disableStartButton();
         return;
       }
 
@@ -316,8 +336,48 @@
       // Обновляем счетчик игроков
       countElement.textContent = `${players.length}/${maxPlayers}`;
 
+      // Проверяем количество игроков для активации/деактивации кнопки старта
+      if (players.length < 2) {
+        disableStartButton('Для начала квиза нужно минимум 2 игрока');
+      } else {
+        enableStartButton();
+      }
+
       // Логируем обновление для отладки
       console.log(`Обновлен список игроков: ${players.length} участников`);
+    }
+
+    // Включение кнопки начала квиза
+    function enableStartButton() {
+      const startBtn = document.getElementById('start-quiz-btn');
+      startBtn.classList.remove('disabled');
+      startBtn.style.pointerEvents = 'auto';
+      startBtn.style.opacity = '1';
+    }
+
+    // Отключение кнопки начала квиза
+    function disableStartButton(message = '') {
+      const startBtn = document.getElementById('start-quiz-btn');
+      startBtn.classList.add('disabled');
+      startBtn.style.pointerEvents = 'none';
+      startBtn.style.opacity = '0.5';
+
+      if (message) {
+        showMessage(message, 'warning');
+      }
+    }
+
+    // Показать сообщение
+    function showMessage(text, type) {
+      const messageElement = document.getElementById('start-quiz-message');
+      messageElement.textContent = text;
+      messageElement.className = `message ${type}`;
+      messageElement.style.display = 'block';
+
+      // Автоматически скрыть сообщение через 5 секунд
+      setTimeout(() => {
+        messageElement.style.display = 'none';
+      }, 5000);
     }
 
     // Обновление информации о комнате
@@ -419,8 +479,24 @@
 
     // Обновляем функцию startQuiz для установки флага
     async function startQuiz() {
+      // Проверяем количество игроков перед началом
+      if (currentPlayers.length < 2) {
+        showMessage('Для начала квиза нужно минимум 2 игрока', 'error');
+        return;
+      }
+
+      // Проверяем, не начат ли уже квиз
+      if (isQuizStarting) {
+        showMessage('Квиз уже начинается...', 'info');
+        return;
+      }
+
       try {
-        isNavigatingToQuiz = true; // Устанавливаем флаг
+        isQuizStarting = true; // Устанавливаем флаг начала квиза
+        isNavigatingToQuiz = true; // Устанавливаем флаг навигации
+
+        // Отключаем кнопку начала квиза
+        disableStartButton('Квиз начинается...');
 
         const session = AuthService.getsession();
 
@@ -448,9 +524,17 @@
         window.location.href = `question.html?gameId=${gameId}`;
 
       } catch (error) {
-        isNavigatingToQuiz = false; // Сбрасываем флаг в случае ошибки
+        // В случае ошибки сбрасываем флаги
+        isQuizStarting = false;
+        isNavigatingToQuiz = false;
+
         console.error('Ошибка начала квиза:', error);
-        alert('Ошибка начала квиза: ' + error.message);
+        showMessage('Ошибка начала квиза: ' + error.message, 'error');
+
+        // Включаем кнопку обратно в случае ошибки
+        if (currentPlayers.length >= 2) {
+          enableStartButton();
+        }
       }
     }
 

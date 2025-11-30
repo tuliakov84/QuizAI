@@ -344,6 +344,50 @@ span {
   box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 }
 
+.btnstart.disabled {
+    pointer-events: none;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.message {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    text-align: center;
+    font-weight: bold;
+    align-self: center;
+}
+
+.message.error {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+    align-self: center;
+}
+
+.message.warning {
+    background-color: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ffe0b2;
+    align-self: center;
+}
+
+.message.info {
+    background-color: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
+    align-self: center;
+}
+
+.message.success {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+    align-self: center;
+}
+
+
 
 @media screen and (width<786px) {
   .main_block {

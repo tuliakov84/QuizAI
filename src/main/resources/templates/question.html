@@ -307,9 +307,11 @@
         loadQuestion();
         startTimer();
       } else {
-        // Квиз завершен
-        console.log('Квиз завершен!');
-        window.location.href = `results.html?gameId=${gameId}`;
+        // Квиз завершен - ждем 1 секунду перед переходом на результаты
+        console.log('Квиз завершен! Переход к результатам через 1 секунду...');
+        setTimeout(() => {
+          window.location.href = `results.html?gameId=${gameId}`;
+        }, 1000);
       }
     }
 
