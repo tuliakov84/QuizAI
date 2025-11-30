@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/styles/roomadmin_style.css">
+    <title>QUIZAI</title>
+</head>
+
+<body>
+<div class="main_cont">
+
+    <main>
+        <div class="left">
+            <header>
+                <a href="main.html" class="btn_back">НАЗАД</a>
+                <h1 class="h11">QUIZ AI ARENA</h1>
+            </header>
+
+            <div class="players">
+                <div class="players-header">
+                    <span class="players-title">УЧАСТНИКИ:</span>
+                    <span id="players-count" class="players-count">0/0</span>
+                </div>
+                <div id="players-container" class="players-list">
+                    <!-- Игроки будут загружены через JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <div class="right">
+            <div class="h13">
+                ВЫ В КОМНАТЕ КВИЗА! ЖДЁМ ЕГО НАЧАЛА!
+            </div>
+
+            <div class="h12  h121">
+                CCЫЛКА-ПРИГЛАШЕНИЕ:
+            </div>
+            <div id="invite-link" class="link">Загрузка...</div>
+
+            <div class="h12  h121">
+                ID-КВИЗА:
+            </div>
+            <div id="invite-id" class="link">Загрузка...</div>
+
+            <div class="main_blockr">
+                <span>ИЗМЕНИТЬ ПРИВАТНОСТЬ КОМНАТЫ:</span>
+                <div class="isprivate block_hor">
+                    <a href="#" class="btnprivate privacy-btn" data-private="false">ОТКРЫТАЯ</a>
+                    <a href="#" class="btnprivate privacy-btn" data-private="true">ЗАКРЫТАЯ</a>
+                </div>
+
+                <span>ТЕМА КВИЗА:</span>
+                <div class="theme">
+                    <div id="quiz-theme" class="h11">Загрузка...</div>
+                </div>
+
+                <a href="#" class="btnstart" id="start-quiz-btn">НАЧАТЬ КВИЗ ДОСРОЧНО</a>
+                <div id="start-quiz-message" class="message" style="display: none;"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/js/auth.js"></script>
+<script>
+    let gameId = null;
+    let refreshInterval = null;
+    let maxPlayers = 10; // Максимальное количество игроков
+    let isPrivate = false; // Текущая приватность комнаты
+    let currentPlayers = []; // Текущий список игроков
+    let isQuizStarting = false; // Флаг, что квиз начинается
+
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!AuthService.requireAuth()) return;
+
+      // Загружаем тему из localStorage и отображаем её
+      loadThemeFromLocalStorage();
+
+      // Получаем gameId из URL параметров
+      const urlParams = new URLSearchParams(window.location.search);
+      gameId = urlParams.get('gameId');
+
+      if (!gameId) {
+        console.error('Game ID не найден в URL');
+        return;
+      }
+
+      initializeRoom();
+      setupEventListeners();
+    });
+
+    // Загрузка темы из localStorage
+    function loadThemeFromLocalStorage() {
+      try {
+        const themeElement = document.getElementById('quiz-theme');
+        const selectedTopicData = localStorage.getItem('selectedTopic');
+
+        if (selectedTopicData) {
+          const selectedTopic = JSON.parse(selectedTopicData);
+          themeElement.textContent = selectedTopic.name;
+        } else {
+          themeElement.textContent = 'Тема не выбрана';
+          console.warn('Тема не найдена в localStorage');
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки темы из localStorage:', error);
+        document.getElementById('quiz-theme').textContent = 'Ошибка загрузки темы';
+      }
+    }
+
+    function initializeRoom() {
+      // Загружаем данные комнаты
+      loadRoomData();
+
+      // Начинаем периодическое обновление списка игроков каждые 5 секунд
+      refreshInterval = setInterval(loadPlayers, 5000); // Обновление каждые 5 секунд
+
+      // Сразу загружаем игроков при инициализации
+      loadPlayers();
+    }
+
+    function setupEventListeners() {
+      // Обработчики для кнопок приватности
+      document.querySelectorAll('.privacy-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          changeRoomPrivacy(this.dataset.private === 'true');
+        });
+      });
+
+      // Обработчик для кнопки начала квиза
+      document.getElementById('start-quiz-btn').addEventListener('click', function (e) {
+        e.preventDefault();
+        startQuiz();
+      });
+    }
+
+    // Изменение приватности комнаты
+    async function changeRoomPrivacy(newPrivacy) {
+      try {
+        const session = AuthService.getsession();
+
+        const response = await fetch('http://localhost:8080/api/game/set/private', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + session,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            gameId: parseInt(gameId),
+            isPrivate: newPrivacy
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ошибка HTTP: ${response.status}`);
+        }
+
+        // Обновляем UI
+        updatePrivacyButtons(newPrivacy);
+        isPrivate = newPrivacy;
+
+        showPrivacyMessage(`Комната теперь ${newPrivacy ? 'ЗАКРЫТАЯ' : 'ОТКРЫТАЯ'}`, 'success');
+
+      } catch (error) {
+        console.error('Ошибка изменения приватности комнаты:', error);
+        showPrivacyMessage('Ошибка изменения приватности: ' + error.message, 'error');
+      }
+    }
+
+    // Обновление кнопок приватности
+    function updatePrivacyButtons(privacy) {
+      // Снимаем выделение со всех кнопок приватности
+      document.querySelectorAll('.privacy-btn').forEach(b => {
+        b.classList.remove('active');
+      });
+
+      // Выделяем выбранную кнопку
+      const activeButton = document.querySelector(`.privacy-btn[data-private="${privacy}"]`);
+      if (activeButton) {
+        activeButton.classList.add('active');
+      }
+    }
+
+    // Показать сообщение о изменении приватности
+    function showPrivacyMessage(text, type) {
+      // Можно использовать существующий элемент сообщения или создать новый
+      alert(text); // Временное решение - можно заменить на красивый toast
+    }
+
+    // Загрузка данных комнаты
+    async function loadRoomData() {
+      try {
+        const session = AuthService.getsession();
+
+        const response = await fetch('http://localhost:8080/api/game/join', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + session,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            session: session,
+            gameId: parseInt(gameId)
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ошибка HTTP: ${response.status}`);
+        }
+
+        const roomData = await response.json();
+
+        // Обновляем информацию о комнате
+        updateRoomInfo(roomData);
+
+      } catch (error) {
+        console.error('Ошибка загрузки данных комнаты:', error);
+      }
+    }
+
+    // Загрузка списка игроков
+    async function loadPlayers() {
+      try {
+        const session = AuthService.getsession();
+
+        console.log('Обновление списка игроков...', new Date().toLocaleTimeString());
+
+        // TODO: Заменить на реальный эндпоинт для получения списка игроков
+        const players = await fetchPlayersFromServer();
+        currentPlayers = players; // Сохраняем текущий список игроков
+        displayPlayers(players);
+
+        // Проверяем, заполнена ли комната
+        checkRoomFull(players);
+
+      } catch (error) {
+        console.error('Ошибка загрузки списка игроков:', error);
+      }
+    }
+
+    // Проверка заполнения комнаты
+    function checkRoomFull(players) {
+      if (players.length >= maxPlayers && !isQuizStarting) {
+        // Комната заполнена - автоматически начинаем квиз
+        showMessage('Комната заполнена! Начинаем квиз...', 'info');
+        disableStartButton();
+        startQuiz();
+      }
+    }
+
+    // Реальная функция для получения игроков с сервера
+    async function fetchPlayersFromServer() {
+      try {
+        const session = AuthService.getsession();
+
+        const response = await fetch('http://localhost:8080/api/game/get/lobby', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + session,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            gameId: parseInt(gameId)
+          })
+        });
+
+        console.log('Статус ответа:', response.status);
+        console.log('Заголовки ответа:', response.headers);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Ошибка сервера:', response.status, errorText);
+          throw new Error(`Ошибка HTTP: ${response.status} - ${errorText}`);
+        }
+
+        // Проверяем, что ответ не пустой
+        const responseText = await response.text();
+        console.log('Ответ сервера:', responseText);
+
+        if (!responseText) {
+          console.warn('Пустой ответ от сервера');
+          return [];
+        }
+
+        const lobbyData = JSON.parse(responseText);
+        console.log('Парсинг JSON успешен:', lobbyData);
+
+        // Проверяем наличие playersUsernames
+        if (!lobbyData.playersUsernames) {
+          console.warn('Поле playersUsernames отсутствует в ответе');
+          return [];
+        }
+
+        // Преобразуем массив имен игроков в массив объектов
+        const players = lobbyData.playersUsernames.map((username, index) => ({
+          username: username,
+          userId: index + 1
+        }));
+
+        console.log('Преобразованные игроки:', players);
+        return players;
+
+      } catch (error) {
+        console.error('Ошибка получения игроков с сервера:', error);
+        // Возвращаем пустой массив в случае ошибки
+        return [];
+      }
+    }
+
+    // Отображение списка игроков
+    function displayPlayers(players) {
+      const container = document.getElementById('players-container');
+      const countElement = document.getElementById('players-count');
+
+      container.innerHTML = '';
+
+      if (players.length === 0) {
+        container.innerHTML = '<div class="no-players">Нет участников</div>';
+        countElement.textContent = '0/' + maxPlayers;
+
+        // Если нет игроков, блокируем кнопку старта
+        disableStartButton();
+        return;
+      }
+
+      players.forEach(player => {
+        const playerElement = document.createElement('div');
+        playerElement.className = 'player';
+        playerElement.textContent = player.username;
+        container.appendChild(playerElement);
+      });
+
+      // Обновляем счетчик игроков
+      countElement.textContent = `${players.length}/${maxPlayers}`;
+
+      // Проверяем количество игроков для активации/деактивации кнопки старта
+      if (players.length < 2) {
+        disableStartButton('Для начала квиза нужно минимум 2 игрока');
+      } else {
+        enableStartButton();
+      }
+
+      // Логируем обновление для отладки
+      console.log(`Обновлен список игроков: ${players.length} участников`);
+    }
+
+    // Включение кнопки начала квиза
+    function enableStartButton() {
+      const startBtn = document.getElementById('start-quiz-btn');
+      startBtn.classList.remove('disabled');
+      startBtn.style.pointerEvents = 'auto';
+      startBtn.style.opacity = '1';
+    }
+
+    // Отключение кнопки начала квиза
+    function disableStartButton(message = '') {
+      const startBtn = document.getElementById('start-quiz-btn');
+      startBtn.classList.add('disabled');
+      startBtn.style.pointerEvents = 'none';
+      startBtn.style.opacity = '0.5';
+
+      if (message) {
+        showMessage(message, 'warning');
+      }
+    }
+
+    // Показать сообщение
+    function showMessage(text, type) {
+      const messageElement = document.getElementById('start-quiz-message');
+      messageElement.textContent = text;
+      messageElement.className = `message ${type}`;
+      messageElement.style.display = 'block';
+
+      // Автоматически скрыть сообщение через 5 секунд
+      setTimeout(() => {
+        messageElement.style.display = 'none';
+      }, 5000);
+    }
+
+    // Обновление информации о комнате
+    function updateRoomInfo(roomData) {
+      // Обновляем ссылку-приглашение
+      const linkElement = document.getElementById('invite-link');
+      linkElement.textContent = `${window.location.origin}/room.html?gameId=${gameId}`;
+      const IDElement = document.getElementById('invite-id');
+      IDElement.textContent = `${gameId}`;
+
+      // Устанавливаем начальную приватность из данных комнаты
+      if (roomData.isPrivate !== undefined) {
+        isPrivate = roomData.isPrivate;
+        updatePrivacyButtons(isPrivate);
+      }
+
+      //копирование ссылки по клику
+      linkElement.style.cursor = 'pointer';
+      linkElement.title = 'Кликните для копирования';
+      linkElement.addEventListener('click', function () {
+        navigator.clipboard.writeText(linkElement.textContent)
+          .then(() => alert('Ссылка скопирована в буфер обмена!'))
+          .catch(err => console.error('Ошибка копирования:', err));
+      });
+
+      // Получаем максимальное количество игроков из данных комнаты (если есть)
+      if (roomData.participantsNumber) {
+        maxPlayers = roomData.participantsNumber;
+        // Сразу обновляем счетчик
+        document.getElementById('players-count').textContent = `0/${maxPlayers}`;
+      }
+    }
+
+    // Обработчик для кнопки "Назад"
+    document.querySelector('.btn_back').addEventListener('click', function (e) {
+      e.preventDefault();
+      confirmExit();
+    });
+
+    // Функция подтверждения выхода
+    function confirmExit() {
+      const confirmed = confirm('При выходе комната будет удалена. Вы уверены, что хотите выйти?');
+
+      if (confirmed) {
+        stopGameAndExit();
+      }
+    }
+
+    // Функция остановки игры и выхода
+    async function stopGameAndExit() {
+      try {
+        const session = AuthService.getsession();
+
+        const response = await fetch('http://localhost:8080/api/game/delete', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + session,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            gameId: parseInt(gameId)
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ошибка HTTP: ${response.status}`);
+        }
+
+        // Останавливаем обновление списка игроков
+        if (refreshInterval) {
+          clearInterval(refreshInterval);
+        }
+
+        localStorage.removeItem('currentGameId');
+        localStorage.removeItem('selectedTopic');
+        // Перенаправляем на главную страницу
+        window.location.href = 'main.html';
+
+      } catch (error) {
+        console.error('Ошибка остановки игры:', error);
+        alert('Ошибка при выходе из комнаты: ' + error.message);
+      }
+    }
+
+    // Также обрабатываем закрытие вкладки/браузера
+    window.addEventListener('beforeunload', function (e) {
+      // Только если пользователь действительно уходит со страницы
+      if (!isNavigatingToQuiz) {
+        // Для современных браузеров мы не можем выполнить асинхронный запрос здесь,
+        // но можем показать предупреждение
+        e.preventDefault();
+        e.returnValue = 'При выходе комната будет удалена. Вы уверены, что хотите выйти?';
+        return e.returnValue;
+      }
+    });
+
+    // Флаг для отслеживания навигации внутри приложения
+    let isNavigatingToQuiz = false;
+
+    // Обновляем функцию startQuiz для установки флага
+    async function startQuiz() {
+      // Проверяем количество игроков перед началом
+      if (currentPlayers.length < 2) {
+        showMessage('Для начала квиза нужно минимум 2 игрока', 'error');
+        return;
+      }
+
+      // Проверяем, не начат ли уже квиз
+      if (isQuizStarting) {
+        showMessage('Квиз уже начинается...', 'info');
+        return;
+      }
+
+      try {
+        isQuizStarting = true; // Устанавливаем флаг начала квиза
+        isNavigatingToQuiz = true; // Устанавливаем флаг навигации
+
+        // Отключаем кнопку начала квиза
+        disableStartButton('Квиз начинается...');
+
+        const session = AuthService.getsession();
+
+        const response = await fetch('http://localhost:8080/api/game/start', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + session,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            gameId: parseInt(gameId)
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ошибка HTTP: ${response.status}`);
+        }
+
+        // Останавливаем обновление списка игроков перед переходом
+        if (refreshInterval) {
+          clearInterval(refreshInterval);
+        }
+
+        // Перенаправляем на страницу с вопросами
+        window.location.href = `question.html?gameId=${gameId}`;
+
+      } catch (error) {
+        // В случае ошибки сбрасываем флаги
+        isQuizStarting = false;
+        isNavigatingToQuiz = false;
+
+        console.error('Ошибка начала квиза:', error);
+        showMessage('Ошибка начала квиза: ' + error.message, 'error');
+
+        // Включаем кнопку обратно в случае ошибки
+        if (currentPlayers.length >= 2) {
+          enableStartButton();
+        }
+      }
+    }
+
+    // Очистка при размонтировании компонента
+    window.addEventListener('beforeunload', function (e) {
+      // Только если пользователь действительно уходит со страницы (не переход на квиз)
+      if (!isNavigatingToQuiz) {
+        // Показываем предупреждение при закрытии вкладки/браузера
+        e.preventDefault();
+        e.returnValue = 'При выходе комната будет удалена. Вы уверены, что хотите выйти?';
+        return e.returnValue;
+      }
+
+      // Останавливаем обновление списка игроков при любом уходе со страницы
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    });
+</script>
+</body>
+
+</html>

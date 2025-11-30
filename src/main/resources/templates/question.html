@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles/question_style.css">
+    <title>QUIZAI</title>
+</head>
+
+<body>
+<div class="main_cont">
+    <header>
+        <div class="h12">
+            ВРЕМЯ НА ВОПРОС
+        </div>
+        <div class="timer">
+            <div class="currenttime">
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="question">
+            <div class="h13" id="question-text">Загрузка вопроса...</div>
+        </div>
+        <div class="answers" id="answers-container">
+            <!-- Ответы будут загружены через JavaScript -->
+        </div>
+    </main>
+</div>
+</body>
+
+<script src="/js/auth.js"></script>
+<script>
+    let gameId = null;
+    let currentQuestionNumber = 1;
+    let totalQuestions = 10;
+    let timeLeft = 5;
+    let timerWorker = null;
+    let answerSubmitted = false;
+    let selectedAnswer = null;
+    let questionStartTime = null;
+    let animationFrameId = null;
+    localStorage.setItem("selectedAnswer", 0)
+
+    // Тестовый вопрос
+    const testQuestion = {
+      questionText: "What the Aglet is?",
+      answer1: "American audit company",
+      answer2: "Programming language",
+      answer3: "Lace tip",
+      answer4: "idk",
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!AuthService.requireAuth()) return;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      gameId = urlParams.get('gameId');
+
+      if (!gameId) {
+        console.error('Game ID не найден в URL');
+        return;
+      }
+
+      // Инициализируем Web Worker для таймера
+      try {
+        timerWorker = new Worker('js/timer-worker.js');
+        timerWorker.onmessage = function(e) {
+          if (e.data.type === 'timeout') {
+            handleTimeout();
+          } else if (e.data.type === 'tick') {
+            // Обновляем время с высокой точностью
+            timeLeft = e.data.remainingMs / 1000;
+            updateTimerDisplay();
+          }
+        };
+      } catch (error) {
+        console.error('Web Worker не поддерживается:', error);
+        // Fallback на обычный таймер
+      }
+
+      loadQuestion();
+      startTimer();
+    });
+
+    async function loadQuestion() {
+      try {
+        // Сбрасываем состояние
+        answerSubmitted = false;
+        selectedAnswer = null;
+        timeLeft = 5;
+
+        // Временно используем тестовый вопрос вместо запроса к серверу
+        console.log('Загрузка тестового вопроса...');
+        displayQuestion(testQuestion);
+
+      } catch (error) {
+        console.error('Ошибка загрузки вопроса:', error);
+      }
+    }
+
+    function displayQuestion(question) {
+      document.getElementById('question-text').textContent = question.questionText;
+
+      const answersContainer = document.getElementById('answers-container');
+      answersContainer.innerHTML = '';
+
+      // Создаем кнопки для каждого ответа
+      const answers = [
+        { text: question.answer1, number: 1 },
+        { text: question.answer2, number: 2 },
+        { text: question.answer3, number: 3 },
+        { text: question.answer4, number: 4 }
+      ];
+
+      answers.forEach((answer) => {
+        if (answer.text) {
+          const answerBtn = document.createElement('a');
+          answerBtn.href = '#';
+          answerBtn.className = 'btn';
+          answerBtn.textContent = `${answer.number}. ${answer.text}`;
+          answerBtn.dataset.answerNumber = answer.number;
+
+          answerBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (!answerSubmitted) {
+              selectAnswer(answer.number);
+            }
+          });
+
+          answersContainer.appendChild(answerBtn);
+        }
+      });
+
+      console.log(`Вопрос ${currentQuestionNumber}/${totalQuestions} загружен`);
+    }
+
+    function selectAnswer(answerNumber) {
+      if (answerSubmitted) return;
+
+      selectedAnswer = answerNumber;
+      answerSubmitted = true;
+      localStorage.setItem("selectedAnswer", selectedAnswer)
+
+      // Выделяем выбранный ответ
+      const answerButtons = document.querySelectorAll('.btn');
+      answerButtons.forEach(btn => {
+        btn.classList.remove('selected');
+        if (parseInt(btn.dataset.answerNumber) === answerNumber) {
+          btn.classList.add('selected');
+        }
+      });
+
+      // Блокируем все кнопки
+      disableAllAnswers();
+
+      console.log(`Выбран ответ: ${answerNumber}. Ожидание окончания таймера...`);
+    }
+
+    function disableAllAnswers() {
+      const answerButtons = document.querySelectorAll('.btn');
+      answerButtons.forEach(btn => {
+        btn.classList.add('disabled-answer');
+      });
+    }
+
+    function startTimer() {
+      questionStartTime = Date.now();
+      timeLeft = 5;
+      updateTimerDisplay();
+
+      if (timerWorker) {
+        // Используем Web Worker для точного таймера
+        timerWorker.postMessage({
+          action: 'start',
+          duration: 5 * 1000 // 5 секунд в миллисекундах
+        });
+      } else {
+        // Fallback: обычный таймер (менее точный)
+        startFallbackTimer();
+      }
+    }
+
+    function startFallbackTimer() {
+      const startTime = Date.now();
+      const endTime = startTime + (5 * 1000);
+
+      function updateTimer() {
+        const now = Date.now();
+        const remainingTime = endTime - now;
+
+        if (remainingTime <= 0) {
+          handleTimeout();
+          return;
+        }
+
+        timeLeft = remainingTime / 1000;
+        updateTimerDisplay();
+
+        animationFrameId = requestAnimationFrame(updateTimer);
+      }
+
+      animationFrameId = requestAnimationFrame(updateTimer);
+    }
+
+    function handleTimeout() {
+      console.log('Время вышло!');
+
+      // Останавливаем таймер
+      if (timerWorker) {
+        timerWorker.postMessage('stop');
+      }
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+
+      // Гарантируем, что таймер показывает 0
+      timeLeft = 0;
+      updateTimerDisplay();
+
+      // Даем время для завершения визуальной анимации
+      setTimeout(() => {
+        // Отправляем ответ (выбранный или 0 если время вышло)
+        const answerToSubmit = selectedAnswer !== null ? selectedAnswer : 0;
+        submitAnswer(answerToSubmit);
+      }, 300);
+    }
+
+    function updateTimerDisplay() {
+      const timerElement = document.querySelector('.currenttime');
+
+      // Плавное отображение с точностью до десятых долей секунды
+      const percentage = (timeLeft / 5) * 100;
+      timerElement.style.width = `${Math.max(0, percentage)}%`;
+
+      // Плавное изменение цвета таймера от зеленого к красному
+      if (timeLeft <= 2) {
+        timerElement.style.backgroundColor = '#ff5252';
+      } else if (timeLeft <= 3) {
+        timerElement.style.backgroundColor = '#ffa726';
+      } else {
+        timerElement.style.backgroundColor = '#4CAF50';
+      }
+
+      // Плавная анимация
+      timerElement.style.transition = 'width 0.05s linear, background-color 0.3s ease';
+    }
+
+    async function submitAnswer(answerNumber) {
+      try {
+        const session = AuthService.getsession();
+        const timeTaken = 5 - timeLeft; // Время, затраченное на ответ
+
+        console.log(`Отправка ответа: ${answerNumber}, время: ${timeTaken.toFixed(1)}с`);
+
+        // Временно эмулируем проверку ответа
+        const storedAnswer = parseInt(localStorage.getItem("selectedAnswer")) || 0;
+        const isCorrect = (storedAnswer === 3);
+        console.log(`Ответ ${isCorrect ? 'правильный' : 'неправильный'}`);
+
+        /*
+        const response = await fetch('http://localhost:8080/api/game/verify-answer', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + session,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            gameId: parseInt(gameId),
+            questionNumber: currentQuestionNumber,
+            submittedAnswerNumber: answerNumber,
+            timeTakenToAnswerInSeconds: timeTaken,
+            session: session
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ошибка HTTP: ${response.status}`);
+        }
+
+        const isCorrect = await response.json();
+        */
+
+        localStorage.setItem("selectedAnswer", 0)
+
+        // Ждем 2 секунды чтобы игрок увидел результат
+        setTimeout(() => {
+          goToNextQuestion();
+        }, 2000);
+
+      } catch (error) {
+        console.error('Ошибка отправки ответа:', error);
+        // В случае ошибки все равно переходим дальше
+        setTimeout(() => {
+          goToNextQuestion();
+        }, 2000);
+      }
+    }
+
+    function goToNextQuestion() {
+      currentQuestionNumber++;
+
+      // Проверяем, есть ли еще вопросы
+      if (currentQuestionNumber <= totalQuestions) {
+        loadQuestion();
+        startTimer();
+      } else {
+        // Квиз завершен - ждем 1 секунду перед переходом на результаты
+        console.log('Квиз завершен! Переход к результатам через 1 секунду...');
+        setTimeout(() => {
+          window.location.href = `results.html?gameId=${gameId}`;
+        }, 1000);
+      }
+    }
+
+    // Обработка закрытия страницы
+    window.addEventListener('beforeunload', function () {
+      if (timerWorker) {
+        timerWorker.terminate();
+      }
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    });
+
+    // Защита от переключения вкладок
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden && !answerSubmitted) {
+        console.log('Страница скрыта! Возможна попытка читерства.');
+      }
+    });
+</script>
+
+</html>

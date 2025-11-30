@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/styles/profile_style.css">
+  <title>QUIZAI</title>
+</head>
+
+<body>
+  <div class="main_cont">
+    <div class="all_left">
+      <a href="main.html" class="btn_back">НАЗАД</a>
+      <div class="leftdiv">
+        <div class="h1_div">
+          <h1 class="h11">QUIZ AI</h1>
+          <h1 class="h12">ARENA</h1>
+        </div>
+        <p class="btnl">
+          <span class="default">ВАШИ ОЧКИ:</span>
+          <span class="hover-text" id="user-rating">1000</span>
+        </p>
+        <a href="history.html" class="btnl">ИСТОРИЯ КВИЗОВ</a>
+        <a href="achivements.html" class="btnl">ДОСТИЖЕНИЯ</a>
+      </div>
+    </div>
+    <div class="rightdiv">
+      <div class="pic" id="user-avatar">
+    </div>
+    <p id="user-username">ИМЯ ПОЛЬЗОВАТЕЛЯ</p>
+    <p id="user-status">СТАТУС</p>
+    <a href="red_prof.html" class="btnr">РЕДАКТИРОВАТЬ ПРОФИЛЬ</a>
+  </div>
+  </div>
+</body>
+
+
+<script src="/js/auth.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!AuthService.requireAuth()) return;
+
+    const userData = AuthService.getUser();
+    AuthService.displayUserProfile(userData);
+  });
+</script>
+
+</html>

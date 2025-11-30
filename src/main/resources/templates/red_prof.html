@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/styles/red_prof_style.css">
+    <title>QUIZAI</title>
+</head>
+
+<body>
+<div class="main_cont">
+    <div class="leftdiv">
+        <a href="profile.html" class="btn_back">НАЗАД</a>
+    </div>
+    <div class="rightdiv">
+        <div class="avatar-section">
+            <div class="current-avatar">
+                <div class="pic" id="avatar-preview"></div>
+                <p>Текущий аватар</p>
+            </div>
+
+            <div class="avatar-selection">
+                <h3>ВЫБЕРИТЕ АВАТАР</h3>
+                <div class="avatar-grid" id="avatar-grid">
+                </div>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label for="password-input">Новый пароль:</label>
+            <input type="password" id="password-input" class="text-input" placeholder="Введите новый пароль">
+        </div>
+
+        <div class="input-group">
+            <label for="confirm-password-input">Подтвердите пароль:</label>
+            <input type="password" id="confirm-password-input" class="text-input" placeholder="Подтвердите новый пароль">
+        </div>
+
+        <div class="input-group">
+            <label for="status-input">Статус:</label>
+            <input type="text" id="status-input" class="text-input" placeholder="Введите новый статус">
+        </div>
+
+        <button class="btnr" onclick="saveProfile()">СОХРАНИТЬ</button>
+        <div id="message" class="message"></div>
+    </div>
+    <div class="leftdiv">
+    </div>
+</div>
+</body>
+
+<script src="/js/auth.js"></script>
+<script>
+    let currentUserData = null;
+    let selectedAvatarId = null;
+
+    const availableAvatars = [
+      { id: 1, url: 'assets/avatars/avatar1.png', name: 'Аватар 1' },
+      { id: 2, url: 'assets/avatars/avatar2.png', name: 'Аватар 2' },
+      { id: 3, url: 'assets/avatars/avatar3.png', name: 'Аватар 3' },
+      { id: 4, url: 'assets/avatars/avatar4.png', name: 'Аватар 4' },
+      { id: 5, url: 'assets/avatars/avatar5.png', name: 'Аватар 5' },
+      { id: 6, url: 'assets/avatars/avatar6.png', name: 'Аватар 6' },
+      { id: 7, url: 'assets/avatars/avatar7.png', name: 'Аватар 7' },
+      { id: 8, url: 'assets/avatars/avatar8.png', name: 'Аватар 8' }
+    ];
+
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!AuthService.requireAuth()) return;
+      loadCurrentUserData();
+      loadAvailableAvatars();
+    });
+
+    function loadCurrentUserData() {
+      try {
+        currentUserData = AuthService.getUser();
+        if (currentUserData) {
+          // Заполняем поля текущими данными
+          document.getElementById('status-input').value = currentUserData.description || '';
+
+          // Устанавливаем текущий аватар
+          if (currentUserData.picId) {
+            const avatar = availableAvatars.find(a => a.id === currentUserData.picId);
+            if (avatar) {
+              const avatarPreview = document.getElementById('avatar-preview');
+              avatarPreview.style.backgroundImage = `url('${avatar.url}')`;
+              avatarPreview.style.backgroundSize = 'cover';
+              avatarPreview.style.backgroundPosition = 'center';
+              selectedAvatarId = currentUserData.picId;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки данных пользователя:', error);
+        showMessage('Ошибка загрузки данных', 'error');
+      }
+    }
+
+    async function loadAvailableAvatars() {
+      try {
+        const avatarGrid = document.getElementById('avatar-grid');
+        const avatarsToShow = availableAvatars;
+
+        avatarGrid.innerHTML = '';
+
+        avatarsToShow.forEach(avatar => {
+          const avatarElement = document.createElement('div');
+          avatarElement.className = 'avatar-option';
+          avatarElement.innerHTML = `<div class="avatar-img" style="background-image: url('${avatar.url}')" data-avatar-id="${avatar.id}"></div> <span class="avatar-name">${avatar.name}</span>`;
+
+          // Выделяем текущий выбранный аватар
+          if (avatar.id === selectedAvatarId) {
+            avatarElement.classList.add('selected');
+          }
+
+          avatarElement.addEventListener('click', () => selectAvatar(avatar.id, avatar.url));
+          avatarGrid.appendChild(avatarElement);
+        });
+
+      } catch (error) {
+        console.error('Ошибка загрузки аватаров:', error);
+        showMessage('Ошибка загрузки списка аватаров', 'error');
+      }
+    }
+
+    function selectAvatar(avatarId, avatarUrl) {
+      // Снимаем выделение со всех аватаров
+      document.querySelectorAll('.avatar-option').forEach(option => {
+        option.classList.remove('selected');
+      });
+
+      // Выделяем выбранный аватар
+      const selectedOption = document.querySelector(`[data-avatar-id="${avatarId}"]`).parentElement;
+      selectedOption.classList.add('selected');
+
+      // Обновляем превью
+      const avatarPreview = document.getElementById('avatar-preview');
+      avatarPreview.style.backgroundImage = `url('${avatarUrl}')`;
+      avatarPreview.style.backgroundSize = 'cover';
+      avatarPreview.style.backgroundPosition = 'center';
+
+      // Сохраняем выбранный аватар
+      selectedAvatarId = avatarId;
+
+      showMessage(`Выбран аватар: ${selectedOption.querySelector('.avatar-name').textContent}`, 'info');
+      setTimeout(() => {
+        const messageElement = document.getElementById('message');
+        if (messageElement.textContent.includes('Выбран аватар:')) {
+          messageElement.textContent = '';
+          messageElement.className = 'message';
+        }
+      }, 2000);
+    }
+
+    // Функция сохранения профиля
+    async function saveProfile() {
+      const password = document.getElementById('password-input').value.trim();
+      const confirmPassword = document.getElementById('confirm-password-input').value.trim();
+      const description = document.getElementById('status-input').value.trim();
+
+      // Валидация пароля
+      if (password || confirmPassword) {
+        if (password !== confirmPassword) {
+          showMessage('Пароли не совпадают', 'error');
+          return;
+        }
+
+        if (password.length < 6) {
+          showMessage('Пароль должен быть не менее 6 символов', 'error');
+          return;
+        }
+
+        // Проверка сложности пароля (можно добавить дополнительные проверки)
+        if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+          showMessage('Пароль должен содержать хотя бы одну заглавную букву, одну строчную букву и одну цифру', 'error');
+          return;
+        }
+      }
+
+      // Валидация описания
+      if (description.length > 100) {
+        showMessage('Статус не должен превышать 100 символов', 'error');
+        return;
+      }
+
+      try {
+        showMessage('Сохранение...', 'info');
+
+        const session = AuthService.getsession();
+        let hasChanges = false;
+        let successCount = 0;
+        const totalChanges = (password ? 1 : 0) +
+                            (description !== currentUserData.description ? 1 : 0) +
+                            (selectedAvatarId !== currentUserData.picId ? 1 : 0);
+
+        // Обновляем аватар, если изменился
+        if (selectedAvatarId && selectedAvatarId !== currentUserData.picId) {
+          try {
+            const avatarResponse = await fetch('http://localhost:8080/api/users/set/profile_pic', {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer ' + session,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                session: session,
+                picId: selectedAvatarId
+              })
+            });
+
+            if (avatarResponse.ok) {
+              successCount++;
+              hasChanges = true;
+              showMessage('Аватар успешно обновлен', 'success');
+            } else {
+              const errorData = await avatarResponse.json();
+              throw new Error(`Ошибка обновления аватара: ${errorData.message || avatarResponse.status}`);
+            }
+          } catch (error) {
+            console.error('Ошибка обновления аватара:', error);
+            showMessage('Ошибка обновления аватара: ' + error.message, 'error');
+            return;
+          }
+        }
+
+        // Обновляем описание, если изменилось
+        if (description !== currentUserData.description) {
+          try {
+            const descResponse = await fetch('http://localhost:8080/api/users/set/description', {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer ' + session,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                session: session,
+                description: description
+              })
+            });
+
+            if (descResponse.ok) {
+              successCount++;
+              hasChanges = true;
+              showMessage('Статус успешно обновлен', 'success');
+            } else {
+              const errorData = await descResponse.json();
+              throw new Error(`Ошибка обновления статуса: ${errorData.message || descResponse.status}`);
+            }
+          } catch (error) {
+            console.error('Ошибка обновления статуса:', error);
+            showMessage('Ошибка обновления статуса: ' + error.message, 'error');
+            return;
+          }
+        }
+
+        // Обновляем пароль, если введен новый
+        if (password) {
+          try {
+            const passwordResponse = await fetch('http://localhost:8080/api/users/set/password', {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer ' + session,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                session: session,
+                password: password
+              })
+            });
+
+            if (passwordResponse.ok) {
+              successCount++;
+              hasChanges = true;
+              showMessage('Пароль успешно обновлен', 'success');
+
+              // Очищаем поля пароля после успешного сохранения
+              document.getElementById('password-input').value = '';
+              document.getElementById('confirm-password-input').value = '';
+            } else {
+              const errorData = await passwordResponse.json();
+              throw new Error(`Ошибка обновления пароля: ${errorData.message || passwordResponse.status}`);
+            }
+          } catch (error) {
+            console.error('Ошибка обновления пароля:', error);
+            showMessage('Ошибка обновления пароля: ' + error.message, 'error');
+            return;
+          }
+        }
+
+        if (hasChanges) {
+          // Обновляем данные в localStorage
+          const updatedUserData = {
+            ...currentUserData,
+            description: description,
+            picId: selectedAvatarId || currentUserData.picId
+          };
+          localStorage.setItem('user', JSON.stringify(updatedUserData));
+
+          showMessage(`Профиль успешно обновлен! (${successCount}/${totalChanges} изменений)`, 'success');
+
+          // Перенаправляем на страницу профиля через 2 секунды
+          setTimeout(() => {
+            window.location.href = 'profile.html';
+          }, 2000);
+        } else {
+          showMessage('Нет изменений для сохранения', 'info');
+        }
+
+      } catch (error) {
+        console.error('Ошибка сохранения профиля:', error);
+        showMessage('Ошибка сохранения профиля: ' + error.message, 'error');
+      }
+    }
+
+    // Функция для отображения сообщений
+    function showMessage(text, type) {
+      const messageElement = document.getElementById('message');
+      messageElement.textContent = text;
+      messageElement.className = 'message ' + type;
+
+      // Автоматически скрываем информационные сообщения через 3 секунды
+      if (type === 'info' || type === 'success') {
+        setTimeout(() => {
+          if (messageElement.textContent === text) {
+            messageElement.textContent = '';
+            messageElement.className = 'message';
+          }
+        }, 3000);
+      }
+    }
+</script>
+
+</html>

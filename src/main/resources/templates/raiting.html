@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/styles/raiting_style.css">
+  <title>QUIZAI</title>
+</head>
+
+<body>
+  <div class="main_cont">
+    <header>
+      <a href="main.html" class="btn_back">НАЗАД</a>
+      <h1 class="h11">QUIZ AI ARENA</h1>
+    </header>
+
+    <p class="h12">БЕСКОНЕЧНОСТЬ НЕ ПРЕДЕЛ!</p>
+
+    <main>
+      <div class="raiting">
+        <div>
+          <span>
+            ВАШИ ОЧКИ:
+          </span>
+          <span id="user-points">
+            1337
+          </span>
+        </div>
+        <div>
+          <span>
+            ВАШЕ МЕСТО В РЕЙТИНГЕ:
+          </span>
+          <span id="user-rank">
+            1337
+          </span>
+        </div>
+      </div>
+
+      <div class="players">
+        <span>ТОП ИГРОКОВ ПО РЕЙТИНГУ</span>
+        <div class="player template">
+          <!-- Шаблон для игроков -->
+          <div class="player-info">
+            <span class="player-rank">1</span>
+            <div class="player-avatar"></div>
+            <span class="player-name">Имя игрока</span>
+            <span class="player-points">1000 очков</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+
+
+<script src="/js/auth.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!AuthService.requireAuth()) return;
+    loadGlobalLeaderboard();
+  });
+
+  async function loadGlobalLeaderboard() {
+    try {
+      const session = AuthService.getsession();
+      if (!session) {
+        console.error('Токен не найден');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8080/api/leaderboard/global', {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer ' + session,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ошибка HTTP: ${response.status}`);
+      }
+
+      const leaderboardData = await response.json();
+      displayLeaderboard(leaderboardData);
+
+    } catch (error) {
+      console.error('Ошибка загрузки рейтинга:', error);
+      showError('Не удалось загрузить рейтинг игроков');
+    }
+  }
+
+  function displayLeaderboard(leaderboardData) {
+    const playersContainer = document.querySelector('.players');
+    const template = document.querySelector('.player.template');
+    const currentUser = AuthService.getUser();
+
+    // Очищаем существующих игроков (кроме шаблона)
+    const existingPlayers = playersContainer.querySelectorAll('.player:not(.template)');
+    existingPlayers.forEach(player => player.remove());
+
+    if (!leaderboardData || !leaderboardData.players || leaderboardData.players.length === 0) {
+      // Показываем сообщение, если нет данных
+      const noPlayersMessage = document.createElement('div');
+      noPlayersMessage.className = 'no-players-message';
+      noPlayersMessage.textContent = 'Рейтинг пока пуст';
+      noPlayersMessage.style.textAlign = 'center';
+      noPlayersMessage.style.padding = '20px';
+      noPlayersMessage.style.color = '#666';
+      playersContainer.appendChild(noPlayersMessage);
+      return;
+    }
+
+    // Обновляем информацию о текущем пользователе
+    updateUserStats(leaderboardData, currentUser);
+
+    // Отображаем топ-100 игроков
+    const topPlayers = leaderboardData.players.slice(0, 100);
+
+    topPlayers.forEach((player, index) => {
+      const playerElement = template.cloneNode(true);
+      playerElement.classList.remove('template');
+
+      // Заполняем данные игрока
+      const rankElement = playerElement.querySelector('.player-rank');
+      const avatarElement = playerElement.querySelector('.player-avatar');
+      const nameElement = playerElement.querySelector('.player-name');
+      const pointsElement = playerElement.querySelector('.player-points');
+
+      // Устанавливаем место в рейтинге
+      rankElement.textContent = index + 1;
+
+      // Устанавливаем аватар
+      if (player.avatarUrl) {
+        avatarElement.style.backgroundImage = `url('${player.avatarUrl}')`;
+        avatarElement.style.backgroundSize = 'cover';
+        avatarElement.style.backgroundPosition = 'center';
+      }
+
+      // Имя игрока
+      nameElement.textContent = player.username;
+
+      // Очки
+      pointsElement.textContent = `${player.points || 0} очков`;
+
+      // Выделяем текущего пользователя
+      if (currentUser && player.id === currentUser.id) {
+        playerElement.classList.add('current-user');
+        playerElement.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+        playerElement.style.borderLeft = '4px solid #4CAF50';
+      }
+
+      // Добавляем атрибуты
+      playerElement.setAttribute('data-player-id', player.id);
+      playerElement.setAttribute('data-rank', index + 1);
+
+      // Вставляем после шаблона
+      template.parentNode.insertBefore(playerElement, template.nextSibling);
+    });
+
+    // Скрываем шаблон
+    template.style.display = 'none';
+  }
+
+
+  function showError(message) {
+    // Создаем элемент для отображения ошибки
+    const errorElement = document.createElement('div');
+    errorElement.className = 'error-message';
+    errorElement.textContent = message;
+    errorElement.style.cssText = `
+        background-color: #ffebee;
+        color: #c62828;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 5px;
+        text-align: center;
+        border: 1px solid #ffcdd2;
+    `;
+
+    // Вставляем сообщение об ошибке после заголовка
+    const header = document.querySelector('header');
+    header.parentNode.insertBefore(errorElement, header.nextSibling);
+
+    // Автоматически скрываем через 5 секунд
+    setTimeout(() => {
+      errorElement.remove();
+    }, 5000);
+  }
+
+  // Функция для обновления рейтинга
+  function refreshLeaderboard() {
+    const existingError = document.querySelector('.error-message');
+    if (existingError) {
+      existingError.remove();
+    }
+
+    const noPlayersMessage = document.querySelector('.no-players-message');
+    if (noPlayersMessage) {
+      noPlayersMessage.remove();
+    }
+
+    // Показываем индикатор загрузки
+    const playersContainer = document.querySelector('.players');
+    playersContainer.classList.add('loading');
+
+    loadGlobalLeaderboard().finally(() => {
+      playersContainer.classList.remove('loading');
+    });
+  }
+
+  // Автоматическое обновление рейтинга каждые 30 секунд
+  setInterval(() => {
+    refreshLeaderboard();
+  }, 30000);
+</script>
+
+</html>
