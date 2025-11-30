@@ -444,6 +444,7 @@ public class ApiController {
    */
   @PostMapping("/game/verify-answer")
   public ResponseEntity<Object> verifyAnswer(@RequestBody AnswerObject answerObject) {
+    //todo убрать передачу сложности
     try {
       int gameId = answerObject.getGameId();
       int questionNumber = answerObject.getQuestionNumber();

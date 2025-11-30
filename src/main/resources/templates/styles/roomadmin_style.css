@@ -6,6 +6,7 @@
 html, body {
   height: 100%;
   width: 100%;
+  overflow: hidden; /* Добавлено: отключает скролл для всей страницы */
 }
 
 .left {
@@ -16,11 +17,11 @@ html, body {
 
 .btn_back {
   margin: 15px  ;
-  display: block;           
+  display: block;
   width: 100px;
   padding: 22px 24px;
-  text-align: center;                  
-  text-decoration: none;    
+  text-align: center;
+  text-decoration: none;
   border-radius: 28px;
   font-size: 20px;
   background: linear-gradient(0deg, rgb(255, 76, 76), rgb(255, 151, 151));
@@ -31,7 +32,7 @@ html, body {
 }
 
 .h11 {
-  font-size: clamp(1.5rem, 4vw, 3rem); 
+  font-size: clamp(1.5rem, 4vw, 3rem);
   background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -75,17 +76,18 @@ header {
   min-width: 100vw;
   flex-direction: column;
   flex-wrap: wrap;
+  overflow: hidden; /* Добавлено: отключает скролл для контейнера */
 }
 
 main {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 20px; 
+  gap: 20px;
   align-items: start;
   justify-content: center;
   width: 100%;
-
+  overflow: hidden; /* Добавлено: отключает скролл для main */
 }
 
 .main_blockl {
@@ -200,11 +202,11 @@ main {
 }
 
 .btn {
-  display: block;           
+  display: block;
   width: 90%;
   padding: 18px 24px;
-  text-align: center;                  
-  text-decoration: none;    
+  text-align: center;
+  text-decoration: none;
   border-radius: 18px;
   font-size: 20px;
   background: linear-gradient(0deg, rgb(225, 224, 224), rgb(255, 255, 255));
@@ -219,6 +221,7 @@ main {
   flex-direction: column;
   margin-bottom: 140px;
   flex: 0.9 1 300px;
+  overflow: hidden; /* Добавлено: отключает скролл для правой колонки */
 }
 
 .link {
@@ -248,6 +251,7 @@ main {
   align-items: start;
   justify-content: space-around;
   height: auto;
+  overflow: hidden; /* Добавлено: отключает скролл для блока */
 }
 
 span {
