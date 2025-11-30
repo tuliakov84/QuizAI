@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.*;
+import com.mipt.initialization.AchievementsInit;
 import com.mipt.initialization.TopicsInit;
 import com.mipt.utils.BackendUtils;
 import com.mipt.utils.ValidationUtils;
@@ -38,7 +39,9 @@ public class ApiController {
     this.utils = new BackendUtils();
 
     TopicsInit topicsInit = new TopicsInit(dbService);
+    AchievementsInit achievementsInit = new AchievementsInit(dbService);
     topicsInit.topicsInit();
+    achievementsInit.achievementsInit();
   }
 
   /**

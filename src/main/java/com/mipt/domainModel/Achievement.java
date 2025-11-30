@@ -17,8 +17,7 @@ public class Achievement {
 
   }
 
-  public Achievement(int achievementId, String name) {
-    this.achievementId = achievementId;
+  public Achievement(String name) {
     this.name = name;
   }
 
