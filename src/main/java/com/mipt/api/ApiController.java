@@ -1,6 +1,7 @@
 package com.mipt.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mipt.QuestionGenerator;
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.*;
@@ -20,6 +21,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 
 @RestController
@@ -339,6 +341,13 @@ public class ApiController {
       data.setAuthorId(preset[0]);
 
       // AI loadQuestions() METHOD NEEDED TO BE HERE !!!
+      Topic topic = dbService.getTopicById(topicId);
+      String topicName = topic.getName();
+
+      String jsonString = "[{\"topic\":\"" + topicName + "\",\"numberOfQuestions\":" + numberOfQuestions + ",\"difficult\":" + levelDifficulty + "}]";
+      CompletableFuture<String> futureJson = QuestionGenerator.generate(jsonString);
+      JSONArray questionsJson = new JSONArray(futureJson);
+      dbService.loadQuestions(gameId, questionsJson);
 
       return joinRoom(data);
     } catch (DatabaseAccessException e) {

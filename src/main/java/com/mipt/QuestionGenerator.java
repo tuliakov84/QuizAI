@@ -18,7 +18,7 @@ public class QuestionGenerator {
         JSONObject obj = inputArray.getJSONObject(0);
 
         String topic = obj.getString("topic");
-        int n = obj.getInt("n");
+        int numberOfQuestions = obj.getInt("numberOfQuestions");
         int difficult = obj.getInt("difficult");
 
         String url = "http://localhost:11434/api/chat";
@@ -89,7 +89,7 @@ public class QuestionGenerator {
                         "   - A line break must follow every comma.\n" +
                         "   - No extra spaces, no missing spaces, no empty lines, no comments, no markdown, and no text outside of the JSON are allowed.\n" +
                         "   Any deviation from the structural or visual formatting of the template is strictly forbidden.\n",
-                n, topic, difficult, n, n, n
+            numberOfQuestions, topic, difficult, numberOfQuestions, numberOfQuestions, numberOfQuestions
         );
 
 
