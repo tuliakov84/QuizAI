@@ -30,7 +30,13 @@
     </properties>
 
     <dependencies>
-        <!-- Spring Boot Starter Web для веб-приложений -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20231013</version>
+        </dependency>
+
+        <!-- JUnit Jupiter для unit-тестов -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
