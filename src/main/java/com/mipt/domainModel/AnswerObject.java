@@ -1,7 +1,5 @@
 package com.mipt.domainModel;
 
-import java.time.Instant;
-
 public class AnswerObject extends Question {
   private String session;
   private int timeTakenToAnswerInSeconds;

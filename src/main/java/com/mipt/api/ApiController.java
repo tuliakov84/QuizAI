@@ -8,6 +8,7 @@ import com.mipt.initialization.AchievementsInit;
 import com.mipt.initialization.TopicsInit;
 import com.mipt.utils.BackendUtils;
 import com.mipt.utils.ValidationUtils;
+import com.mipt.service.QuestionLoadingService;
 import org.json.JSONArray;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,13 +30,15 @@ public class ApiController {
 
   private final BackendUtils utils;
   private final DbService dbService;
+  private final QuestionLoadingService questionLoadingService;
 
   /**
    * Wires the controller with the database layer and ensures that the topics
    * table is populated before serving requests.
    */
-  public ApiController(DbService dbService) {
+  public ApiController(DbService dbService, QuestionLoadingService questionLoadingService) {
     this.dbService = dbService;
+    this.questionLoadingService = questionLoadingService;
     this.utils = new BackendUtils();
 
     TopicsInit topicsInit = new TopicsInit(dbService);
@@ -339,6 +342,7 @@ public class ApiController {
       data.setAuthorId(preset[0]);
 
       // AI loadQuestions() METHOD NEEDED TO BE HERE !!!
+      questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
 
       return joinRoom(data);
     } catch (DatabaseAccessException e) {
@@ -400,6 +404,7 @@ public class ApiController {
       lobby.setStatus(dbService.getStatus(gameId));
       List<String> usernames = List.of(dbService.getParticipantUsernames(gameId));
       lobby.setPlayersUsernames(usernames);
+      lobby.setReady(dbService.isGameReady(gameId));
       return new ResponseEntity<>(lobby, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to modify privateness option for game " + lobby.getGameId(), HttpStatus.NOT_FOUND);
@@ -670,13 +675,13 @@ public class ApiController {
     }
   }
 
-  @PostMapping("/unimaginably/painful/death")
+    @PostMapping("/unimaginably/painful/death")
   public ResponseEntity<Object> eraseAllData() {
     try {
       dbService.eraseAllData("DELETE_ALL_RECORDS_IN_DATABASE");
       return new ResponseEntity<>(HttpStatus.OK);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while deleting all data", HttpStatus.INTERNAL_SERVER_ERROR);
+      return new ResponseEntity<>("Database error occurred while deleting all data hui", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

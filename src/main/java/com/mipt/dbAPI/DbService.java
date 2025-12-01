@@ -643,6 +643,31 @@ public class DbService {
     }
   }
 
+  public Boolean isGameReady(int gameId) throws DatabaseAccessException, SQLException {
+    // returns amount of questions in the database
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException(); // game not found
+    }
+
+    PreparedStatement selAmount = conn.prepareStatement("SELECT COUNT(id) FROM questions WHERE game_id = ?");
+    selAmount.setInt(1, gameId);
+    ResultSet rsAmount = selAmount.executeQuery();
+    if (rsAmount.next()) {
+      int currentNumber = rsAmount.getInt(1);
+      PreparedStatement selNeeded = conn.prepareStatement("SELECT number_of_questions FROM games WHERE id = ?");
+      selNeeded.setInt(1, gameId);
+      ResultSet rsNeeded = selNeeded.executeQuery();
+      if (rsNeeded.next()) {
+        int neededNumber = rsNeeded.getInt("number_of_questions");
+        return neededNumber == currentNumber;
+      } else {
+        throw new DatabaseAccessException();
+      }
+    } else {
+      throw new DatabaseAccessException();
+    }
+  }
+
   public Question getQuestion(int gameId, int questionNumber) throws SQLException, DatabaseAccessException {
     // returns a new object of next question
     if (!checkGameExists(gameId)) {

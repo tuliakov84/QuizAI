@@ -33,7 +33,7 @@ public class AchievementsInit {
         try (InputStreamReader reader = new InputStreamReader(inputStream)) {
           Object globalObj = parser.parse(reader);
           JSONArray jsonArray = (JSONArray) globalObj;
-          if (jsonArray.size() > dbAchievementsList.length) {
+          if (jsonArray.size() == dbAchievementsList.length) {
             for (Object element : jsonArray) {
               JSONObject obj = (JSONObject) element;
               String name = (String) obj.get("name");
