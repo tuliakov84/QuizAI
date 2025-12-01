@@ -9,6 +9,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class QuestionGenerator {
@@ -18,35 +20,39 @@ public class QuestionGenerator {
         JSONObject obj = inputArray.getJSONObject(0);
 
         String topic = obj.getString("topic");
-        int n = obj.getInt("n");
+        int numberOfQuestions = obj.getInt("numberOfQuestions");
         int difficult = obj.getInt("difficult");
 
+        if (numberOfQuestions > 1) {
+            return generateOneByOne(topic, numberOfQuestions, difficult);
+        }
+
+        return generateSingleQuestion(topic, difficult, 1);
+    }
+
+    private static CompletableFuture<String> generateSingleQuestion(String topic, int difficult, int questionNumber) {
         String url = "http://localhost:11434/api/chat";
 
         String prompt = String.format(
-            "Сгенерируй %d вопросов на тему '%s'. Сложность: %d (1-легко, 3-сложно).\n\n" +
-                "Формат ответа ТОЛЬКО JSON:\n" +
+            "Сгенерируй 1 вопрос на тему '%s'. Сложность: %d (1-легко, 3-сложно).\n\n" +
+                "Формат ответа ТОЛЬКО JSON-объект следующей структуры:\n" +
                 "{\n" +
-                "  \"questions\": [\n" +
-                "    {\n" +
-                "      \"number\": 1,\n" +
-                "      \"question\": \"Вопрос на русском языке\",\n" +
-                "      \"available_answers\": [\n" +
-                "        {\"index\": 1, \"answer\": \"Ответ 1\"},\n" +
-                "        {\"index\": 2, \"answer\": \"Ответ 2\"},\n" +
-                "        {\"index\": 3, \"answer\": \"Ответ 3\"},\n" +
-                "        {\"index\": 4, \"answer\": \"Ответ 4\"}\n" +
-                "      ],\n" +
-                "      \"right_ans_index\": 1\n" +
-                "    }\n" +
-                "  ]\n" +
+                "  \"question_number\": %d,\n" +
+                "  \"question_text\": \"Текст вопроса на русском языке\",\n" +
+                "  \"available_answers\": [\n" +
+                "    {\"index\": 1, \"answer\": \"Вариант ответа 1\"},\n" +
+                "    {\"index\": 2, \"answer\": \"Вариант ответа 2\"},\n" +
+                "    {\"index\": 3, \"answer\": \"Вариант ответа 3\"},\n" +
+                "    {\"index\": 4, \"answer\": \"Вариант ответа 4\"}\n" +
+                "  ],\n" +
+                "  \"right_answer_number\": номер_правильного_ответа_от_1_до_4\n" +
                 "}\n\n" +
                 "Важно:\n" +
                 "1. Все на русском языке\n" +
                 "2. Только JSON, без других слов\n" +
                 "3. Правильный JSON синтаксис\n" +
-                "4. ОБЯЗАТЕЛЬНО сгенерируй РОВНО %d вопросов",
-            n, topic, difficult, n
+                "4. Верни ТОЛЬКО ОДИН вопрос в формате объекта",
+            topic, difficult, questionNumber
         );
 
         JSONObject payload = new JSONObject();
@@ -55,8 +61,8 @@ public class QuestionGenerator {
         payload.put("stream", false);
 
         JSONObject options = new JSONObject();
-        options.put("temperature", 0.3);
-        options.put("num_predict", 8192); // Увеличиваем для больших ответов
+        options.put("temperature", 0.0);
+        options.put("num_predict", 2048);
         payload.put("options", options);
 
         JSONArray messages = new JSONArray();
@@ -68,23 +74,20 @@ public class QuestionGenerator {
         payload.put("messages", messages);
 
         HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(60)) // Увеличиваем таймаут подключения
+            .connectTimeout(Duration.ofSeconds(30))
             .build();
 
         HttpRequest req = HttpRequest.newBuilder()
             .uri(URI.create(url))
             .header("Content-Type", "application/json")
-            // УБИРАЕМ .timeout() - запрос будет выполняться неограниченное время
             .POST(HttpRequest.BodyPublishers.ofString(payload.toString(), StandardCharsets.UTF_8))
             .build();
 
         return client.sendAsync(req, HttpResponse.BodyHandlers.ofString())
             .thenApply(response -> {
-                System.out.println("Статус: " + response.statusCode());
-
                 if (response.statusCode() != 200) {
-                    System.err.println("Ошибка API: " + response.body());
-                    return "{\"questions\": []}";
+                    System.err.println("Ошибка API: " + response.statusCode());
+                    return null;
                 }
 
                 try {
@@ -92,181 +95,219 @@ public class QuestionGenerator {
                     JSONObject messageObj = responseObj.getJSONObject("message");
                     String content = messageObj.getString("content").trim();
 
-                    System.out.println("Сырой ответ модели (первые 500 символов):");
-                    System.out.println(content.substring(0, Math.min(500, content.length())));
-                    if (content.length() > 500) {
-                        System.out.println("... [всего символов: " + content.length() + "]");
+                    // Извлекаем и исправляем JSON
+                    String jsonContent = extractValidJson(content);
+                    if (jsonContent == null) {
+                        System.err.println("Не удалось извлечь JSON для вопроса " + questionNumber);
+                        return null;
                     }
 
-                    // Проверяем, не обрезан ли ответ
-                    if (isJsonTruncated(content)) {
-                        System.err.println("Предупреждение: JSON может быть обрезан");
-                        content = fixTruncatedJson(content);
-                    }
+                    // Парсим как объект
+                    JSONObject questionObj = new JSONObject(jsonContent);
 
-                    // Очищаем и исправляем JSON
-                    String cleanedJson = cleanAndFixJson(content);
+                    // Исправляем структуру вопроса
+                    JSONObject fixedQuestion = fixQuestionStructure(questionObj, questionNumber);
 
-                    if (cleanedJson == null || cleanedJson.isEmpty()) {
-                        System.err.println("Не удалось обработать JSON");
-                        return "{\"questions\": []}";
-                    }
-
-                    // Проверяем валидность
-                    JSONObject result = new JSONObject(cleanedJson);
-
-                    // Проверяем структуру
-                    if (!result.has("questions")) {
-                        System.err.println("Нет поля 'questions' в JSON");
-                        return "{\"questions\": []}";
-                    }
-
-                    JSONArray questions = result.getJSONArray("questions");
-                    System.out.println("Успешно! Получено вопросов: " + questions.length());
-
-                    // Проверяем количество вопросов
-                    if (questions.length() < n) {
-                        System.out.println("Предупреждение: получено " + questions.length() +
-                            " вопросов вместо " + n);
-                    }
-
-                    return removeDuplicateKeys(cleanedJson);
+                    return fixedQuestion;
 
                 } catch (Exception e) {
-                    System.err.println("Ошибка обработки: " + e.getMessage());
-                    e.printStackTrace();
-
-                    return "{\"questions\": []}";
+                    System.err.println("Ошибка при генерации вопроса " + questionNumber + ": " + e.getMessage());
+                    return null;
                 }
             })
             .exceptionally(ex -> {
-                System.err.println("Исключение при запросе: " + ex.getMessage());
-                if (ex.getCause() != null) {
-                    System.err.println("Причина: " + ex.getCause().getMessage());
+                System.err.println("Исключение при запросе вопроса " + questionNumber + ": " + ex.getMessage());
+                return null;
+            })
+            .thenApply(questionObj -> {
+                if (questionObj == null) {
+                    return "null";
                 }
-                return "{\"questions\": []}";
+                return questionObj.toString();
             });
     }
 
-    private static boolean isJsonTruncated(String json) {
-        if (json == null || json.trim().isEmpty()) {
-            return false;
+    private static CompletableFuture<String> generateOneByOne(String topic, int numberOfQuestions, int difficult) {
+        List<CompletableFuture<JSONObject>> futures = new ArrayList<>();
+
+        // Генерируем все вопросы параллельно
+        for (int i = 1; i <= numberOfQuestions; i++) {
+            final int questionNumber = i;
+            CompletableFuture<JSONObject> future = generateSingleQuestion(topic, difficult, questionNumber)
+                .thenApply(result -> {
+                    if (result.equals("null")) {
+                        return null;
+                    }
+                    try {
+                        return new JSONObject(result);
+                    } catch (Exception e) {
+                        System.err.println("Ошибка парсинга вопроса " + questionNumber + ": " + e.getMessage());
+                        return null;
+                    }
+                });
+            futures.add(future);
         }
 
-        String trimmed = json.trim();
+        // Ждем завершения всех futures
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .thenApply(v -> {
+                JSONArray questions = new JSONArray();
+                int generatedCount = 0;
 
-        if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
-            return true;
+                for (int i = 0; i < futures.size(); i++) {
+                    try {
+                        JSONObject question = futures.get(i).get();
+                        if (question != null) {
+                            questions.put(question);
+                            generatedCount++;
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Ошибка при получении вопроса " + (i + 1) + ": " + e.getMessage());
+                    }
+                }
+
+                System.out.println("Сгенерировано вопросов: " + generatedCount + " из " + numberOfQuestions);
+
+                if (generatedCount < numberOfQuestions) {
+                    System.out.println("Предупреждение: получено " + generatedCount + " вопросов вместо " + numberOfQuestions);
+                }
+
+                return questions.toString();
+            });
+    }
+
+    private static String extractValidJson(String content) {
+        if (content == null || content.isEmpty()) {
+            return null;
         }
 
-        // Считаем баланс скобок
+        content = content.trim();
+
+        // Ищем начало объекта
+        int start = content.indexOf('{');
+        if (start == -1) {
+            return null;
+        }
+
+        // Ищем конец объекта
         int braceBalance = 0;
-        int bracketBalance = 0;
         boolean inQuotes = false;
         char prevChar = 0;
 
-        for (char c : trimmed.toCharArray()) {
+        for (int i = start; i < content.length(); i++) {
+            char c = content.charAt(i);
+
             if (c == '"' && prevChar != '\\') {
                 inQuotes = !inQuotes;
             } else if (!inQuotes) {
                 if (c == '{') braceBalance++;
                 else if (c == '}') braceBalance--;
-                else if (c == '[') bracketBalance++;
-                else if (c == ']') bracketBalance--;
             }
+
             prevChar = c;
-        }
 
-        return braceBalance != 0 || bracketBalance != 0;
-    }
-
-    private static String fixTruncatedJson(String json) {
-        if (json == null || json.trim().isEmpty()) {
-            return json;
-        }
-
-        String trimmed = json.trim();
-        StringBuilder fixed = new StringBuilder(trimmed);
-
-        // Считаем баланс скобок
-        int braceBalance = 0;
-        int bracketBalance = 0;
-        boolean inQuotes = false;
-        char prevChar = 0;
-
-        for (char c : trimmed.toCharArray()) {
-            if (c == '"' && prevChar != '\\') {
-                inQuotes = !inQuotes;
-            } else if (!inQuotes) {
-                if (c == '{') braceBalance++;
-                else if (c == '}') braceBalance--;
-                else if (c == '[') bracketBalance++;
-                else if (c == ']') bracketBalance--;
+            if (braceBalance == 0 && i > start) {
+                return content.substring(start, i + 1);
             }
-            prevChar = c;
         }
 
-        // Закрываем незакрытые скобки
-        for (int i = 0; i < bracketBalance; i++) {
-            fixed.append("]");
-        }
-
-        for (int i = 0; i < braceBalance; i++) {
-            fixed.append("}");
-        }
-
-        if (!fixed.toString().endsWith("}")) {
-            fixed.append("}");
-        }
-
-        return fixed.toString();
+        return null;
     }
 
-    private static String cleanAndFixJson(String rawJson) {
-        if (rawJson == null || rawJson.trim().isEmpty()) {
-            return null;
-        }
-
-        String json = rawJson.trim();
-
-        // Удаляем все до первой '{' и после последней '}'
-        int start = json.indexOf('{');
-        int end = json.lastIndexOf('}');
-
-        if (start == -1 || end == -1 || end <= start) {
-            return null;
-        }
-
-        json = json.substring(start, end + 1);
-
-        // Исправляем распространенные ошибки
-        json = json.replaceAll("\"questions\":\\s*\\[\\[", "\"questions\": [")
-            .replaceAll("\\]\\]\\s*\\}", "] }")
-            .replaceAll(";", ",")
-            .replaceAll("\"answer\":\\s*\"([^\"]*?)\\]\"", "\"answer\":\"$1\"")
-            .replaceAll("\"answer\":\\s*\"([^\"]*?);\"", "\"answer\":\"$1\"")
-            .replaceAll("\"answer\":\\s*\"([^\"]*?)\\}\"", "\"answer\":\"$1\"")
-            .replaceAll("\"answer\":\\s*([^\"\\[{}\\],]+)(?=[,\\]}])", "\"answer\":\"$1\"")
-            .replaceAll(",\\s*]", "]")
-            .replaceAll(",\\s*}", "}");
-
-        return json;
-    }
-
-    private static String removeDuplicateKeys(String jsonString) {
+    private static JSONObject fixQuestionStructure(JSONObject question, int expectedNumber) {
         try {
-            JSONObject json = new JSONObject(jsonString);
+            JSONObject fixed = new JSONObject();
 
-            if (json.has("questions")) {
-                JSONArray questions = json.getJSONArray("questions");
-                JSONObject cleanJson = new JSONObject();
-                cleanJson.put("questions", questions);
-                return cleanJson.toString();
+            // Устанавливаем номер вопроса
+            fixed.put("question_number", expectedNumber);
+
+            // Устанавливаем текст вопроса
+            if (question.has("question_text")) {
+                fixed.put("question_text", question.getString("question_text"));
+            } else if (question.has("question")) {
+                fixed.put("question_text", question.getString("question"));
+            } else {
+                fixed.put("question_text", "Вопрос на тему");
             }
 
-            return jsonString;
+            // Обрабатываем варианты ответов
+            JSONArray answers = new JSONArray();
+            if (question.has("available_answers")) {
+                JSONArray originalAnswers = question.getJSONArray("available_answers");
+                for (int i = 0; i < Math.min(4, originalAnswers.length()); i++) {
+                    JSONObject answerObj = originalAnswers.getJSONObject(i);
+                    JSONObject fixedAnswer = new JSONObject();
+
+                    if (answerObj.has("index")) {
+                        fixedAnswer.put("index", answerObj.getInt("index"));
+                    } else {
+                        fixedAnswer.put("index", i + 1);
+                    }
+
+                    if (answerObj.has("answer")) {
+                        String answerText = answerObj.getString("answer");
+                        // Исправляем ошибки в тексте
+                        answerText = answerText.replaceAll("\"Впитер\"", "Юпитер")
+                            .replaceAll("\"Ипитер\"", "Юпитер");
+                        fixedAnswer.put("answer", answerText);
+                    } else {
+                        fixedAnswer.put("answer", "Вариант " + (i + 1));
+                    }
+
+                    answers.put(fixedAnswer);
+                }
+            }
+
+            // Заполняем до 4 ответов если меньше
+            while (answers.length() < 4) {
+                JSONObject answer = new JSONObject();
+                answer.put("index", answers.length() + 1);
+                answer.put("answer", "Вариант " + (answers.length() + 1));
+                answers.put(answer);
+            }
+
+            fixed.put("available_answers", answers);
+
+            // Устанавливаем правильный ответ
+            if (question.has("right_answer_number")) {
+                int rightAnswer = question.getInt("right_answer_number");
+                if (rightAnswer >= 1 && rightAnswer <= 4) {
+                    fixed.put("right_answer_number", rightAnswer);
+                } else {
+                    fixed.put("right_answer_number", 1);
+                }
+            } else if (question.has("right_ans_index")) {
+                int rightAnswer = question.getInt("right_ans_index");
+                if (rightAnswer >= 1 && rightAnswer <= 4) {
+                    fixed.put("right_answer_number", rightAnswer);
+                } else {
+                    fixed.put("right_answer_number", 1);
+                }
+            } else {
+                fixed.put("right_answer_number", 1);
+            }
+
+            return fixed;
+
         } catch (Exception e) {
-            return jsonString;
+            System.err.println("Ошибка при исправлении структуры вопроса: " + e.getMessage());
+
+            // Создаем минимально валидный вопрос
+            JSONObject minimalQuestion = new JSONObject();
+            minimalQuestion.put("question_number", expectedNumber);
+            minimalQuestion.put("question_text", "Вопрос на тему");
+
+            JSONArray answers = new JSONArray();
+            for (int i = 1; i <= 4; i++) {
+                JSONObject answer = new JSONObject();
+                answer.put("index", i);
+                answer.put("answer", "Вариант " + i);
+                answers.put(answer);
+            }
+            minimalQuestion.put("available_answers", answers);
+            minimalQuestion.put("right_answer_number", 1);
+
+            return minimalQuestion;
         }
     }
 }
