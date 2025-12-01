@@ -29,22 +29,28 @@
             </div>
         </div>
 
-        <div class="right">
-            <div class="h13">
-                ВЫ В КОМНАТЕ КВИЗА! ЖДЁМ ЕГО НАЧАЛА!
+        <div class="main_blockr">
+            <div class="room-info-section">
+                <div class="room-info-label">CCЫЛКА-ПРИГЛАШЕНИЕ:</div>
+                <div class="room-info-value">
+                    <span id="invite-link">Загрузка...</span>
+                    <span class="copy-icon" title="Копировать">📋</span>
+                </div>
+
+                <div class="room-info-label">ID-КВИЗА:</div>
+                <div class="room-info-value" id="invite-id">Загрузка...</div>
             </div>
 
-            <div class="h12  h121">
-                CCЫЛКА-ПРИГЛАШЕНИЕ:
+            <div class="questions-status-section">
+                <div class="questions-status-label">СТАТУС ВОПРОСОВ:</div>
+                <div id="questions-status" class="questions-status-value loading">
+                    <span class="status-icon">⏳</span>
+                    <span class="status-text">Загрузка вопросов</span>
+                    <span class="loading-dots"></span>
+                </div>
             </div>
-            <div id="invite-link" class="link">Загрузка...</div>
 
-            <div class="h12  h121">
-                ID-КВИЗА:
-            </div>
-            <div id="invite-id" class="link">Загрузка...</div>
-
-            <div class="main_blockr">
+            <div class="room-info-section">
                 <span>ИЗМЕНИТЬ ПРИВАТНОСТЬ КОМНАТЫ:</span>
                 <div class="isprivate block_hor">
                     <a href="#" class="btnprivate privacy-btn" data-private="false">ОТКРЫТАЯ</a>
@@ -55,10 +61,10 @@
                 <div class="theme">
                     <div id="quiz-theme" class="h11">Загрузка...</div>
                 </div>
-
-                <a href="#" class="btnstart" id="start-quiz-btn">НАЧАТЬ КВИЗ ДОСРОЧНО</a>
-                <div id="start-quiz-message" class="message" style="display: none;"></div>
             </div>
+
+            <a href="#" class="btnstart disabled" id="start-quiz-btn">НАЧАТЬ КВИЗ ДОСРОЧНО</a>
+            <div id="start-quiz-message" class="message" style="display: none;"></div>
         </div>
     </main>
 </div>
@@ -188,6 +194,25 @@
     function showPrivacyMessage(text, type) {
       // Можно использовать существующий элемент сообщения или создать новый
       alert(text); // Временное решение - можно заменить на красивый toast
+    }
+
+    // Обновление отображения статуса вопросов
+    function updateQuestionsStatus() {
+        const statusElement = document.getElementById('questions-status');
+        const statusText = statusElement.querySelector('.status-text');
+        const statusIcon = statusElement.querySelector('.status-icon');
+
+        if (questionsReady) {
+            statusElement.className = 'questions-status-value ready';
+            statusIcon.textContent = '✅';
+            statusText.textContent = 'Вопросы готовы';
+            statusElement.title = 'Все вопросы загружены и проверены';
+        } else {
+            statusElement.className = 'questions-status-value loading';
+            statusIcon.textContent = '⏳';
+            statusText.textContent = 'Загрузка вопросов';
+            statusElement.title = 'ИИ генерирует вопросы для квиза...';
+        }
     }
 
     // Загрузка данных комнаты
@@ -382,33 +407,39 @@
 
     // Обновление информации о комнате
     function updateRoomInfo(roomData) {
-      // Обновляем ссылку-приглашение
-      const linkElement = document.getElementById('invite-link');
-      linkElement.textContent = `${window.location.origin}/room.html?gameId=${gameId}`;
-      const IDElement = document.getElementById('invite-id');
-      IDElement.textContent = `${gameId}`;
+        // Обновляем ссылку-приглашение
+        const linkElement = document.getElementById('invite-link');
+        const fullLink = `${window.location.origin}/room.html?gameId=${gameId}`;
+        linkElement.textContent = fullLink;
 
-      // Устанавливаем начальную приватность из данных комнаты
-      if (roomData.isPrivate !== undefined) {
-        isPrivate = roomData.isPrivate;
-        updatePrivacyButtons(isPrivate);
-      }
+        const IDElement = document.getElementById('invite-id');
+        IDElement.textContent = `${gameId}`;
 
-      //копирование ссылки по клику
-      linkElement.style.cursor = 'pointer';
-      linkElement.title = 'Кликните для копирования';
-      linkElement.addEventListener('click', function () {
-        navigator.clipboard.writeText(linkElement.textContent)
-          .then(() => alert('Ссылка скопирована в буфер обмена!'))
-          .catch(err => console.error('Ошибка копирования:', err));
-      });
+        // Копирование ссылки по клику
+        document.querySelector('.copy-icon').addEventListener('click', function () {
+            navigator.clipboard.writeText(fullLink)
+                .then(() => {
+                    const originalText = this.textContent;
+                    this.textContent = '✅';
+                    setTimeout(() => {
+                        this.textContent = originalText;
+                    }, 2000);
+                })
+                .catch(err => console.error('Ошибка копирования:', err));
+        });
 
-      // Получаем максимальное количество игроков из данных комнаты (если есть)
-      if (roomData.participantsNumber) {
-        maxPlayers = roomData.participantsNumber;
-        // Сразу обновляем счетчик
-        document.getElementById('players-count').textContent = `0/${maxPlayers}`;
-      }
+        // Устанавливаем начальную приватность из данных комнаты
+        if (roomData.isPrivate !== undefined) {
+            isPrivate = roomData.isPrivate;
+            updatePrivacyButtons(isPrivate);
+        }
+
+        // Получаем максимальное количество игроков из данных комнаты (если есть)
+        if (roomData.participantsNumber) {
+            maxPlayers = roomData.participantsNumber;
+            // Сразу обновляем счетчик
+            document.getElementById('players-count').textContent = `0/${maxPlayers}`;
+        }
     }
 
     // Обработчик для кнопки "Назад"
