@@ -453,14 +453,13 @@ public class ApiController {
    */
   @PostMapping("/game/verify-answer")
   public ResponseEntity<Object> verifyAnswer(@RequestBody AnswerObject answerObject) {
-    //todo убрать передачу сложности
     try {
       int gameId = answerObject.getGameId();
       int questionNumber = answerObject.getQuestionNumber();
       int submittedAnswerNumber = answerObject.getSubmittedAnswerNumber();
       int rightAnswer = dbService.getRightAnswer(gameId, questionNumber);
 
-      Game.LevelDifficulty levelDifficulty = answerObject.getLevelDifficulty();
+      int levelDifficulty = dbService.getPreset(gameId)[1];
       String session = answerObject.getSession();
 
       if (submittedAnswerNumber == rightAnswer) {
