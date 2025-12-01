@@ -498,18 +498,21 @@ public class DbServiceTest {
   }
 
   @Test
-  void testLoadQuestions_NextQuestion_GetCurrentQuestion_GetRightAnswer() throws SQLException, DatabaseAccessException, JSONException {
+  void testLoadQuestions_NextQuestion_GetCurrentQuestion_GetRightAnswer_isGameReady() throws SQLException, DatabaseAccessException, JSONException {
     // creating game
-    Integer gameId = dbService.createGame("SESSION", 1, 10, 4, 1);
+    Integer gameId = dbService.createGame("SESSION", 1, 2, 4, 1);
     dbService.setStatus(gameId, 2);
 
     // testing not existing game getCurrentQuestionNumber and nextQuestion
     assertThrows(DatabaseAccessException.class, () -> dbService.getQuestion(145, 1));
 
-    // load questions
+    // load questions and testing isGameReady
+    assertThrows(DatabaseAccessException.class, () -> dbService.isGameReady(145));
+    assertFalse(dbService.isGameReady(gameId));
     JSONArray jsonObject = getJsonArrayOfTestQuestions();
     assertThrows(DatabaseAccessException.class, () -> dbService.loadQuestions(145, jsonObject));
     dbService.loadQuestions(gameId, jsonObject);
+    assertTrue(dbService.isGameReady(gameId));
 
     // testing getRightAnswer
     // testing not existing game

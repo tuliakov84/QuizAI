@@ -6,7 +6,16 @@ public class LobbyObject {
   private int gameId;
   private Status status;
   private List<String> playersUsernames;
-  
+  private Boolean ready;
+
+  public Boolean getReady() {
+    return ready;
+  }
+
+  public void setReady(Boolean readyVal) {
+    ready = readyVal;
+  }
+
   private enum Status {
     WAITING,
     IN_PROGRESS,

@@ -342,7 +342,7 @@ public class ApiController {
       data.setAuthorId(preset[0]);
 
       // AI loadQuestions() METHOD NEEDED TO BE HERE !!!
-      //questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
+      questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
 
       return joinRoom(data);
     } catch (DatabaseAccessException e) {
@@ -404,6 +404,7 @@ public class ApiController {
       lobby.setStatus(dbService.getStatus(gameId));
       List<String> usernames = List.of(dbService.getParticipantUsernames(gameId));
       lobby.setPlayersUsernames(usernames);
+      lobby.setReady(dbService.isGameReady(gameId));
       return new ResponseEntity<>(lobby, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to modify privateness option for game " + lobby.getGameId(), HttpStatus.NOT_FOUND);
