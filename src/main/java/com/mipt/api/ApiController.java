@@ -342,6 +342,7 @@ public class ApiController {
       data.setAuthorId(preset[0]);
 
       // AI loadQuestions() METHOD NEEDED TO BE HERE !!!
+      System.out.println("Sent request");
       questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
 
       return joinRoom(data);

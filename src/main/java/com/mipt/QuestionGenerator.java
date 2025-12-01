@@ -9,11 +9,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class QuestionGenerator {
+
+    // Хранилище уже сгенерированных вопросов для предотвращения повторов
+    private static final Set<String> generatedQuestions = new HashSet<>();
+    private static final Object lock = new Object();
 
     public static CompletableFuture<String> generate(String jsonString) {
         JSONArray inputArray = new JSONArray(jsonString);
@@ -23,18 +28,31 @@ public class QuestionGenerator {
         int numberOfQuestions = obj.getInt("numberOfQuestions");
         int difficult = obj.getInt("difficult");
 
-        if (numberOfQuestions > 1) {
-            return generateOneByOne(topic, numberOfQuestions, difficult);
+        // Очищаем хранилище при каждом новом вызове
+        synchronized (lock) {
+            generatedQuestions.clear();
         }
 
-        return generateSingleQuestion(topic, difficult, 1);
+        if (numberOfQuestions > 1) {
+            return generateSequentially(topic, numberOfQuestions, difficult);
+        }
+
+        return generateSingleQuestion(topic, difficult, 1, "");
     }
 
-    private static CompletableFuture<String> generateSingleQuestion(String topic, int difficult, int questionNumber) {
+    private static CompletableFuture<String> generateSingleQuestion(String topic, int difficult,
+                                                                    int questionNumber, String previousQuestions) {
         String url = "http://localhost:11434/api/chat";
 
+        // Добавляем контекст о предыдущих вопросах, чтобы избежать повторов
+        String contextPrompt = previousQuestions.isEmpty() ?
+            "Пока нет сгенерированных вопросов." :
+            "Уже сгенерированы следующие вопросы:\n" + previousQuestions;
+
         String prompt = String.format(
-            "Сгенерируй 1 вопрос на тему '%s'. Сложность: %d (1-легко, 3-сложно).\n\n" +
+            "Сгенерируй УНИКАЛЬНЫЙ вопрос на тему '%s'. Сложность: %d (1-легко, 3-сложно).\n\n" +
+                "%s\n\n" +
+                "ВАЖНО: Вопрос должен быть уникальным и не повторять уже сгенерированные выше.\n\n" +
                 "Формат ответа ТОЛЬКО JSON-объект следующей структуры:\n" +
                 "{\n" +
                 "  \"question_number\": %d,\n" +
@@ -47,13 +65,13 @@ public class QuestionGenerator {
                 "  ],\n" +
                 "  \"right_answer_number\": номер_правильного_ответа_от_1_до_4\n" +
                 "}\n\n" +
-                "Важно:\n" +
+                "Требования к вопросу:\n" +
                 "1. Все на русском языке\n" +
                 "2. Только JSON, без других слов\n" +
                 "3. Правильный JSON синтаксис\n" +
-                "4. Верни ТОЛЬКО ОДИН вопрос в формате объекта\n" +
-                "5. Каждый вопрос должен быть уникален",
-            topic, difficult, questionNumber
+                "4. Вопрос должен быть УНИКАЛЬНЫМ и не повторять предыдущие\n" +
+                "5. Варианты ответов должны быть разнообразными и релевантными",
+            topic, difficult, contextPrompt, questionNumber
         );
 
         JSONObject payload = new JSONObject();
@@ -62,7 +80,7 @@ public class QuestionGenerator {
         payload.put("stream", false);
 
         JSONObject options = new JSONObject();
-        options.put("temperature", 0.0);
+        options.put("temperature", 0.7); // Немного повышаем температуру для разнообразия
         options.put("num_predict", 2048);
         payload.put("options", options);
 
@@ -96,19 +114,28 @@ public class QuestionGenerator {
                     JSONObject messageObj = responseObj.getJSONObject("message");
                     String content = messageObj.getString("content").trim();
 
-                    // Извлекаем и исправляем JSON
                     String jsonContent = extractValidJson(content);
                     if (jsonContent == null) {
                         System.err.println("Не удалось извлечь JSON для вопроса " + questionNumber);
                         return null;
                     }
 
-                    // Парсим как объект
                     JSONObject questionObj = new JSONObject(jsonContent);
 
-                    // Исправляем структуру вопроса
-                    JSONObject fixedQuestion = fixQuestionStructure(questionObj, questionNumber);
+                    // Проверяем уникальность вопроса
+                    String questionText = questionObj.optString("question_text",
+                        questionObj.optString("question", ""));
 
+                    synchronized (lock) {
+                        // Если вопрос уже был сгенерирован, возвращаем null для повторной генерации
+                        if (!questionText.isEmpty() && generatedQuestions.contains(questionText.toLowerCase())) {
+                            System.err.println("Обнаружен повторный вопрос: " + questionText.substring(0, Math.min(50, questionText.length())));
+                            return null;
+                        }
+                        generatedQuestions.add(questionText.toLowerCase());
+                    }
+
+                    JSONObject fixedQuestion = fixQuestionStructure(questionObj, questionNumber);
                     return fixedQuestion;
 
                 } catch (Exception e) {
@@ -128,52 +155,66 @@ public class QuestionGenerator {
             });
     }
 
-    private static CompletableFuture<String> generateOneByOne(String topic, int numberOfQuestions, int difficult) {
-        List<CompletableFuture<JSONObject>> futures = new ArrayList<>();
+    private static CompletableFuture<String> generateSequentially(String topic, int numberOfQuestions, int difficult) {
+        AtomicInteger generatedCount = new AtomicInteger(0);
+        JSONArray allQuestions = new JSONArray();
+        StringBuilder previousQuestions = new StringBuilder();
 
-        // Генерируем все вопросы параллельно
-        for (int i = 1; i <= numberOfQuestions; i++) {
-            final int questionNumber = i;
-            CompletableFuture<JSONObject> future = generateSingleQuestion(topic, difficult, questionNumber)
-                .thenApply(result -> {
-                    if (result.equals("null")) {
-                        return null;
-                    }
-                    try {
-                        return new JSONObject(result);
-                    } catch (Exception e) {
-                        System.err.println("Ошибка парсинга вопроса " + questionNumber + ": " + e.getMessage());
-                        return null;
-                    }
-                });
-            futures.add(future);
+        // Вместо параллельной генерации делаем последовательную с учетом предыдущих вопросов
+        return generateQuestionRecursively(topic, difficult, numberOfQuestions, 1,
+            generatedCount, allQuestions, previousQuestions, 0);
+    }
+
+    private static CompletableFuture<String> generateQuestionRecursively(String topic, int difficult,
+                                                                         int totalQuestions, int currentQuestion,
+                                                                         AtomicInteger generatedCount,
+                                                                         JSONArray allQuestions,
+                                                                         StringBuilder previousQuestions,
+                                                                         int retryCount) {
+        if (currentQuestion > totalQuestions || retryCount > 3) { // Максимум 3 попытки на вопрос
+            JSONObject result = new JSONObject();
+            result.put("generated_count", generatedCount.get());
+            result.put("questions", allQuestions);
+
+            System.out.println("Сгенерировано вопросов: " + generatedCount.get() + " из " + totalQuestions);
+
+            if (generatedCount.get() < totalQuestions) {
+                System.out.println("Предупреждение: получено " + generatedCount.get() +
+                    " уникальных вопросов вместо " + totalQuestions);
+            }
+
+            return CompletableFuture.completedFuture(allQuestions.toString());
         }
 
-        // Ждем завершения всех futures
-        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-            .thenApply(v -> {
-                JSONArray questions = new JSONArray();
-                int generatedCount = 0;
-
-                for (int i = 0; i < futures.size(); i++) {
-                    try {
-                        JSONObject question = futures.get(i).get();
-                        if (question != null) {
-                            questions.put(question);
-                            generatedCount++;
-                        }
-                    } catch (Exception e) {
-                        System.err.println("Ошибка при получении вопроса " + (i + 1) + ": " + e.getMessage());
-                    }
+        return generateSingleQuestion(topic, difficult, currentQuestion, previousQuestions.toString())
+            .thenCompose(result -> {
+                if (result.equals("null")) {
+                    // Если не удалось сгенерировать, пробуем еще раз
+                    System.err.println("Попытка " + (retryCount + 1) + " для вопроса " + currentQuestion + " не удалась");
+                    return generateQuestionRecursively(topic, difficult, totalQuestions, currentQuestion,
+                        generatedCount, allQuestions, previousQuestions, retryCount + 1);
                 }
 
-                System.out.println("Сгенерировано вопросов: " + generatedCount + " из " + numberOfQuestions);
+                try {
+                    JSONObject question = new JSONObject(result);
 
-                if (generatedCount < numberOfQuestions) {
-                    System.out.println("Предупреждение: получено " + generatedCount + " вопросов вместо " + numberOfQuestions);
+                    // Добавляем вопрос в список
+                    allQuestions.put(question);
+                    generatedCount.incrementAndGet();
+
+                    // Обновляем контекст для следующих вопросов
+                    String questionText = question.getString("question_text");
+                    previousQuestions.append(currentQuestion).append(". ").append(questionText).append("\n");
+
+                    // Переходим к следующему вопросу
+                    return generateQuestionRecursively(topic, difficult, totalQuestions, currentQuestion + 1,
+                        generatedCount, allQuestions, previousQuestions, 0);
+
+                } catch (Exception e) {
+                    System.err.println("Ошибка при обработке вопроса " + currentQuestion + ": " + e.getMessage());
+                    return generateQuestionRecursively(topic, difficult, totalQuestions, currentQuestion,
+                        generatedCount, allQuestions, previousQuestions, retryCount + 1);
                 }
-
-                return questions.toString();
             });
     }
 
@@ -184,13 +225,11 @@ public class QuestionGenerator {
 
         content = content.trim();
 
-        // Ищем начало объекта
         int start = content.indexOf('{');
         if (start == -1) {
             return null;
         }
 
-        // Ищем конец объекта
         int braceBalance = 0;
         boolean inQuotes = false;
         char prevChar = 0;
@@ -218,20 +257,16 @@ public class QuestionGenerator {
     private static JSONObject fixQuestionStructure(JSONObject question, int expectedNumber) {
         try {
             JSONObject fixed = new JSONObject();
-
-            // Устанавливаем номер вопроса
             fixed.put("question_number", expectedNumber);
 
-            // Устанавливаем текст вопроса
             if (question.has("question_text")) {
                 fixed.put("question_text", question.getString("question_text"));
             } else if (question.has("question")) {
                 fixed.put("question_text", question.getString("question"));
             } else {
-                fixed.put("question_text", "Вопрос на тему");
+                fixed.put("question_text", "Вопрос на тему " + expectedNumber);
             }
 
-            // Обрабатываем варианты ответов
             JSONArray answers = new JSONArray();
             if (question.has("available_answers")) {
                 JSONArray originalAnswers = question.getJSONArray("available_answers");
@@ -247,9 +282,10 @@ public class QuestionGenerator {
 
                     if (answerObj.has("answer")) {
                         String answerText = answerObj.getString("answer");
-                        // Исправляем ошибки в тексте
                         answerText = answerText.replaceAll("\"Впитер\"", "Юпитер")
-                            .replaceAll("\"Ипитер\"", "Юпитер");
+                            .replaceAll("\"Ипитер\"", "Юпитер")
+                            .replaceAll("\"\\\\\"", "\"") // Убираем экранированные кавычки
+                            .trim();
                         fixedAnswer.put("answer", answerText);
                     } else {
                         fixedAnswer.put("answer", "Вариант " + (i + 1));
@@ -259,7 +295,6 @@ public class QuestionGenerator {
                 }
             }
 
-            // Заполняем до 4 ответов если меньше
             while (answers.length() < 4) {
                 JSONObject answer = new JSONObject();
                 answer.put("index", answers.length() + 1);
@@ -269,7 +304,6 @@ public class QuestionGenerator {
 
             fixed.put("available_answers", answers);
 
-            // Устанавливаем правильный ответ
             if (question.has("right_answer_number")) {
                 int rightAnswer = question.getInt("right_answer_number");
                 if (rightAnswer >= 1 && rightAnswer <= 4) {
@@ -291,12 +325,11 @@ public class QuestionGenerator {
             return fixed;
 
         } catch (Exception e) {
-            System.err.println("Ошибка при исправлении структуры вопроса: " + e.getMessage());
+            System.err.println("Ошибка при исправлении структуры вопроса " + expectedNumber + ": " + e.getMessage());
 
-            // Создаем минимально валидный вопрос
             JSONObject minimalQuestion = new JSONObject();
             minimalQuestion.put("question_number", expectedNumber);
-            minimalQuestion.put("question_text", "Вопрос на тему");
+            minimalQuestion.put("question_text", "Вопрос на тему " + expectedNumber);
 
             JSONArray answers = new JSONArray();
             for (int i = 1; i <= 4; i++) {
