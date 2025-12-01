@@ -1,7 +1,6 @@
 package com.mipt.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mipt.QuestionGenerator;
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.*;
@@ -9,6 +8,7 @@ import com.mipt.initialization.AchievementsInit;
 import com.mipt.initialization.TopicsInit;
 import com.mipt.utils.BackendUtils;
 import com.mipt.utils.ValidationUtils;
+import com.mipt.service.QuestionLoadingService;
 import org.json.JSONArray;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +21,6 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 
 @RestController
@@ -31,13 +30,15 @@ public class ApiController {
 
   private final BackendUtils utils;
   private final DbService dbService;
+  private final QuestionLoadingService questionLoadingService;
 
   /**
    * Wires the controller with the database layer and ensures that the topics
    * table is populated before serving requests.
    */
-  public ApiController(DbService dbService) {
+  public ApiController(DbService dbService, QuestionLoadingService questionLoadingService) {
     this.dbService = dbService;
+    this.questionLoadingService = questionLoadingService;
     this.utils = new BackendUtils();
 
     TopicsInit topicsInit = new TopicsInit(dbService);
@@ -341,13 +342,7 @@ public class ApiController {
       data.setAuthorId(preset[0]);
 
       // AI loadQuestions() METHOD NEEDED TO BE HERE !!!
-      Topic topic = dbService.getTopicById(topicId);
-      String topicName = topic.getName();
-
-      String jsonString = "[{\"topic\":\"" + topicName + "\",\"numberOfQuestions\":" + numberOfQuestions + ",\"difficult\":" + levelDifficulty + "}]";
-      CompletableFuture<String> futureJson = QuestionGenerator.generate(jsonString);
-      JSONArray questionsJson = new JSONArray(futureJson);
-      dbService.loadQuestions(gameId, questionsJson);
+      questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
 
       return joinRoom(data);
     } catch (DatabaseAccessException e) {
