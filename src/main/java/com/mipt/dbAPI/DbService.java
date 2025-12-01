@@ -631,7 +631,7 @@ public class DbService {
     // deletes the game
 
     if (checkGameExists(gameId)) {
-      PreparedStatement updData1 = conn.prepareStatement("UPDATE users SET current_game_id = NULL WHERE current_game_id = ?");
+      PreparedStatement updData1 = conn.prepareStatement("UPDATE users SET current_game_id = NULL, current_game_points = 0 WHERE current_game_id = ?");
       PreparedStatement updData2 = conn.prepareStatement("DELETE FROM games WHERE id = ?");
 
       updData1.setInt(1, gameId);
