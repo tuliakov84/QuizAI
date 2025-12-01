@@ -1,26 +1,6 @@
-[
-  {
-    "top": 1,
-    "user_id": 151515,
-    "username": "MegaMisha2007",
-    "game_count": 15,
-    "points": 150,
-    "max_points": 160
-  },
-  {
-    "top": 2,
-    "user_id": 13467,
-    "username": "HyperEvgeniy1337",
-    "game_count": 14,
-    "points": 145,
-    "max_points": 170
-  },
-  {
-    "top": 3,
-    "user_id": 999999,
-    "username": "SashaSasha",
-    "game_count": 13,
-    "points": 130,
-    "max_points": 170
-  }
-]
+[[
+  3,
+  "pidoras",
+  0,
+  0
+]]
