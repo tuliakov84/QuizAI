@@ -8,12 +8,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 public class QuestionGenerator {
 
     public static CompletableFuture<String> generate(String jsonString) {
-
         JSONArray inputArray = new JSONArray(jsonString);
         JSONObject obj = inputArray.getJSONObject(0);
 
@@ -24,79 +24,40 @@ public class QuestionGenerator {
         String url = "http://localhost:11434/api/chat";
 
         String prompt = String.format(
-                "You are a quiz generator AI.\n" +
-                        "\n" +
-                        "Your task:\n" +
-                        "Generate %d multiple-choice questions on the topic \"%s\" with difficulty %d.\n" +
-                        "All output MUST be fully in Russian.\n" +
-                        "Each question must have exactly 4 answer choices and must indicate the correct one.\n" +
-                        "Difficulty level is an integer from 1 to 3 (1 = easy, 2 = medium, 3 = hard). You must generate questions that match the difficulty level.\n" +
-                        "\n" +
-                        "Below is the JSON template for a single question:\n" +
-                        "\n" +
-                        "{\n" +
-                        "  \"number\": <k + 1>,\n" +
-                        "  \"question\": \"<question text in Russian>\",\n" +
-                        "  \"available_answers\":\n" +
-                        "  [\n" +
-                        "    {\n" +
-                        "      \"index\": 1,\n" +
-                        "      \"answer\": \"<answer1>\"\n" +
-                        "    },\n" +
-                        "    {\n" +
-                        "      \"index\": 2,\n" +
-                        "      \"answer\": \"<answer2>\"\n" +
-                        "    },\n" +
-                        "    {\n" +
-                        "      \"index\": 3,\n" +
-                        "      \"answer\": \"<answer3>\"\n" +
-                        "    },\n" +
-                        "    {\n" +
-                        "      \"index\": 4,\n" +
-                        "      \"answer\": \"<answer4>\"\n" +
-                        "    }\n" +
-                        "  ],\n" +
-                        "  \"right_ans_index\": <correct answer index>\n" +
-                        "}\n" +
-                        "\n" +
-                        "FINAL OUTPUT FORMAT (strict):\n" +
-                        "[\n" +
-                        "  {\n" +
-                        "    \"questions\":\n" +
-                        "    [\n" +
-                        "      ... %d question objects following the template above ...\n" +
-                        "    ]\n" +
-                        "  }\n" +
-                        "]\n" +
-                        "\n" +
-                        "Rules:\n" +
-                        "1. The final output must be ONLY valid JSON.\n" +
-                        "2. No explanations, comments, markdown, or any text outside JSON.\n" +
-                        "3. The top-level JSON must be an array (outer square brackets).\n" +
-                        "4. The array must contain exactly one object, which has the key \"questions\".\n" +
-                        "5. The \"questions\" value must be an array of exactly %d question objects.\n" +
-                        "6. The field \"number\" must go from 1 to %d.\n" +
-                        "7. All question texts and answers must be strictly in Russian.\n" +
-                        "8. Questions must be unique and not repeat phrasing/answers.\n" +
-                        "9. ALL indentation, spaces, line breaks, and JSON structure MUST strictly follow the provided template.\n" +
-                        "   Formatting is absolutely fixed:\n" +
-                        "   - Each level of nesting must use exactly two spaces for indentation.\n" +
-                        "   - Every opening curly brace and opening square bracket MUST appear on a new line.\n" +
-                        "   - Every closing curly brace and closing square bracket MUST also appear on a new line.\n" +
-                        "   - Opening and closing braces/brackets may NEVER appear on the same line as other content.\n" +
-                        "   - Arrays and objects must always begin with an opening bracket/brace on one line and end with a closing bracket/brace on its own separate line.\n" +
-                        "   - Every field must start on a new line.\n" +
-                        "   - A line break must follow every comma.\n" +
-                        "   - No extra spaces, no missing spaces, no empty lines, no comments, no markdown, and no text outside of the JSON are allowed.\n" +
-                        "   Any deviation from the structural or visual formatting of the template is strictly forbidden.\n",
-                n, topic, difficult, n, n, n
+            "Сгенерируй %d вопросов на тему '%s'. Сложность: %d (1-легко, 3-сложно).\n\n" +
+                "Формат ответа ТОЛЬКО JSON:\n" +
+                "{\n" +
+                "  \"questions\": [\n" +
+                "    {\n" +
+                "      \"number\": 1,\n" +
+                "      \"question\": \"Вопрос на русском языке\",\n" +
+                "      \"available_answers\": [\n" +
+                "        {\"index\": 1, \"answer\": \"Ответ 1\"},\n" +
+                "        {\"index\": 2, \"answer\": \"Ответ 2\"},\n" +
+                "        {\"index\": 3, \"answer\": \"Ответ 3\"},\n" +
+                "        {\"index\": 4, \"answer\": \"Ответ 4\"}\n" +
+                "      ],\n" +
+                "      \"right_ans_index\": 1\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}\n\n" +
+                "Важно:\n" +
+                "1. Все на русском языке\n" +
+                "2. Только JSON, без других слов\n" +
+                "3. Правильный JSON синтаксис\n" +
+                "4. ОБЯЗАТЕЛЬНО сгенерируй РОВНО %d вопросов",
+            n, topic, difficult, n
         );
-
 
         JSONObject payload = new JSONObject();
         payload.put("model", "qwen2.5");
         payload.put("format", "json");
         payload.put("stream", false);
+
+        JSONObject options = new JSONObject();
+        options.put("temperature", 0.3);
+        options.put("num_predict", 8192); // Увеличиваем для больших ответов
+        payload.put("options", options);
 
         JSONArray messages = new JSONArray();
         JSONObject m = new JSONObject();
@@ -106,23 +67,206 @@ public class QuestionGenerator {
 
         payload.put("messages", messages);
 
-        HttpClient client = HttpClient.newHttpClient();
+        HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(60)) // Увеличиваем таймаут подключения
+            .build();
 
         HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(payload.toString(), StandardCharsets.UTF_8))
-                .build();
+            .uri(URI.create(url))
+            .header("Content-Type", "application/json")
+            // УБИРАЕМ .timeout() - запрос будет выполняться неограниченное время
+            .POST(HttpRequest.BodyPublishers.ofString(payload.toString(), StandardCharsets.UTF_8))
+            .build();
 
         return client.sendAsync(req, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenApply(response -> {
+            .thenApply(response -> {
+                System.out.println("Статус: " + response.statusCode());
 
-                    // извлечь только message.content
-                    JSONObject obj2 = new JSONObject(response);
-                    JSONObject messageObj = obj2.getJSONObject("message");
+                if (response.statusCode() != 200) {
+                    System.err.println("Ошибка API: " + response.body());
+                    return "{\"questions\": []}";
+                }
 
-                    return messageObj.getString("content"); // ← чистый JSON
-                });
+                try {
+                    JSONObject responseObj = new JSONObject(response.body());
+                    JSONObject messageObj = responseObj.getJSONObject("message");
+                    String content = messageObj.getString("content").trim();
+
+                    System.out.println("Сырой ответ модели (первые 500 символов):");
+                    System.out.println(content.substring(0, Math.min(500, content.length())));
+                    if (content.length() > 500) {
+                        System.out.println("... [всего символов: " + content.length() + "]");
+                    }
+
+                    // Проверяем, не обрезан ли ответ
+                    if (isJsonTruncated(content)) {
+                        System.err.println("Предупреждение: JSON может быть обрезан");
+                        content = fixTruncatedJson(content);
+                    }
+
+                    // Очищаем и исправляем JSON
+                    String cleanedJson = cleanAndFixJson(content);
+
+                    if (cleanedJson == null || cleanedJson.isEmpty()) {
+                        System.err.println("Не удалось обработать JSON");
+                        return "{\"questions\": []}";
+                    }
+
+                    // Проверяем валидность
+                    JSONObject result = new JSONObject(cleanedJson);
+
+                    // Проверяем структуру
+                    if (!result.has("questions")) {
+                        System.err.println("Нет поля 'questions' в JSON");
+                        return "{\"questions\": []}";
+                    }
+
+                    JSONArray questions = result.getJSONArray("questions");
+                    System.out.println("Успешно! Получено вопросов: " + questions.length());
+
+                    // Проверяем количество вопросов
+                    if (questions.length() < n) {
+                        System.out.println("Предупреждение: получено " + questions.length() +
+                            " вопросов вместо " + n);
+                    }
+
+                    return removeDuplicateKeys(cleanedJson);
+
+                } catch (Exception e) {
+                    System.err.println("Ошибка обработки: " + e.getMessage());
+                    e.printStackTrace();
+
+                    return "{\"questions\": []}";
+                }
+            })
+            .exceptionally(ex -> {
+                System.err.println("Исключение при запросе: " + ex.getMessage());
+                if (ex.getCause() != null) {
+                    System.err.println("Причина: " + ex.getCause().getMessage());
+                }
+                return "{\"questions\": []}";
+            });
+    }
+
+    private static boolean isJsonTruncated(String json) {
+        if (json == null || json.trim().isEmpty()) {
+            return false;
+        }
+
+        String trimmed = json.trim();
+
+        if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+            return true;
+        }
+
+        // Считаем баланс скобок
+        int braceBalance = 0;
+        int bracketBalance = 0;
+        boolean inQuotes = false;
+        char prevChar = 0;
+
+        for (char c : trimmed.toCharArray()) {
+            if (c == '"' && prevChar != '\\') {
+                inQuotes = !inQuotes;
+            } else if (!inQuotes) {
+                if (c == '{') braceBalance++;
+                else if (c == '}') braceBalance--;
+                else if (c == '[') bracketBalance++;
+                else if (c == ']') bracketBalance--;
+            }
+            prevChar = c;
+        }
+
+        return braceBalance != 0 || bracketBalance != 0;
+    }
+
+    private static String fixTruncatedJson(String json) {
+        if (json == null || json.trim().isEmpty()) {
+            return json;
+        }
+
+        String trimmed = json.trim();
+        StringBuilder fixed = new StringBuilder(trimmed);
+
+        // Считаем баланс скобок
+        int braceBalance = 0;
+        int bracketBalance = 0;
+        boolean inQuotes = false;
+        char prevChar = 0;
+
+        for (char c : trimmed.toCharArray()) {
+            if (c == '"' && prevChar != '\\') {
+                inQuotes = !inQuotes;
+            } else if (!inQuotes) {
+                if (c == '{') braceBalance++;
+                else if (c == '}') braceBalance--;
+                else if (c == '[') bracketBalance++;
+                else if (c == ']') bracketBalance--;
+            }
+            prevChar = c;
+        }
+
+        // Закрываем незакрытые скобки
+        for (int i = 0; i < bracketBalance; i++) {
+            fixed.append("]");
+        }
+
+        for (int i = 0; i < braceBalance; i++) {
+            fixed.append("}");
+        }
+
+        if (!fixed.toString().endsWith("}")) {
+            fixed.append("}");
+        }
+
+        return fixed.toString();
+    }
+
+    private static String cleanAndFixJson(String rawJson) {
+        if (rawJson == null || rawJson.trim().isEmpty()) {
+            return null;
+        }
+
+        String json = rawJson.trim();
+
+        // Удаляем все до первой '{' и после последней '}'
+        int start = json.indexOf('{');
+        int end = json.lastIndexOf('}');
+
+        if (start == -1 || end == -1 || end <= start) {
+            return null;
+        }
+
+        json = json.substring(start, end + 1);
+
+        // Исправляем распространенные ошибки
+        json = json.replaceAll("\"questions\":\\s*\\[\\[", "\"questions\": [")
+            .replaceAll("\\]\\]\\s*\\}", "] }")
+            .replaceAll(";", ",")
+            .replaceAll("\"answer\":\\s*\"([^\"]*?)\\]\"", "\"answer\":\"$1\"")
+            .replaceAll("\"answer\":\\s*\"([^\"]*?);\"", "\"answer\":\"$1\"")
+            .replaceAll("\"answer\":\\s*\"([^\"]*?)\\}\"", "\"answer\":\"$1\"")
+            .replaceAll("\"answer\":\\s*([^\"\\[{}\\],]+)(?=[,\\]}])", "\"answer\":\"$1\"")
+            .replaceAll(",\\s*]", "]")
+            .replaceAll(",\\s*}", "}");
+
+        return json;
+    }
+
+    private static String removeDuplicateKeys(String jsonString) {
+        try {
+            JSONObject json = new JSONObject(jsonString);
+
+            if (json.has("questions")) {
+                JSONArray questions = json.getJSONArray("questions");
+                JSONObject cleanJson = new JSONObject();
+                cleanJson.put("questions", questions);
+                return cleanJson.toString();
+            }
+
+            return jsonString;
+        } catch (Exception e) {
+            return jsonString;
+        }
     }
 }
