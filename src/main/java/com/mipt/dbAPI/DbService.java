@@ -619,7 +619,7 @@ public class DbService {
       setStatus(gameId, 3);
       setGameEndTime(gameId, Instant.now());
 
-      PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_id = NULL WHERE current_game_id = ?");
+      PreparedStatement updData = conn.prepareStatement("UPDATE users SET current_game_id = NULL, current_game_points = 0 WHERE current_game_id = ?");
       updData.setInt(1, gameId);
       updData.executeUpdate();
     } else {
