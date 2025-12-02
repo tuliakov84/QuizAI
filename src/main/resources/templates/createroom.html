@@ -57,7 +57,7 @@
 
                 <span>КОЛИЧЕСТВО ВОПРОСОВ</span>
                 <div class="input-group">
-                    <input type="number" id="questions-count" name="link" placeholder="ОТ 10 ДО 100" min="10" max="100" value="10" required>
+                    <input type="number" id="questions-count" name="link" placeholder="ОТ 10 ДО 30" min="10" max="30" value="10" required>
                 </div>
 
             </div>
@@ -180,8 +180,8 @@
         return;
       }
 
-      if (!questionsCount || questionsCount < 10 || questionsCount > 100) {
-        showMessage('Количество вопросов должно быть от 10 до 100', 'error');
+      if (!questionsCount || questionsCount < 10 || questionsCount > 30) {
+        showMessage('Количество вопросов должно быть от 10 до 30', 'error');
         return;
       }
 

@@ -77,6 +77,8 @@
     let isPrivate = false; // Текущая приватность комнаты
     let currentPlayers = []; // Текущий список игроков
     let isQuizStarting = false; // Флаг, что квиз начинается
+    let questionsReady = false; // Флаг готовности вопросов
+    let isCheckingQuestions = false; // Флаг проверки вопросов (чтобы избежать множественных проверок)
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
@@ -120,11 +122,28 @@
       // Загружаем данные комнаты
       loadRoomData();
 
-      // Начинаем периодическое обновление списка игроков каждые 5 секунд
-      refreshInterval = setInterval(loadPlayers, 5000); // Обновление каждые 5 секунд
+      // Начинаем периодическое обновление каждые 3 секунды
+      refreshInterval = setInterval(updateLobby, 3000);
 
-      // Сразу загружаем игроков при инициализации
-      loadPlayers();
+      // Сразу загружаем данные при инициализации
+      updateLobby();
+    }
+
+    async function updateLobby() {
+      try {
+        // Обновляем данные лобби
+        await loadPlayers();
+
+        // Проверяем готовность вопросов (раз в 5 секунд)
+        if (!questionsReady) {
+          await checkQuestionsReady();
+        }
+
+        // После загрузки проверяем возможность начала квиза
+        updateStartButtonState();
+      } catch (error) {
+        console.error('Ошибка обновления лобби:', error);
+      }
     }
 
     function setupEventListeners() {
@@ -139,8 +158,121 @@
       // Обработчик для кнопки начала квиза
       document.getElementById('start-quiz-btn').addEventListener('click', function (e) {
         e.preventDefault();
-        startQuiz();
+        if (!this.classList.contains('disabled') && !isQuizStarting) {
+          startQuiz();
+        }
       });
+    }
+
+    // Проверка готовности вопросов
+    async function checkQuestionsReady() {
+      if (isCheckingQuestions) return; // Избегаем множественных одновременных запросов
+
+      try {
+        isCheckingQuestions = true;
+        const session = AuthService.getsession();
+
+        // Используем тот же endpoint, что и для получения списка игроков
+        const response = await fetch('http://localhost:8080/api/game/get/lobby', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + session,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            gameId: parseInt(gameId)
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ошибка HTTP: ${response.status}`);
+        }
+
+        const lobbyData = await response.json();
+
+        // Проверяем наличие поля questionsReady в ответе
+        if (lobbyData.questionsReady !== undefined) {
+          questionsReady = lobbyData.questionsReady;
+        } else {
+          console.warn('Поле questionsReady отсутствует в ответе сервера');
+          // Если поле отсутствует, проверяем по другому признаку - например, готовность игры
+          questionsReady = lobbyData.ready || false;
+        }
+
+        // Обновляем отображение статуса вопросов
+        updateQuestionsStatus();
+
+        return questionsReady;
+      } catch (error) {
+        console.error('Ошибка проверки готовности вопросов:', error);
+        questionsReady = false;
+        updateQuestionsStatus();
+        return false;
+      } finally {
+        isCheckingQuestions = false;
+      }
+    }
+
+    // Обновление отображения статуса вопросов
+    function updateQuestionsStatus() {
+      const statusElement = document.getElementById('questions-status');
+      const statusText = statusElement.querySelector('.status-text');
+      const statusIcon = statusElement.querySelector('.status-icon');
+
+      if (questionsReady) {
+        statusElement.className = 'questions-status-value ready';
+        statusIcon.textContent = '✅';
+        statusText.textContent = 'Вопросы готовы';
+        statusElement.title = 'Все вопросы загружены и проверены';
+      } else {
+        statusElement.className = 'questions-status-value loading';
+        statusIcon.textContent = '⏳';
+        statusText.textContent = 'Загрузка вопросов';
+        statusElement.title = 'ИИ генерирует вопросы для квиза...';
+      }
+    }
+
+    // Обновление состояния кнопки начала квиза
+    function updateStartButtonState() {
+      const startBtn = document.getElementById('start-quiz-btn');
+      const messageElement = document.getElementById('start-quiz-message');
+
+      let isReady = false;
+      let message = '';
+      let messageType = '';
+
+      if (currentPlayers.length < 2) {
+        message = 'Для начала квиза нужно минимум 2 игрока';
+        messageType = 'warning';
+        isReady = false;
+      } else if (!questionsReady) {
+        message = 'Ожидание загрузки вопросов...';
+        messageType = 'info';
+        isReady = false;
+      } else {
+        isReady = true;
+      }
+
+      if (isReady) {
+        enableStartButton();
+        if (messageElement) {
+          messageElement.style.display = 'none';
+        }
+
+        // Автоматический старт при заполнении комнаты (только если вопросы готовы)
+        if (currentPlayers.length >= maxPlayers && !isQuizStarting) {
+          console.log('Комната заполнена и вопросы готовы - начинаем квиз автоматически...');
+          // Небольшая задержка для лучшего UX
+          setTimeout(() => startQuiz(), 1000);
+        }
+      } else {
+        disableStartButton(message);
+        if (messageElement && message) {
+          messageElement.textContent = message;
+          messageElement.className = `message ${messageType}`;
+          messageElement.style.display = 'block';
+        }
+      }
     }
 
     // Изменение приватности комнаты
@@ -168,11 +300,11 @@
         updatePrivacyButtons(newPrivacy);
         isPrivate = newPrivacy;
 
-        showPrivacyMessage(`Комната теперь ${newPrivacy ? 'ЗАКРЫТАЯ' : 'ОТКРЫТАЯ'}`, 'success');
+        alert(`Комната теперь ${newPrivacy ? 'ЗАКРЫТАЯ' : 'ОТКРЫТАЯ'}`);
 
       } catch (error) {
         console.error('Ошибка изменения приватности комнаты:', error);
-        showPrivacyMessage('Ошибка изменения приватности: ' + error.message, 'error');
+        alert('Ошибка изменения приватности: ' + error.message);
       }
     }
 
@@ -188,31 +320,6 @@
       if (activeButton) {
         activeButton.classList.add('active');
       }
-    }
-
-    // Показать сообщение о изменении приватности
-    function showPrivacyMessage(text, type) {
-      // Можно использовать существующий элемент сообщения или создать новый
-      alert(text); // Временное решение - можно заменить на красивый toast
-    }
-
-    // Обновление отображения статуса вопросов
-    function updateQuestionsStatus() {
-        const statusElement = document.getElementById('questions-status');
-        const statusText = statusElement.querySelector('.status-text');
-        const statusIcon = statusElement.querySelector('.status-icon');
-
-        if (questionsReady) {
-            statusElement.className = 'questions-status-value ready';
-            statusIcon.textContent = '✅';
-            statusText.textContent = 'Вопросы готовы';
-            statusElement.title = 'Все вопросы загружены и проверены';
-        } else {
-            statusElement.className = 'questions-status-value loading';
-            statusIcon.textContent = '⏳';
-            statusText.textContent = 'Загрузка вопросов';
-            statusElement.title = 'ИИ генерирует вопросы для квиза...';
-        }
     }
 
     // Загрузка данных комнаты
@@ -251,36 +358,6 @@
       try {
         const session = AuthService.getsession();
 
-        console.log('Обновление списка игроков...', new Date().toLocaleTimeString());
-
-        // TODO: Заменить на реальный эндпоинт для получения списка игроков
-        const players = await fetchPlayersFromServer();
-        currentPlayers = players; // Сохраняем текущий список игроков
-        displayPlayers(players);
-
-        // Проверяем, заполнена ли комната
-        checkRoomFull(players);
-
-      } catch (error) {
-        console.error('Ошибка загрузки списка игроков:', error);
-      }
-    }
-
-    // Проверка заполнения комнаты
-    function checkRoomFull(players) {
-      if (players.length >= maxPlayers && !isQuizStarting) {
-        // Комната заполнена - автоматически начинаем квиз
-        showMessage('Комната заполнена! Начинаем квиз...', 'info');
-        disableStartButton();
-        startQuiz();
-      }
-    }
-
-    // Реальная функция для получения игроков с сервера
-    async function fetchPlayersFromServer() {
-      try {
-        const session = AuthService.getsession();
-
         const response = await fetch('http://localhost:8080/api/game/get/lobby', {
           method: 'POST',
           headers: {
@@ -292,45 +369,46 @@
           })
         });
 
-        console.log('Статус ответа:', response.status);
-        console.log('Заголовки ответа:', response.headers);
-
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Ошибка сервера:', response.status, errorText);
-          throw new Error(`Ошибка HTTP: ${response.status} - ${errorText}`);
+          throw new Error(`Ошибка HTTP: ${response.status}`);
         }
 
-        // Проверяем, что ответ не пустой
-        const responseText = await response.text();
-        console.log('Ответ сервера:', responseText);
+        const lobbyData = await response.json();
 
-        if (!responseText) {
-          console.warn('Пустой ответ от сервера');
-          return [];
-        }
+        console.log('Данные лобби:', lobbyData);
 
-        const lobbyData = JSON.parse(responseText);
-        console.log('Парсинг JSON успешен:', lobbyData);
-
-        // Проверяем наличие playersUsernames
         if (!lobbyData.playersUsernames) {
           console.warn('Поле playersUsernames отсутствует в ответе');
-          return [];
+          currentPlayers = [];
+        } else {
+          // Преобразуем массив имен игроков в массив объектов
+          currentPlayers = lobbyData.playersUsernames.map((username, index) => ({
+            username: username,
+            userId: index + 1
+          }));
         }
 
-        // Преобразуем массив имен игроков в массив объектов
-        const players = lobbyData.playersUsernames.map((username, index) => ({
-          username: username,
-          userId: index + 1
-        }));
+        displayPlayers(currentPlayers);
 
-        console.log('Преобразованные игроки:', players);
-        return players;
+        // Получаем готовность вопросов из того же ответа (если есть)
+        if (lobbyData.questionsReady !== undefined) {
+          questionsReady = lobbyData.questionsReady;
+          updateQuestionsStatus();
+        }
+
+        // Получаем статус ready из ответа (если есть)
+        if (lobbyData.ready !== undefined && !questionsReady) {
+          // Если нет отдельного флага questionsReady, используем общий ready
+          questionsReady = lobbyData.ready;
+          updateQuestionsStatus();
+        }
+
+        return currentPlayers;
 
       } catch (error) {
-        console.error('Ошибка получения игроков с сервера:', error);
-        // Возвращаем пустой массив в случае ошибки
+        console.error('Ошибка загрузки списка игроков:', error);
+        currentPlayers = [];
+        displayPlayers([]);
         return [];
       }
     }
@@ -345,9 +423,6 @@
       if (players.length === 0) {
         container.innerHTML = '<div class="no-players">Нет участников</div>';
         countElement.textContent = '0/' + maxPlayers;
-
-        // Если нет игроков, блокируем кнопку старта
-        disableStartButton();
         return;
       }
 
@@ -360,16 +435,6 @@
 
       // Обновляем счетчик игроков
       countElement.textContent = `${players.length}/${maxPlayers}`;
-
-      // Проверяем количество игроков для активации/деактивации кнопки старта
-      if (players.length < 2) {
-        disableStartButton('Для начала квиза нужно минимум 2 игрока');
-      } else {
-        enableStartButton();
-      }
-
-      // Логируем обновление для отладки
-      console.log(`Обновлен список игроков: ${players.length} участников`);
     }
 
     // Включение кнопки начала квиза
@@ -378,31 +443,20 @@
       startBtn.classList.remove('disabled');
       startBtn.style.pointerEvents = 'auto';
       startBtn.style.opacity = '1';
+      startBtn.textContent = 'НАЧАТЬ КВИЗ ДОСРОЧНО';
     }
 
     // Отключение кнопки начала квиза
-    function disableStartButton(message = '') {
+    function disableStartButton(reason = '') {
       const startBtn = document.getElementById('start-quiz-btn');
       startBtn.classList.add('disabled');
       startBtn.style.pointerEvents = 'none';
       startBtn.style.opacity = '0.5';
 
-      if (message) {
-        showMessage(message, 'warning');
+      if (reason) {
+        startBtn.title = reason;
+        console.log('Кнопка заблокирована:', reason);
       }
-    }
-
-    // Показать сообщение
-    function showMessage(text, type) {
-      const messageElement = document.getElementById('start-quiz-message');
-      messageElement.textContent = text;
-      messageElement.className = `message ${type}`;
-      messageElement.style.display = 'block';
-
-      // Автоматически скрыть сообщение через 5 секунд
-      setTimeout(() => {
-        messageElement.style.display = 'none';
-      }, 5000);
     }
 
     // Обновление информации о комнате
@@ -508,25 +562,26 @@
     // Флаг для отслеживания навигации внутри приложения
     let isNavigatingToQuiz = false;
 
-    // Обновляем функцию startQuiz для установки флага
     async function startQuiz() {
-      // Проверяем количество игроков перед началом
+      // Проверяем все условия перед началом
       if (currentPlayers.length < 2) {
-        showMessage('Для начала квиза нужно минимум 2 игрока', 'error');
+        alert('Для начала квиза нужно минимум 2 игрока');
         return;
       }
 
-      // Проверяем, не начат ли уже квиз
+      if (!questionsReady) {
+        alert('Вопросы еще не готовы. Пожалуйста, подождите...');
+        return;
+      }
+
       if (isQuizStarting) {
-        showMessage('Квиз уже начинается...', 'info');
+        console.log('Квиз уже начинается...');
         return;
       }
 
       try {
-        isQuizStarting = true; // Устанавливаем флаг начала квиза
-        isNavigatingToQuiz = true; // Устанавливаем флаг навигации
-
-        // Отключаем кнопку начала квиза
+        isQuizStarting = true;
+        isNavigatingToQuiz = true;
         disableStartButton('Квиз начинается...');
 
         const session = AuthService.getsession();
@@ -543,10 +598,11 @@
         });
 
         if (!response.ok) {
-          throw new Error(`Ошибка HTTP: ${response.status}`);
+          const errorText = await response.text();
+          throw new Error(`Ошибка HTTP: ${response.status}: ${errorText}`);
         }
 
-        // Останавливаем обновление списка игроков перед переходом
+        // Останавливаем обновление перед переходом
         if (refreshInterval) {
           clearInterval(refreshInterval);
         }
@@ -555,17 +611,13 @@
         window.location.href = `question.html?gameId=${gameId}`;
 
       } catch (error) {
-        // В случае ошибки сбрасываем флаги
         isQuizStarting = false;
         isNavigatingToQuiz = false;
-
         console.error('Ошибка начала квиза:', error);
-        showMessage('Ошибка начала квиза: ' + error.message, 'error');
+        alert('Ошибка начала квиза: ' + error.message);
 
         // Включаем кнопку обратно в случае ошибки
-        if (currentPlayers.length >= 2) {
-          enableStartButton();
-        }
+        updateStartButtonState();
       }
     }
 

@@ -5,7 +5,7 @@ import com.mipt.domainModel.Game;
 
 public class BackendUtils {
 
-  private static final double MAX_TIME_TO_ANSWER_IN_SECONDS = 20;
+  private static final double MAX_TIME_TO_ANSWER_IN_SECONDS = 30;
 
   public int countPoints(int levelDifficulty, int timeTakenToAnswerInSeconds) {
     int difficultMultiplier = 100 * levelDifficulty;

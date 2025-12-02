@@ -7,7 +7,7 @@ import java.util.concurrent.TimeoutException;
 public class TestQuestionGenerator {
   public static void main(String[] args) {
 
-    String testJson1 = "[{\"topic\": \"физика\", \"numberOfQuestions\": 5, \"difficult\": 2}]";
+    String testJson1 = "[{\"topic\": \"физика\", \"numberOfQuestions\": 2, \"difficult\": 2}]";
     runTest(testJson1);
   }
 

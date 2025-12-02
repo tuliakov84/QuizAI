@@ -6,14 +6,14 @@ public class LobbyObject {
   private int gameId;
   private Status status;
   private List<String> playersUsernames;
-  private Boolean ready;
+  private Boolean questionReady;
 
   public Boolean getReady() {
-    return ready;
+    return questionReady;
   }
 
   public void setReady(Boolean readyVal) {
-    ready = readyVal;
+    questionReady = readyVal;
   }
 
   private enum Status {
