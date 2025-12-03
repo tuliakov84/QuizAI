@@ -1,3 +1,5 @@
+[file name]: createroom.html
+[file content begin]
 <!DOCTYPE html>
 <html lang="ru">
 
@@ -72,6 +74,7 @@
     let selectedTopic = null;
     let selectedDifficulty = 2; // По умолчанию средняя сложность
     let isPrivate = false; // По умолчанию открытая комната
+    let isCreatingRoom = false; // Флаг для отслеживания процесса создания
 
     document.addEventListener('DOMContentLoaded', function() {
       if (!AuthService.requireAuth()) return;
@@ -117,6 +120,7 @@
       document.querySelectorAll('.difficulty-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
           e.preventDefault();
+          if (isCreatingRoom) return; // Блокируем при создании
 
           // Снимаем выделение со всех кнопок сложности
           document.querySelectorAll('.difficulty-btn').forEach(b => {
@@ -136,6 +140,7 @@
       document.querySelectorAll('.privacy-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
           e.preventDefault();
+          if (isCreatingRoom) return; // Блокируем при создании
 
           // Снимаем выделение со всех кнопок приватности
           document.querySelectorAll('.privacy-btn').forEach(b => {
@@ -152,9 +157,23 @@
       });
 
       // Обработчик для создания комнаты
-      document.getElementById('create-room-btn').addEventListener('click', function(e) {
+      const createBtn = document.getElementById('create-room-btn');
+      createBtn.addEventListener('click', function(e) {
         e.preventDefault();
+        if (isCreatingRoom) return; // Блокируем повторные нажатия
         createQuiz();
+      });
+
+      // Обработчики для полей ввода
+      const participantsInput = document.getElementById('participants-count');
+      const questionsInput = document.getElementById('questions-count');
+      
+      [participantsInput, questionsInput].forEach(input => {
+        input.addEventListener('input', function() {
+          if (isCreatingRoom) {
+            this.value = this.defaultValue; // Не даем менять значения во время создания
+          }
+        });
       });
 
       // Устанавливаем среднюю сложность по умолчанию
@@ -162,6 +181,44 @@
 
       // Устанавливаем открытую комнату по умолчанию
       document.querySelector('.privacy-btn[data-private="false"]').classList.add('active');
+    }
+
+    // Блокировка/разблокировка интерфейса
+    function setCreatingState(isCreating) {
+      isCreatingRoom = isCreating;
+      const createBtn = document.getElementById('create-room-btn');
+      
+      if (isCreating) {
+        // Блокируем кнопку
+        createBtn.classList.add('disabled');
+        createBtn.innerHTML = 'СОЗДАНИЕ...';
+        createBtn.style.opacity = '0.6';
+        createBtn.style.cursor = 'not-allowed';
+        
+        // Блокируем все интерактивные элементы
+        document.querySelectorAll('.difficulty-btn, .privacy-btn, input').forEach(el => {
+          el.classList.add('disabled');
+          el.style.pointerEvents = 'none';
+          if (el.tagName === 'INPUT') {
+            el.style.opacity = '0.6';
+          }
+        });
+      } else {
+        // Разблокируем кнопку
+        createBtn.classList.remove('disabled');
+        createBtn.innerHTML = 'СОЗДАТЬ КОМНАТУ';
+        createBtn.style.opacity = '';
+        createBtn.style.cursor = '';
+        
+        // Разблокируем все интерактивные элементы
+        document.querySelectorAll('.difficulty-btn, .privacy-btn, input').forEach(el => {
+          el.classList.remove('disabled');
+          el.style.pointerEvents = '';
+          if (el.tagName === 'INPUT') {
+            el.style.opacity = '';
+          }
+        });
+      }
     }
 
     // Создание квиза
@@ -186,6 +243,7 @@
       }
 
       try {
+        setCreatingState(true); // Блокируем интерфейс
         showMessage('Создание комнаты...', 'info');
 
         const session = AuthService.getsession();
@@ -194,7 +252,6 @@
         const response = await fetch('http://localhost:8080/api/game/create', {
           method: 'POST',
           headers: {
-            'Authorization': 'Bearer ' + session,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -202,13 +259,20 @@
             levelDifficulty: selectedDifficulty,
             numberOfQuestions: parseInt(questionsCount),
             participantsNumber: parseInt(participantsCount),
-            topicId: selectedTopic.topicId
+            topicId: selectedTopic.topicId,
+            isPrivate: isPrivate
           })
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Ошибка HTTP: ${response.status}`);
+          let errorMessage = `Ошибка HTTP: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            // Не удалось распарсить JSON
+          }
+          throw new Error(errorMessage);
         }
 
         const createdGame = await response.json();
@@ -226,6 +290,7 @@
       } catch (error) {
         console.error('Ошибка создания комнаты:', error);
         showMessage('Ошибка создания комнаты: ' + error.message, 'error');
+        setCreatingState(false); // Разблокируем интерфейс при ошибке
       }
     }
 
@@ -248,3 +313,4 @@
 </body>
 
 </html>
+[file content end]

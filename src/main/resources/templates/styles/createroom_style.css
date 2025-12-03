@@ -287,6 +287,26 @@ span {
   color: #000000;
 }
 
+.btncreate.disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+.difficulty-btn.disabled,
+.privacy-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+input.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+  background-color: #f5f5f5;
+}
+
 @media screen and (width<786px) {
   .main_blockl, .right {
     width: 95%;
