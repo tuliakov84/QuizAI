@@ -46,11 +46,23 @@
       const freshData = await AuthService.loadUserProfile();
 
       if (freshData) {
+        // Отображаем данные профиля
         AuthService.displayUserProfile(freshData);
+
+        // Убедимся, что аватар отображается
+        if (freshData.picId) {
+          AuthService.displayAvatar('user-avatar', freshData.picId);
+        }
       } else {
+        // Используем кэшированные данные
         const cachedUserData = AuthService.getUser();
         if (cachedUserData) {
           AuthService.displayUserProfile(cachedUserData);
+
+          // Отображаем аватар из кэша
+          if (cachedUserData.picId) {
+            AuthService.displayAvatar('user-avatar', cachedUserData.picId);
+          }
         } else {
           window.location.href = 'index.html';
         }

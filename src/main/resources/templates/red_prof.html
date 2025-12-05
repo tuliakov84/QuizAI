@@ -55,16 +55,8 @@
     let currentUserData = null;
     let selectedAvatarId = null;
 
-    const availableAvatars = [
-      { id: 1, url: 'assets/avatars/avatar1.png', name: 'Аватар 1' },
-      { id: 2, url: 'assets/avatars/avatar2.png', name: 'Аватар 2' },
-      { id: 3, url: 'assets/avatars/avatar3.png', name: 'Аватар 3' },
-      { id: 4, url: 'assets/avatars/avatar4.png', name: 'Аватар 4' },
-      { id: 5, url: 'assets/avatars/avatar5.png', name: 'Аватар 5' },
-      { id: 6, url: 'assets/avatars/avatar6.png', name: 'Аватар 6' },
-      { id: 7, url: 'assets/avatars/avatar7.png', name: 'Аватар 7' },
-      { id: 8, url: 'assets/avatars/avatar8.png', name: 'Аватар 8' }
-    ];
+    // Используем метод из AuthService
+    const availableAvatars = AuthService.getAvailableAvatars();
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
@@ -81,14 +73,10 @@
 
           // Устанавливаем текущий аватар
           if (currentUserData.picId) {
-            const avatar = availableAvatars.find(a => a.id === currentUserData.picId);
-            if (avatar) {
-              const avatarPreview = document.getElementById('avatar-preview');
-              avatarPreview.style.backgroundImage = `url('${avatar.url}')`;
-              avatarPreview.style.backgroundSize = 'cover';
-              avatarPreview.style.backgroundPosition = 'center';
-              selectedAvatarId = currentUserData.picId;
-            }
+            selectedAvatarId = currentUserData.picId;
+            // Используем метод из AuthService для отображения аватара
+            const avatarPreview = document.getElementById('avatar-preview');
+            AuthService.displayAvatar(avatarPreview.id, currentUserData.picId);
           }
         }
       } catch (error) {
@@ -97,17 +85,22 @@
       }
     }
 
-    async function loadAvailableAvatars() {
+    function loadAvailableAvatars() {
       try {
         const avatarGrid = document.getElementById('avatar-grid');
-        const avatarsToShow = availableAvatars;
 
         avatarGrid.innerHTML = '';
 
-        avatarsToShow.forEach(avatar => {
+        availableAvatars.forEach(avatar => {
           const avatarElement = document.createElement('div');
           avatarElement.className = 'avatar-option';
-          avatarElement.innerHTML = `<div class="avatar-img" style="background-image: url('${avatar.url}')" data-avatar-id="${avatar.id}"></div> <span class="avatar-name">${avatar.name}</span>`;
+          avatarElement.innerHTML = `
+            <div class="avatar-img"
+                 style="background-image: url('${avatar.url}')"
+                 data-avatar-id="${avatar.id}">
+            </div>
+            <span class="avatar-name">${avatar.name}</span>
+          `;
 
           // Выделяем текущий выбранный аватар
           if (avatar.id === selectedAvatarId) {
@@ -139,6 +132,7 @@
       avatarPreview.style.backgroundImage = `url('${avatarUrl}')`;
       avatarPreview.style.backgroundSize = 'cover';
       avatarPreview.style.backgroundPosition = 'center';
+      avatarPreview.classList.add('has-avatar');
 
       // Сохраняем выбранный аватар
       selectedAvatarId = avatarId;
@@ -171,7 +165,7 @@
           return;
         }
 
-        // Проверка сложности пароля (можно добавить дополнительные проверки)
+        // Проверка сложности пароля
         if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
           showMessage('Пароль должен содержать хотя бы одну заглавную букву, одну строчную букву и одну цифру', 'error');
           return;
@@ -187,35 +181,23 @@
       try {
         showMessage('Сохранение...', 'info');
 
-        const session = AuthService.getsession();
+        const session = AuthService.getsession(); // Используем правильное имя метода
         let hasChanges = false;
         let successCount = 0;
         const totalChanges = (password ? 1 : 0) +
                             (description !== currentUserData.description ? 1 : 0) +
                             (selectedAvatarId !== currentUserData.picId ? 1 : 0);
 
-        // Обновляем аватар, если изменился
+        // Обновляем аватар, если изменился (используем метод из AuthService)
         if (selectedAvatarId && selectedAvatarId !== currentUserData.picId) {
           try {
-            const avatarResponse = await fetch('http://localhost:8080/api/users/set/profile_pic', {
-              method: 'POST',
-              headers: {
-                'Authorization': 'Bearer ' + session,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                session: session,
-                picId: selectedAvatarId
-              })
-            });
-
-            if (avatarResponse.ok) {
+            const success = await AuthService.updateAvatar(selectedAvatarId);
+            if (success) {
               successCount++;
               hasChanges = true;
               showMessage('Аватар успешно обновлен', 'success');
             } else {
-              const errorData = await avatarResponse.json();
-              throw new Error(`Ошибка обновления аватара: ${errorData.message || avatarResponse.status}`);
+              throw new Error('Не удалось обновить аватар');
             }
           } catch (error) {
             console.error('Ошибка обновления аватара:', error);
@@ -230,7 +212,6 @@
             const descResponse = await fetch('http://localhost:8080/api/users/set/description', {
               method: 'POST',
               headers: {
-                'Authorization': 'Bearer ' + session,
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
@@ -260,7 +241,6 @@
             const passwordResponse = await fetch('http://localhost:8080/api/users/set/password', {
               method: 'POST',
               headers: {
-                'Authorization': 'Bearer ' + session,
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
@@ -330,5 +310,4 @@
       }
     }
 </script>
-
 </html>
