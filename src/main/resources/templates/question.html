@@ -211,6 +211,8 @@
 
       selectedAnswer = answerNumber;
       answerSubmitted = true;
+      timeTaken = (Date.now() - questionStartTime) / 1000;
+      console.log(timeTaken);
 
       // Выделяем выбранный ответ
       const answerButtons = document.querySelectorAll('.btn');
@@ -236,6 +238,7 @@
 
     function startTimer() {
       questionStartTime = Date.now();
+      console.log(`time of start: ${questionStartTime}`);
       timeLeft = timePerQuestion;
       updateTimerDisplay();
 
@@ -329,7 +332,6 @@
     async function submitAnswer(answerNumber) {
       try {
         const session = AuthService.getsession();
-        const timeTaken = Date.now() - questionStartTime; // Время, затраченное на ответ
 
         console.log(`Отправка ответа: ${answerNumber}, время: ${timeTaken.toFixed(1)}с, сложность: ${levelDifficulty}`);
 

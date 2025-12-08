@@ -20,12 +20,6 @@
     <main>
         <div class="raiting">
             <div>
-          <span>
-            ВАШИ ОЧКИ:
-          </span>
-                <span id="user-points">
-            0
-          </span>
             </div>
             <div>
           <span>
@@ -202,19 +196,12 @@
     }
 
     function updateUserStats(user, rank) {
-      const userPointsElement = document.getElementById('user-points');
       const userRankElement = document.getElementById('user-rank');
 
       if (user) {
-        userPointsElement.textContent = user.points || 0;
         userRankElement.textContent = rank || 'Не в топе';
       } else {
         const currentUser = AuthService.getUser();
-        if (currentUser && currentUser.globalPoints !== undefined) {
-          userPointsElement.textContent = currentUser.globalPoints;
-        } else {
-          userPointsElement.textContent = '0';
-        }
         userRankElement.textContent = 'Не в топе';
       }
     }
@@ -268,6 +255,6 @@
     }
 
     // Автообновление рейтинга каждые 30 секунд
-    setInterval(refreshLeaderboard, 30000);
+    setInterval(refreshLeaderboard, 10000);
 </script>
 </html>
