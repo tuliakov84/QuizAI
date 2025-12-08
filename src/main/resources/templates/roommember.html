@@ -95,17 +95,31 @@
     });
 
     function initializeRoom() {
-      // Загружаем данные комнаты
-      loadRoomData();
+      // Загружаем полные данные комнаты
+      loadRoomFullData().then(roomData => {
+        if (roomData) {
+          // Обновляем maxPlayers из полных данных
+          if (roomData.participantsNumber) {
+            maxPlayers = roomData.participantsNumber;
+            console.log('Максимальное количество игроков установлено:', maxPlayers);
+          }
+        }
 
-      // Начинаем периодическое обновление данных комнаты с быстрым интервалом
-      startFastPolling();
+        // Запускаем периодическое обновление
+        startFastPolling();
 
-      // Загружаем тему из localStorage
-      loadThemeFromLocalStorage();
+        // Загружаем тему из localStorage
+        loadThemeFromLocalStorage();
 
-      // Обновляем ID квиза на странице
-      updateGameIdDisplay();
+        // Обновляем ID квиза на странице
+        updateGameIdDisplay();
+      }).catch(error => {
+        console.error('Ошибка инициализации комнаты:', error);
+        // Все равно запускаем опрос, но с дефолтными значениями
+        startFastPolling();
+        loadThemeFromLocalStorage();
+        updateGameIdDisplay();
+      });
     }
 
     function setupEventListeners() {
@@ -253,9 +267,51 @@
       }
     }
 
+    // Загрузка полных данных комнаты через /api/game/join
+    async function loadRoomFullData() {
+      try {
+        const session = AuthService.getsession();
+
+        console.log('Загрузка полных данных комнаты...');
+
+        const response = await fetch('http://localhost:8080/api/game/join', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + session,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            session: session,
+            gameId: parseInt(gameId)
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Ошибка загрузки данных комнаты:', response.status, errorText);
+          return null;
+        }
+
+        const roomData = await response.json();
+        console.log('Полные данные комнаты:', roomData);
+
+        // Получаем максимальное количество игроков
+        if (roomData.participantsNumber) {
+          maxPlayers = roomData.participantsNumber;
+          console.log('Максимальное количество игроков:', maxPlayers);
+        }
+
+        return roomData;
+
+      } catch (error) {
+        console.error('Ошибка загрузки полных данных комнаты:', error);
+        return null;
+      }
+    }
+
     // Обработка данных комнаты (игроки + статус)
     function processRoomData(lobbyData) {
-      // Отображаем список игроков
+      // ОТОБРАЖАЕМ список игроков (maxPlayers уже установлен из loadRoomFullData)
       displayPlayers(lobbyData);
 
       // Проверяем статус комнаты
@@ -287,11 +343,11 @@
         container.appendChild(playerElement);
       });
 
-      // Обновляем счетчик игроков
+      // Обновляем счетчик игроков с учетом maxPlayers
       const playerCount = lobbyData.playersUsernames.length;
       countElement.textContent = `${playerCount}/${maxPlayers}`;
 
-      console.log(`Обновлен список игроков: ${playerCount} участников`);
+      console.log(`Обновлен список игроков: ${playerCount}/${maxPlayers} участников`);
     }
 
     // Проверка статуса комнаты
@@ -350,11 +406,6 @@
             .then(() => alert('ID квиза скопирован в буфер обмена!'))
             .catch(err => console.error('Ошибка копирования:', err));
         });
-      }
-
-      // Получаем максимальное количество игроков из данных комнаты (если есть)
-      if (lobbyData.participantsNumber) {
-        maxPlayers = lobbyData.participantsNumber;
       }
     }
 
