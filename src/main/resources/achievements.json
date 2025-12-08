@@ -1,0 +1,35 @@
+[
+  {
+    "name": "Welcome to the club, buddy",
+    "profilePicNeeded": true,
+    "descriptionNeeded": true,
+    "gamesNumberNeeded": 1,
+    "globalPointsNeeded": 0,
+    "globalRatingPlaceNeeded": 0,
+    "currentGamePointsNeeded": 0,
+    "currentGameRatingNeeded": 0,
+    "currentGameLevelDifficultyNeeded": 0
+  },
+  {
+    "name": "Стажер",
+    "profilePicNeeded": true,
+    "descriptionNeeded": true,
+    "gamesNumberNeeded": 10,
+    "globalPointsNeeded": 1000,
+    "globalRatingPlaceNeeded": 0,
+    "currentGamePointsNeeded": 300,
+    "currentGameRatingNeeded": 5,
+    "currentGameLevelDifficultyNeeded": 1
+  },
+  {
+    "name": "Настоящий 職業選手",
+    "profilePicNeeded": true,
+    "descriptionNeeded": true,
+    "gamesNumberNeeded": 10000,
+    "globalPointsNeeded": 10000000,
+    "globalRatingPlaceNeeded": 0,
+    "currentGamePointsNeeded": 25000,
+    "currentGameRatingNeeded": 1,
+    "currentGameLevelDifficultyNeeded": 3
+  }
+]
