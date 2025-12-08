@@ -219,12 +219,6 @@ html, body {
     border-color: #4CAF50;
 }
 
-#avatar-preview::before {
-    content: '📷';
-    font-size: 24px;
-    opacity: 0.7;
-}
-
 #avatar-preview.has-image::before {
     display: none;
 }

@@ -199,7 +199,7 @@ class AuthService {
   static async getGlobalLeaderboard() {
     try {
       const session = this.getsession();
-      const response = await fetch('http://localhost:8080/api/leaderboard/global', {
+      const response = await fetch('http://localhost:8080/api/leaderboard/get/global', {
         method: 'GET',
         headers: {
           'Authorization': 'Bearer ' + session,

@@ -20,11 +20,11 @@
                 <p>Текущий аватар</p>
             </div>
 
-            <div class="avatar-selection">
-                <h3>ВЫБЕРИТЕ АВАТАР</h3>
-                <div class="avatar-grid" id="avatar-grid">
-                </div>
-            </div>
+            <!-- <div class="avatar-selection">
+              <h3>ВЫБЕРИТЕ АВАТАР</h3>
+              <div class="avatar-grid" id="avatar-grid">
+              </div>
+            </div> -->
         </div>
 
         <div class="input-group">
@@ -55,13 +55,12 @@
     let currentUserData = null;
     let selectedAvatarId = null;
 
-    // Используем метод из AuthService
     const availableAvatars = AuthService.getAvailableAvatars();
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
       loadCurrentUserData();
-      loadAvailableAvatars();
+      // loadAvailableAvatars();
     });
 
     function loadCurrentUserData() {
@@ -71,13 +70,8 @@
           // Заполняем поля текущими данными
           document.getElementById('status-input').value = currentUserData.description || '';
 
-          // Устанавливаем текущий аватар
-          if (currentUserData.picId) {
-            selectedAvatarId = currentUserData.picId;
-            // Используем метод из AuthService для отображения аватара
-            const avatarPreview = document.getElementById('avatar-preview');
-            AuthService.displayAvatar(avatarPreview.id, currentUserData.picId);
-          }
+          // Отображаем первую букву имени в аватаре
+          displayCurrentAvatarLetter(currentUserData.username);
         }
       } catch (error) {
         console.error('Ошибка загрузки данных пользователя:', error);
@@ -85,69 +79,100 @@
       }
     }
 
-    function loadAvailableAvatars() {
-      try {
-        const avatarGrid = document.getElementById('avatar-grid');
+    function displayCurrentAvatarLetter(username) {
+        const avatarPreview = document.getElementById('avatar-preview');
+        if (avatarPreview && username) {
+          // Очищаем содержимое
+          avatarPreview.innerHTML = '';
 
-        avatarGrid.innerHTML = '';
-
-        availableAvatars.forEach(avatar => {
-          const avatarElement = document.createElement('div');
-          avatarElement.className = 'avatar-option';
-          avatarElement.innerHTML = `
-            <div class="avatar-img"
-                 style="background-image: url('${avatar.url}')"
-                 data-avatar-id="${avatar.id}">
-            </div>
-            <span class="avatar-name">${avatar.name}</span>
+          // Добавляем первую букву имени (заглавную)
+          const letter = username.charAt(0).toUpperCase();
+          const letterElement = document.createElement('span');
+          letterElement.textContent = letter;
+          letterElement.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            font-size: 80px;
+            font-weight: bold;
+            color: white;
+            border-radius: 50%;
           `;
 
-          // Выделяем текущий выбранный аватар
-          if (avatar.id === selectedAvatarId) {
-            avatarElement.classList.add('selected');
-          }
+          // Устанавливаем градиентный фон как на странице raiting
+          avatarPreview.style.background = 'linear-gradient(135deg, #8279CF, #4c4779)';
+          avatarPreview.style.border = '2px solid #291818';
 
-          avatarElement.addEventListener('click', () => selectAvatar(avatar.id, avatar.url));
-          avatarGrid.appendChild(avatarElement);
-        });
-
-      } catch (error) {
-        console.error('Ошибка загрузки аватаров:', error);
-        showMessage('Ошибка загрузки списка аватаров', 'error');
-      }
-    }
-
-    function selectAvatar(avatarId, avatarUrl) {
-      // Снимаем выделение со всех аватаров
-      document.querySelectorAll('.avatar-option').forEach(option => {
-        option.classList.remove('selected');
-      });
-
-      // Выделяем выбранный аватар
-      const selectedOption = document.querySelector(`[data-avatar-id="${avatarId}"]`).parentElement;
-      selectedOption.classList.add('selected');
-
-      // Обновляем превью
-      const avatarPreview = document.getElementById('avatar-preview');
-      avatarPreview.style.backgroundImage = `url('${avatarUrl}')`;
-      avatarPreview.style.backgroundSize = 'cover';
-      avatarPreview.style.backgroundPosition = 'center';
-      avatarPreview.classList.add('has-avatar');
-
-      // Сохраняем выбранный аватар
-      selectedAvatarId = avatarId;
-
-      showMessage(`Выбран аватар: ${selectedOption.querySelector('.avatar-name').textContent}`, 'info');
-      setTimeout(() => {
-        const messageElement = document.getElementById('message');
-        if (messageElement.textContent.includes('Выбран аватар:')) {
-          messageElement.textContent = '';
-          messageElement.className = 'message';
+          avatarPreview.appendChild(letterElement);
         }
-      }, 2000);
-    }
+      }
+
+    // function loadAvailableAvatars() {
+    //   try {
+    //     const avatarGrid = document.getElementById('avatar-grid');
+
+    //     avatarGrid.innerHTML = '';
+
+    //     availableAvatars.forEach(avatar => {
+    //       const avatarElement = document.createElement('div');
+    //       avatarElement.className = 'avatar-option';
+    //       avatarElement.innerHTML = `
+    //           <div class="avatar-img"
+    //                style="background-image: url('${avatar.url}')"
+    //                data-avatar-id="${avatar.id}">
+    //           </div>
+    //           <span class="avatar-name">${avatar.name}</span>
+    //         `;
+
+    //       // Выделяем текущий выбранный аватар
+    //       if (avatar.id === selectedAvatarId) {
+    //         avatarElement.classList.add('selected');
+    //       }
+
+    //       avatarElement.addEventListener('click', () => selectAvatar(avatar.id, avatar.url));
+    //       avatarGrid.appendChild(avatarElement);
+    //     });
+
+    //   } catch (error) {
+    //     console.error('Ошибка загрузки аватаров:', error);
+    //     showMessage('Ошибка загрузки списка аватаров', 'error');
+    //   }
+    // }
+
+    // function selectAvatar(avatarId, avatarUrl) {
+    //   // Снимаем выделение со всех аватаров
+    //   document.querySelectorAll('.avatar-option').forEach(option => {
+    //     option.classList.remove('selected');
+    //   });
+
+    //   // Выделяем выбранный аватар
+    //   const selectedOption = document.querySelector(`[data-avatar-id="${avatarId}"]`).parentElement;
+    //   selectedOption.classList.add('selected');
+
+    //   // Обновляем превью
+    //   const avatarPreview = document.getElementById('avatar-preview');
+    //   avatarPreview.style.backgroundImage = `url('${avatarUrl}')`;
+    //   avatarPreview.style.backgroundSize = 'cover';
+    //   avatarPreview.style.backgroundPosition = 'center';
+    //   avatarPreview.classList.add('has-avatar');
+
+    //   // Сохраняем выбранный аватар
+    //   selectedAvatarId = avatarId;
+
+    //   showMessage(`Выбран аватар: ${selectedOption.querySelector('.avatar-name').textContent}`, 'info');
+    //   setTimeout(() => {
+    //     const messageElement = document.getElementById('message');
+    //     if (messageElement.textContent.includes('Выбран аватар:')) {
+    //       messageElement.textContent = '';
+    //       messageElement.className = 'message';
+    //     }
+    //   }, 2000);
+    // }
 
     // Функция сохранения профиля
+
     async function saveProfile() {
       const password = document.getElementById('password-input').value.trim();
       const confirmPassword = document.getElementById('confirm-password-input').value.trim();
@@ -181,14 +206,14 @@
       try {
         showMessage('Сохранение...', 'info');
 
-        const session = AuthService.getsession(); // Используем правильное имя метода
+        const session = AuthService.getsession();
         let hasChanges = false;
         let successCount = 0;
         const totalChanges = (password ? 1 : 0) +
-                            (description !== currentUserData.description ? 1 : 0) +
-                            (selectedAvatarId !== currentUserData.picId ? 1 : 0);
+          (description !== currentUserData.description ? 1 : 0) +
+          (selectedAvatarId !== currentUserData.picId ? 1 : 0);
 
-        // Обновляем аватар, если изменился (используем метод из AuthService)
+        // Обновляем аватар, если изменился
         if (selectedAvatarId && selectedAvatarId !== currentUserData.picId) {
           try {
             const success = await AuthService.updateAvatar(selectedAvatarId);
@@ -310,4 +335,5 @@
       }
     }
 </script>
+
 </html>
