@@ -329,7 +329,7 @@
     async function submitAnswer(answerNumber) {
       try {
         const session = AuthService.getsession();
-        const timeTaken = timePerQuestion - timeLeft; // Время, затраченное на ответ
+        const timeTaken = Date.now() - questionStartTime; // Время, затраченное на ответ
 
         console.log(`Отправка ответа: ${answerNumber}, время: ${timeTaken.toFixed(1)}с, сложность: ${levelDifficulty}`);
 
@@ -353,7 +353,7 @@
             gameId: parseInt(gameId),
             questionNumber: currentQuestionNumber,
             submittedAnswerNumber: answerNumber,
-            timeTakenToAnswerInSeconds: Math.round(timeTaken),
+            timeTakenToAnswerInSeconds: timeTaken,
             session: session,
             levelDifficulty: difficultyEnum,
             questionId: currentQuestionData ? currentQuestionData.questionId : 0
