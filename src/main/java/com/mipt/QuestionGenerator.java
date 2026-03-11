@@ -3,6 +3,7 @@ package com.mipt;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -20,24 +21,44 @@ public class QuestionGenerator {
   private static final Set<String> generatedQuestions = new HashSet<>();
   private static final Object lock = new Object();
 
+//    public static CompletableFuture<String> generate(String jsonString) {
+//        JSONArray inputArray = new JSONArray(jsonString);
+//        JSONObject obj = inputArray.getJSONObject(0);
+//
+//        String topic = obj.getString("topic");
+//        int numberOfQuestions = obj.getInt("numberOfQuestions");
+//        int difficult = obj.getInt("difficult");
+//
+//        // Очищаем хранилище при каждом новом вызове
+//        synchronized (lock) {
+//            generatedQuestions.clear();
+//        }
+//
+//        if (numberOfQuestions > 1) {
+//            return generateSequentially(topic, numberOfQuestions, difficult);
+//        }
+//
+//        return generateSingleQuestion(topic, difficult, 1, "");
+//    }
+
+  /**
+   * Заглушка: вместо реального вызова нейросети возвращает содержимое файла ml-answer-example.json
+   * @param jsonString входные параметры (игнорируются)
+   * @return CompletableFuture с JSON-строкой, содержащей массив вопросов
+   */
   public static CompletableFuture<String> generate(String jsonString) {
-    JSONArray inputArray = new JSONArray(jsonString);
-    JSONObject obj = inputArray.getJSONObject(0);
-
-    String topic = obj.getString("topic");
-    int numberOfQuestions = obj.getInt("numberOfQuestions");
-    int difficult = obj.getInt("difficult");
-
-    // Очищаем хранилище при каждом новом вызове
-    synchronized (lock) {
-      generatedQuestions.clear();
+    try {
+      // Читаем файл ml-answer-example.json из classpath (папка resources)
+      InputStream inputStream = QuestionGenerator.class.getClassLoader()
+          .getResourceAsStream("ml-answer-example.json");
+      if (inputStream == null) {
+        throw new RuntimeException("File ml-answer-example.json not found in resources");
+      }
+      String content = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+      return CompletableFuture.completedFuture(content);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to read mock questions file", e);
     }
-
-    if (numberOfQuestions > 1) {
-      return generateSequentially(topic, numberOfQuestions, difficult);
-    }
-
-    return generateSingleQuestion(topic, difficult, 1, "");
   }
 
   private static CompletableFuture<String> generateSingleQuestion(String topic, int difficult,
