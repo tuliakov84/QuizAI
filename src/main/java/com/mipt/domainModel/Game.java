@@ -134,6 +134,10 @@ public class Game {
     }
   }
 
+  public void setLevelDifficulty(LevelDifficulty levelDifficulty) {
+    this.levelDifficulty = levelDifficulty;
+  }
+
   public int getParticipantsNumber() {
     return participantsNumber;
   }
