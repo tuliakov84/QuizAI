@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/styles/style.css">
+    <title>QUIZAI</title>
+</head>
+
+<body>
+<div class="main_cont">
+    <header>
+        <h1>QUIZ AI</h1>
+        <p>Вход в систему</p>
+    </header>
+    <main>
+        <div class="main_rect">
+            <div class="name">
+                <span>Имя пользователя</span>
+                <div class="input-group">
+                    <input type="text" name="username" placeholder="Имя пользователя" required>
+                </div>
+            </div>
+            <div class="password">
+                <span>Пароль</span>
+                <div class="input-group">
+                    <input type="password" password="password" placeholder="Пароль" required>
+                </div>
+            </div>
+            <div class="enter">
+                <button type="button" class="btn">ВОЙТИ</button>
+            </div>
+            <div class="reg_href">
+                <span>Еще нет аккаунта?</span>
+                <a href="register.html">Зарегистрируйтесь сейчас</a>
+            </div>
+        </div>
+    </main>
+</div>
+</body>
+
+<script src="/js/auth.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('DOM loaded - setting up login form');
+
+        const loginBtn = document.querySelector('.enter .btn');
+        const usernameInput = document.querySelector('input[name="username"]');
+        const passwordInput = document.querySelector('input[password="password"]');
+
+        // Прямой обработчик на кнопку
+        loginBtn.addEventListener('click', async function (e) {
+            e.preventDefault();
+            console.log('Login button clicked');
+
+            const username = usernameInput.value;
+            const password = passwordInput.value;
+
+            console.log('Username:', username, 'Password:', password);
+
+            // Валидация
+            if (!username || !password) {
+                alert('Пожалуйста, заполните все поля');
+                return;
+            }
+
+            try {
+                // Показываем загрузку
+                loginBtn.textContent = 'ВХОД...';
+                loginBtn.disabled = true;
+
+                console.log('Sending request to /api/auth/login');
+
+                // Отправляем запрос на бэкенд
+                const response = await fetch('http://localhost:8080/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+
+                console.log('Response status:', response.status);
+
+                // Проверяем Content-Type перед парсингом
+                const contentType = response.headers.get('content-type');
+
+                if (response.ok) {
+                    // Успешный ответ (200-299)
+                    if (contentType && contentType.includes('application/json')) {
+                        const data = await response.json();
+                        console.log('Parsed data:', data);
+
+                        if (data.username) {
+                            // Сохраняем токен и данные пользователя
+                            localStorage.setItem('session', data.session);
+                            localStorage.setItem('user', JSON.stringify(data));
+
+                            console.log('Login successful!');
+                            alert('Вход выполнен успешно!');
+                            window.location.href = 'main.html';
+                        } else {
+                            alert('Ошибка: Неверный формат ответа от сервера');
+                        }
+                    } else {
+                        alert('Ошибка: Сервер вернул не JSON ответ');
+                    }
+                } else {
+                    // Ошибка (404, 401, 500 и т.д.)
+                    if (contentType && contentType.includes('application/json')) {
+                        const errorData = await response.json();
+                        const errorMessage = errorData.message || errorData.error || `Ошибка ${response.status}`;
+
+                        if (response.status === 404) {
+                            alert('Ошибка: Неправильный логин или пароль');
+                        } else {
+                            alert('Ошибка: ' + errorMessage);
+                        }
+                    } else {
+                        // Если сервер возвращает не JSON при ошибке
+                        const errorText = await response.text();
+                        console.error('Error response text:', errorText);
+
+                        if (response.status === 404) {
+                            alert('Ошибка: Неправильный логин или пароль');
+                        } else {
+                            alert(`Ошибка ${response.status}: ${errorText || 'Неизвестная ошибка сервера'}`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('Ошибка соединения с сервером: ' + error.message);
+            } finally {
+                // Всегда возвращаем кнопку в исходное состояние
+                loginBtn.textContent = 'ВОЙТИ';
+                loginBtn.disabled = false;
+            }
+        });
+
+        // Также добавим обработчик на Enter в полях ввода
+        function handleEnterKey(e) {
+            if (e.key === 'Enter') {
+                loginBtn.click();
+            }
+        }
+
+        usernameInput.addEventListener('keypress', handleEnterKey);
+        passwordInput.addEventListener('keypress', handleEnterKey);
+
+        console.log('Login form setup complete');
+    });
+</script>
+
+</html>

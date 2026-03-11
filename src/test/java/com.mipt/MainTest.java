@@ -7,7 +7,6 @@ class MainTest {
 
   @Test
   void testClass() {
-    var example = new testClass();
     assertTrue(true);
   }
 }

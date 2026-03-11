@@ -2,6 +2,7 @@
 # IntelliJ IDEA
 # ========================
 .idea/
+compiler.xml
 *.iws
 *.iml
 *.ipr
@@ -42,3 +43,9 @@ logs/
 # Опционально: если используется JRebel
 # ========================
 rebel.xml
+
+# ========================
+# Остальное
+# ========================
+
+src/main/resources/global-leaderboards.json
