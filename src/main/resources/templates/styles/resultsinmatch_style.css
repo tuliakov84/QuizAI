@@ -1,0 +1,167 @@
+* {
+  padding: 0;
+  margin: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+}
+
+.h11 {
+  font-size: clamp(1.5rem, 4vw, 3rem); 
+  background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text; /* для будущей совместимости */
+}
+
+.h12 {
+  font-size: clamp(1.5rem, 4vw, 3rem);
+  padding-top: 40px;
+  align-self: center;
+  text-align: center;
+  background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text; /* для будущей совместимости */
+}
+
+.h2 {
+    margin-bottom: 100px;
+    padding-left: 10%;
+    text-align: start !important;
+    align-self: start;
+    width: 50%;
+}
+
+.h13 {
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+  text-align: center;
+  background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text; /* для будущей совместимости */
+}
+
+
+.tablehead {
+  width: 80%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.main_cont {
+  background: linear-gradient(0deg, rgb(255, 255, 255), rgb(138, 128, 217));
+  display: flex;
+  min-height: 100vh; /* минимум — высота экрана */
+  width: 100%;
+  flex-direction: column;
+  flex-wrap: wrap;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+}
+
+span {
+  font-size: clamp(1rem, 4vw, 3rem);
+  color: #4c4779;
+  text-align: center;
+}
+
+.raiting {
+  margin-top: 40px;
+  margin-bottom: 140px;
+  display: flex;
+  flex-direction: column;
+  border-style: solid;
+  border-color: #8279CF;
+  border-width: 10px;
+  background: white;
+  border-radius: 3em;
+  align-items: center;
+  gap: 10px;
+  align-self: center;
+  width: 85%;
+  flex-grow: 1;
+  height: 600px;           /* или любая нужная вам высота */
+  overflow-y: auto;    
+}
+
+.player {
+  display: flex;         
+  width: 95%;
+  min-height: 60px;
+  text-align: start;    
+  align-items: start;              
+  border-radius: 18px;
+  font-size: 20px;
+  background: linear-gradient(0deg, rgb(225, 224, 224), rgb(255, 255, 255));
+  border-style: solid;
+  border-width: 2px;
+  border-color: #7f7b7b;
+  color: #000
+}
+
+.text {
+  margin:auto;
+  width: 90%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Для WebKit-браузеров (Chrome, Safari, Edge) */
+.raiting::-webkit-scrollbar {
+    display: none;
+}
+
+/* Для Firefox */
+.raiting {
+    scrollbar-width: none;
+}
+
+.btn {
+  display: block;           
+  width: 90%;
+  padding: 18px 24px;
+  text-align: center;                  
+  text-decoration: none;    
+  border-radius: 18px;
+  font-size: 20px;
+  background: linear-gradient(0deg, rgb(225, 224, 224), rgb(255, 255, 255));
+  border-style: solid;
+  border-width: 2px;
+  border-color: #7f7b7b;
+  color: #000
+}
+
+
+header {
+  display: flex;
+  width: auto;
+  flex-wrap: wrap;
+  flex-direction: row;
+  align-items: center;
+}
+
+
+.btn_back {
+  margin: 15px  ;
+  display: block;           
+  width: 100px;
+  padding: 22px 24px;
+  text-align: center;                  
+  text-decoration: none;    
+  border-radius: 28px;
+  font-size: 20px;
+  background: linear-gradient(0deg, rgb(255, 76, 76), rgb(255, 151, 151));
+  border-style: solid;
+  border-width: 2px;
+  border-color: #291818;
+  color: #000000;
+}
