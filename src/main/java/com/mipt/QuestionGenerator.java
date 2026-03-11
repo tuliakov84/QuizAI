@@ -16,11 +16,10 @@ import java.util.concurrent.CompletableFuture;
 public class QuestionGenerator {
 
     public static CompletableFuture<String> generate(String jsonString) {
-        JSONArray inputArray = new JSONArray(jsonString);
-        JSONObject obj = inputArray.getJSONObject(0);
+        JSONObject obj = new JSONObject(jsonString);
 
         String topic = obj.getString("topic");
-        int numberOfQuestions = obj.getInt("numberOfQuestions");
+        int numberOfQuestions = obj.getInt("n");
         int difficult = obj.getInt("difficult");
 
         if (numberOfQuestions > 1) {
