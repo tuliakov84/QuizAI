@@ -2,6 +2,7 @@ package com.mipt.dbAPI;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.mipt.dbAPI.jpa.entity.AchievementEntity;
+import com.mipt.dbAPI.jpa.entity.AnsweredCorrectlyQuestionEntity;
 import com.mipt.dbAPI.jpa.entity.GameEntity;
 import com.mipt.dbAPI.jpa.entity.GameHistoryEntity;
 import com.mipt.dbAPI.jpa.entity.QuestionEntity;
@@ -9,6 +10,7 @@ import com.mipt.dbAPI.jpa.entity.TopicEntity;
 import com.mipt.dbAPI.jpa.entity.UserAchievementEntity;
 import com.mipt.dbAPI.jpa.entity.UserEntity;
 import com.mipt.dbAPI.jpa.repository.AchievementRepository;
+import com.mipt.dbAPI.jpa.repository.AnsweredCorrectlyQuestionRepository;
 import com.mipt.dbAPI.jpa.repository.GameHistoryRepository;
 import com.mipt.dbAPI.jpa.repository.GameRepository;
 import com.mipt.dbAPI.jpa.repository.QuestionRepository;
@@ -48,6 +50,7 @@ public class DbService {
   private final GameHistoryRepository gameHistoryRepository;
   private final AchievementRepository achievementRepository;
   private final UserAchievementRepository userAchievementRepository;
+  private final AnsweredCorrectlyQuestionRepository answeredCorrectlyQuestionRepository;
   private final TopicRepository topicRepository;
   private final ConfigurableApplicationContext localContext;
 
@@ -59,6 +62,7 @@ public class DbService {
       GameHistoryRepository gameHistoryRepository,
       AchievementRepository achievementRepository,
       UserAchievementRepository userAchievementRepository,
+      AnsweredCorrectlyQuestionRepository answeredCorrectlyQuestionRepository,
       TopicRepository topicRepository
   ) {
     this(
@@ -68,6 +72,7 @@ public class DbService {
         gameHistoryRepository,
         achievementRepository,
         userAchievementRepository,
+        answeredCorrectlyQuestionRepository,
         topicRepository,
         null
     );
@@ -85,6 +90,7 @@ public class DbService {
         bundle.gameHistoryRepository,
         bundle.achievementRepository,
         bundle.userAchievementRepository,
+        bundle.answeredCorrectlyQuestionRepository,
         bundle.topicRepository,
         bundle.context
     );
@@ -97,6 +103,7 @@ public class DbService {
       GameHistoryRepository gameHistoryRepository,
       AchievementRepository achievementRepository,
       UserAchievementRepository userAchievementRepository,
+      AnsweredCorrectlyQuestionRepository answeredCorrectlyQuestionRepository,
       TopicRepository topicRepository,
       ConfigurableApplicationContext localContext
   ) {
@@ -106,6 +113,7 @@ public class DbService {
     this.gameHistoryRepository = gameHistoryRepository;
     this.achievementRepository = achievementRepository;
     this.userAchievementRepository = userAchievementRepository;
+    this.answeredCorrectlyQuestionRepository = answeredCorrectlyQuestionRepository;
     this.topicRepository = topicRepository;
     this.localContext = localContext;
   }
@@ -130,6 +138,7 @@ public class DbService {
         context.getBean(GameHistoryRepository.class),
         context.getBean(AchievementRepository.class),
         context.getBean(UserAchievementRepository.class),
+        context.getBean(AnsweredCorrectlyQuestionRepository.class),
         context.getBean(TopicRepository.class)
     );
   }
@@ -340,6 +349,40 @@ public class DbService {
     return toIntegerArray(gameIds);
   }
 
+  public void addCorrectAnswer(String session, int questionId) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    QuestionEntity questionEntity = questionRepository.findById(questionId).orElseThrow(DatabaseAccessException::new);
+
+    AnsweredCorrectlyQuestionEntity answeredCorrectlyQuestionEntity = new AnsweredCorrectlyQuestionEntity();
+    answeredCorrectlyQuestionEntity.setUser(userEntity);
+    answeredCorrectlyQuestionEntity.setQuestion(questionEntity);
+    answeredCorrectlyQuestionRepository.save(answeredCorrectlyQuestionEntity);
+  }
+
+  public Question[] getCorrectAnswers(String session) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    List<AnsweredCorrectlyQuestionEntity> answeredCorrectlyQuestionEntities =
+        answeredCorrectlyQuestionRepository.findByUser_IdOrderByIdAsc(userEntity.getId());
+    List<Question> questions = new ArrayList<>();
+
+    for (AnsweredCorrectlyQuestionEntity answeredCorrectlyQuestionEntity : answeredCorrectlyQuestionEntities) {
+      QuestionEntity questionEntity = answeredCorrectlyQuestionEntity.getQuestion();
+      Question question = new Question();
+      question.setQuestionId(questionEntity.getId());
+      question.setGameId(questionEntity.getGame() == null ? null : questionEntity.getGame().getId());
+      question.setQuestionNumber(questionEntity.getQuestionNumber());
+      question.setQuestionText(questionEntity.getQuestionText());
+      question.setAnswer1(questionEntity.getAnswer1());
+      question.setAnswer2(questionEntity.getAnswer2());
+      question.setAnswer3(questionEntity.getAnswer3());
+      question.setAnswer4(questionEntity.getAnswer4());
+      question.setRightAnswerNumber(questionEntity.getRightAnswerNumber());
+      questions.add(question);
+    }
+
+    return questions.toArray(new Question[0]);
+  }
+
   public CurrentGameObject getCurrentGameObjectBySession(String session) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     GameEntity gameEntity = userEntity.getCurrentGame();
@@ -548,6 +591,9 @@ public class DbService {
         .orElseThrow(() -> new DatabaseAccessException("Question not exists"));
 
     Question question = new Question();
+    question.setQuestionId(questionEntity.getId());
+    question.setGameId(gameId);
+    question.setQuestionNumber(questionEntity.getQuestionNumber());
     question.setQuestionText(questionEntity.getQuestionText());
     question.setAnswer1(questionEntity.getAnswer1());
     question.setAnswer2(questionEntity.getAnswer2());
@@ -813,6 +859,7 @@ public class DbService {
     }
 
     userAchievementRepository.deleteAll();
+    answeredCorrectlyQuestionRepository.deleteAll();
     gameHistoryRepository.deleteAll();
     questionRepository.deleteAll();
     userRepository.deleteAll();
@@ -834,6 +881,7 @@ public class DbService {
       GameHistoryRepository gameHistoryRepository,
       AchievementRepository achievementRepository,
       UserAchievementRepository userAchievementRepository,
+      AnsweredCorrectlyQuestionRepository answeredCorrectlyQuestionRepository,
       TopicRepository topicRepository
   ) {
   }

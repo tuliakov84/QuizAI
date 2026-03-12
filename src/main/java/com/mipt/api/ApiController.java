@@ -248,6 +248,21 @@ public class ApiController {
   }
 
   /**
+   * Returns an array of answered correctly questions
+   */
+  @PostMapping("/users/get-correct-answers")
+  public ResponseEntity<Object> getCorrectAnswers(@RequestBody User user) {
+    try {
+      Question[] questions = dbService.getCorrectAnswers(user.getSession());
+      return new ResponseEntity<>(questions, HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting information about " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
+  /**
    * Returns a current game DTO
    */
   @PostMapping("/users/get-current-game")
@@ -488,6 +503,8 @@ public class ApiController {
         System.out.println("pointsForAnswer=" + pointsForAnswer);
         dbService.addCurrentGamePoints(session, pointsForAnswer);
         dbService.addGlobalPoints(session, pointsForAnswer);
+        Question question = dbService.getQuestion(gameId, questionNumber);
+        dbService.addCorrectAnswer(session, question.getQuestionId());
       }
 
       int possiblePointsForAnswer = utils.countPossiblePoints(levelDifficulty);

@@ -74,8 +74,15 @@ CREATE TABLE IF NOT EXISTS questions (
     answer4 TEXT
 );
 
+CREATE TABLE IF NOT EXISTS answered_correctly_questions (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users (id) ON DELETE CASCADE,
+    question_id INT REFERENCES questions (id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS topics_idx ON topics USING HASH (name);
 CREATE INDEX IF NOT EXISTS users_idx ON users USING HASH (session);
 CREATE INDEX IF NOT EXISTS users_username_idx ON users USING HASH (username);
 CREATE INDEX IF NOT EXISTS games_status_idx ON games (status);
 CREATE INDEX IF NOT EXISTS games_topic_idx ON games (topic_id);
+CREATE INDEX IF NOT EXISTS answered_correctly_questions_idx ON answered_correctly_questions (user_id);
