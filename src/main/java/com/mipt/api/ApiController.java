@@ -146,7 +146,7 @@ public class ApiController {
         user.setLastActivity(lastActivity.toInstant());
       }
       user.setGlobalPoints(dbService.getGlobalPoints(session));
-      user.setGamesPlayedNumber(gamesPlayed.length);
+      user.setGamesPlayedNumber(dbService.getGamesPlayedNumber(session));
       return new ResponseEntity<>(user, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to get information about account '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
@@ -163,7 +163,7 @@ public class ApiController {
     try {
       String session = user.getSession();
       Integer picId = user.getPicId();
-      if (!picId.equals(0)) {
+      if (picId != null && !picId.equals(0)) {
         dbService.changeProfilePic(session, picId);
         return new ResponseEntity<>(HttpStatus.OK);
       } else {
@@ -258,7 +258,7 @@ public class ApiController {
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while getting current game id of " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     } catch (DatabaseAccessException e) {
-      return new ResponseEntity<>("Failed to get information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Failed to get information about user: " + e.getMessage(), HttpStatus.NOT_FOUND);
     }
   }
 

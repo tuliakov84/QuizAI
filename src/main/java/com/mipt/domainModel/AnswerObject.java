@@ -2,7 +2,7 @@ package com.mipt.domainModel;
 
 public class AnswerObject extends Question {
   private String session;
-  private int timeTakenToAnswerInSeconds;
+  private Integer timeTakenToAnswerInSeconds;
   private Game.LevelDifficulty levelDifficulty;
 
   public String getSession() {
@@ -13,11 +13,11 @@ public class AnswerObject extends Question {
     this.session = session;
   }
 
-  public int getTimeTakenToAnswerInSeconds() {
+  public Integer getTimeTakenToAnswerInSeconds() {
     return timeTakenToAnswerInSeconds;
   }
 
-  public void setTimeTakenToAnswerInSeconds(int timeTakenToAnswerInSeconds) {
+  public void setTimeTakenToAnswerInSeconds(Integer timeTakenToAnswerInSeconds) {
     this.timeTakenToAnswerInSeconds = timeTakenToAnswerInSeconds;
   }
 

@@ -16,7 +16,7 @@ public class QuestionEntity {
   private GameEntity game;
 
   @Column(name = "question_number")
-  private int questionNumber;
+  private Integer questionNumber;
 
   @Column(name = "question_text")
   private String questionText;
@@ -34,7 +34,7 @@ public class QuestionEntity {
   private String answer4;
 
   @Column(name = "right_answer_number")
-  private int rightAnswerNumber;
+  private Integer rightAnswerNumber;
 
   public Integer getId() {
     return id;
@@ -48,11 +48,11 @@ public class QuestionEntity {
     this.game = game;
   }
 
-  public int getQuestionNumber() {
+  public Integer getQuestionNumber() {
     return questionNumber;
   }
 
-  public void setQuestionNumber(int questionNumber) {
+  public void setQuestionNumber(Integer questionNumber) {
     this.questionNumber = questionNumber;
   }
 
@@ -96,11 +96,11 @@ public class QuestionEntity {
     this.answer4 = answer4;
   }
 
-  public int getRightAnswerNumber() {
+  public Integer getRightAnswerNumber() {
     return rightAnswerNumber;
   }
 
-  public void setRightAnswerNumber(int rightAnswerNumber) {
+  public void setRightAnswerNumber(Integer rightAnswerNumber) {
     this.rightAnswerNumber = rightAnswerNumber;
   }
 }

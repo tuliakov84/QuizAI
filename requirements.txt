@@ -1,0 +1,2 @@
+torch>=1.4.0
+sentence-transformers=5.2.3

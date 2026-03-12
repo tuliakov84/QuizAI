@@ -251,7 +251,7 @@ public class DbService {
 
   public int getProfilePic(String session) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
-    return userEntity.getPicId();
+    return intOrZero(userEntity.getPicId());
   }
 
   public String getUsername(int userId) throws SQLException, DatabaseAccessException {
@@ -343,10 +343,17 @@ public class DbService {
   public CurrentGameObject getCurrentGameObjectBySession(String session) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     GameEntity gameEntity = userEntity.getCurrentGame();
-    GameEntity game = getGameOrThrow(gameEntity.getId());
     CurrentGameObject currentGameObject = new CurrentGameObject();
+
+    if (gameEntity == null) {
+      return currentGameObject;
+    }
+
+    GameEntity game = getGameOrThrow(gameEntity.getId());
     currentGameObject.setGameId(game.getId());
-    currentGameObject.setGameStartTime(game.getGameStartTime().toInstant());
+    if (game.getGameStartTime() != null) {
+      currentGameObject.setGameStartTime(game.getGameStartTime().toInstant());
+    }
     return currentGameObject;
   }
 
@@ -360,6 +367,11 @@ public class DbService {
   public Integer getGlobalPoints(String session) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     return userEntity.getGlobalPoints();
+  }
+
+  public Integer getGamesPlayedNumber(String session) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    return intOrZero(userEntity.getGamesPlayedNumber());
   }
 
   public void addGlobalPossiblePoints(String session, int possiblePoints) throws SQLException, DatabaseAccessException {
@@ -692,12 +704,12 @@ public class DbService {
     achievementEntity.setName(achievement.getName());
     achievementEntity.setProfilePicNeeded(achievement.getProfilePicNeeded());
     achievementEntity.setDescriptionNeeded(achievement.getDescriptionNeeded());
-    achievementEntity.setGamesNumberNeeded(achievement.getGamesNumberNeeded());
-    achievementEntity.setGlobalPointsNeeded(achievement.getGlobalPointsNeeded());
-    achievementEntity.setGlobalRatingPlaceNeeded(achievement.getGlobalRatingPlaceNeeded());
-    achievementEntity.setCurrentGamePointsNeeded(achievement.getCurrentGamePointsNeeded());
-    achievementEntity.setCurrentGameRatingNeeded(achievement.getCurrentGameRatingNeeded());
-    achievementEntity.setCurrentGameLevelDifficultyNeeded(achievement.getCurrentGameLevelDifficultyNeeded());
+    achievementEntity.setGamesNumberNeeded(intOrZero(achievement.getGamesNumberNeeded()));
+    achievementEntity.setGlobalPointsNeeded(intOrZero(achievement.getGlobalPointsNeeded()));
+    achievementEntity.setGlobalRatingPlaceNeeded(intOrZero(achievement.getGlobalRatingPlaceNeeded()));
+    achievementEntity.setCurrentGamePointsNeeded(intOrZero(achievement.getCurrentGamePointsNeeded()));
+    achievementEntity.setCurrentGameRatingNeeded(intOrZero(achievement.getCurrentGameRatingNeeded()));
+    achievementEntity.setCurrentGameLevelDifficultyNeeded(intOrZero(achievement.getCurrentGameLevelDifficultyNeeded()));
     return achievementRepository.save(achievementEntity).getId();
   }
 
@@ -718,12 +730,12 @@ public class DbService {
         userEntity.getId(),
         achieved.getProfilePicNeeded(),
         achieved.getDescriptionNeeded(),
-        achieved.getGamesNumberNeeded(),
-        achieved.getGlobalPointsNeeded(),
-        achieved.getGlobalRatingPlaceNeeded(),
-        achieved.getCurrentGamePointsNeeded(),
-        achieved.getCurrentGameRatingNeeded(),
-        achieved.getCurrentGameLevelDifficultyNeeded()
+        intOrZero(achieved.getGamesNumberNeeded()),
+        intOrZero(achieved.getGlobalPointsNeeded()),
+        intOrZero(achieved.getGlobalRatingPlaceNeeded()),
+        intOrZero(achieved.getCurrentGamePointsNeeded()),
+        intOrZero(achieved.getCurrentGameRatingNeeded()),
+        intOrZero(achieved.getCurrentGameLevelDifficultyNeeded())
     );
 
     return toIntegerArray(achievementIds);
@@ -826,7 +838,3 @@ public class DbService {
   ) {
   }
 }
-
-
-
-

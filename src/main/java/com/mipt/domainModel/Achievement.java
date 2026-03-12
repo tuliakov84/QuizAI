@@ -1,17 +1,17 @@
 package com.mipt.domainModel;
 
 public class Achievement {
-  private int achievementId;
+  private Integer achievementId;
 
   private String name;
   private boolean profilePicNeeded;
   private boolean descriptionNeeded;
-  private int gamesNumberNeeded;
-  private int globalPointsNeeded;
-  private int globalRatingPlaceNeeded;
-  private int currentGamePointsNeeded;
-  private int currentGameRatingNeeded;
-  private int currentGameLevelDifficultyNeeded;
+  private Integer gamesNumberNeeded;
+  private Integer globalPointsNeeded;
+  private Integer globalRatingPlaceNeeded;
+  private Integer currentGamePointsNeeded;
+  private Integer currentGameRatingNeeded;
+  private Integer currentGameLevelDifficultyNeeded;
 
   public Achievement() {
 
@@ -21,11 +21,11 @@ public class Achievement {
     this.name = name;
   }
 
-  public int getAchievementId() {
+  public Integer getAchievementId() {
     return achievementId;
   }
   
-  public void setAchievementId(int achievementId) {
+  public void setAchievementId(Integer achievementId) {
     this.achievementId = achievementId;
   }
   
@@ -53,51 +53,51 @@ public class Achievement {
     this.descriptionNeeded = descriptionNeeded;
   }
   
-  public int getGamesNumberNeeded() {
+  public Integer getGamesNumberNeeded() {
     return gamesNumberNeeded;
   }
   
-  public void setGamesNumberNeeded(int gamesNumberNeeded) {
+  public void setGamesNumberNeeded(Integer gamesNumberNeeded) {
     this.gamesNumberNeeded = gamesNumberNeeded;
   }
   
-  public int getGlobalPointsNeeded() {
+  public Integer getGlobalPointsNeeded() {
     return globalPointsNeeded;
   }
 
-  public void setGlobalPointsNeeded(int globalPointsNeeded) {
+  public void setGlobalPointsNeeded(Integer globalPointsNeeded) {
     this.globalPointsNeeded = globalPointsNeeded;
   }
 
-  public int getGlobalRatingPlaceNeeded() {
+  public Integer getGlobalRatingPlaceNeeded() {
     return globalRatingPlaceNeeded;
   }
 
-  public void setGlobalRatingPlaceNeeded(int globalRatingPlaceNeeded) {
+  public void setGlobalRatingPlaceNeeded(Integer globalRatingPlaceNeeded) {
     this.globalRatingPlaceNeeded = globalRatingPlaceNeeded;
   }
   
-  public int getCurrentGamePointsNeeded() {
+  public Integer getCurrentGamePointsNeeded() {
     return currentGamePointsNeeded;
   }
   
-  public void setCurrentGamePointsNeeded(int currentGamePointsNeeded) {
+  public void setCurrentGamePointsNeeded(Integer currentGamePointsNeeded) {
     this.currentGamePointsNeeded = currentGamePointsNeeded;
   }
 
-  public int getCurrentGameRatingNeeded() {
+  public Integer getCurrentGameRatingNeeded() {
     return currentGameRatingNeeded;
   }
 
-  public void setCurrentGameRatingNeeded(int currentGameRatingNeeded) {
+  public void setCurrentGameRatingNeeded(Integer currentGameRatingNeeded) {
     this.currentGameRatingNeeded = currentGameRatingNeeded;
   }
   
-  public int getCurrentGameLevelDifficultyNeeded() {
+  public Integer getCurrentGameLevelDifficultyNeeded() {
     return currentGameLevelDifficultyNeeded;
   }
 
-  public void setCurrentGameLevelDifficultyNeeded(int currentGameLevelDifficultyNeeded) {
+  public void setCurrentGameLevelDifficultyNeeded(Integer currentGameLevelDifficultyNeeded) {
     this.currentGameLevelDifficultyNeeded = currentGameLevelDifficultyNeeded;
   }
 }

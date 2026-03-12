@@ -3,7 +3,7 @@ package com.mipt.domainModel;
 import java.util.List;
 
 public class LobbyObject {
-  private int gameId;
+  private Integer gameId;
   private Status status;
   private List<String> playersUsernames;
   private Boolean questionReady;
@@ -23,11 +23,11 @@ public class LobbyObject {
     ENDED
   }
 
-  public int getGameId() {
+  public Integer getGameId() {
     return gameId;
   }
 
-  public void setGameId(int gameId) {
+  public void setGameId(Integer gameId) {
     this.gameId = gameId;
   }
   
