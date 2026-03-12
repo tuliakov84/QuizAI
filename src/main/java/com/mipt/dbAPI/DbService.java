@@ -16,6 +16,7 @@ import com.mipt.dbAPI.jpa.repository.TopicRepository;
 import com.mipt.dbAPI.jpa.repository.UserAchievementRepository;
 import com.mipt.dbAPI.jpa.repository.UserRepository;
 import com.mipt.domainModel.Achievement;
+import com.mipt.domainModel.CurrentGameObject;
 import com.mipt.domainModel.Question;
 import com.mipt.domainModel.Topic;
 import org.json.JSONArray;
@@ -338,6 +339,17 @@ public class DbService {
     }
     return toIntegerArray(gameIds);
   }
+
+  public CurrentGameObject getCurrentGameObjectBySession(String session) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    GameEntity gameEntity = userEntity.getCurrentGame();
+    GameEntity game = getGameOrThrow(gameEntity.getId());
+    CurrentGameObject currentGameObject = new CurrentGameObject();
+    currentGameObject.setGameId(game.getId());
+    currentGameObject.setGameStartTime(game.getGameStartTime().toInstant());
+    return currentGameObject;
+  }
+
 
   public void addGlobalPoints(String session, int points) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);

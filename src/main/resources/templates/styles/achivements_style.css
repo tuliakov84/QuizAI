@@ -13,7 +13,7 @@ html, body {
   background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip: text; /* для будущей совместимости */
+  background-clip: text;
 }
 
 .h12 {
@@ -24,7 +24,7 @@ html, body {
   background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip: text; /* для будущей совместимости */
+  background-clip: text;
 }
 
 header {
@@ -145,14 +145,14 @@ span {
 /* Стили для выполненных достижений */
 .achivement.completed {
     opacity: 1;
-    border-left: 4px solid #4CAF50; /* Зеленая полоска для выполненных */
+    border-left: 4px solid #4CAF50;
 }
 
 /* Стили для невыполненных достижений */
 .achivement.not-completed {
     opacity: 0.6;
     background-color: #f5f5f5;
-    border-left: 4px solid #9E9E9E; /* Серая полоска для невыполненных */
+    border-left: 4px solid #9E9E9E;
 }
 
 /* Дополнительные эффекты при наведении */
@@ -193,22 +193,6 @@ span {
 
 .loading-pulse {
     animation: pulse 1.5s infinite;
-}
-
-/* Стили для прогресса выполнения (опционально) */
-.progress-bar {
-    width: 100%;
-    height: 4px;
-    background-color: #e0e0e0;
-    border-radius: 2px;
-    margin-top: 10px;
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    background-color: #4CAF50;
-    transition: width 0.3s ease;
 }
 
 

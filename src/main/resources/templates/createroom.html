@@ -67,6 +67,7 @@
 </div>
 
 <script src="/js/auth.js"></script>
+<script src="/js/checkCurrentGame.js"></script>
 <script>
     let selectedTopic = null;
     let selectedDifficulty = 2; // По умолчанию средняя сложность
@@ -75,6 +76,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
       if (!AuthService.requireAuth()) return;
+      checkCurrentGame();
       loadSelectedTopic();
       setupEventListeners();
     });

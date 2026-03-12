@@ -248,6 +248,21 @@ public class ApiController {
   }
 
   /**
+   * Returns a current game DTO
+   */
+  @PostMapping("/users/get-current-game")
+  public ResponseEntity<Object> getCurrentGame(@RequestBody User user) {
+    try {
+      CurrentGameObject currentGameObject = dbService.getCurrentGameObjectBySession(user.getSession());
+      return new ResponseEntity<>(currentGameObject, HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting current game id of " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
+  /**
    * Joins an open lobby if it has not started yet and returns the resolved game
    * preset together with lobby occupancy and privacy info.
    */
@@ -281,7 +296,6 @@ public class ApiController {
       return new ResponseEntity<>("Database error occurred while joining room '" + data.getGameId() + "'", HttpStatus.NOT_FOUND);
     }
   }
-
   /**
    * Removes the current user from their game lobby.
    */

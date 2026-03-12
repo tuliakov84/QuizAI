@@ -28,11 +28,13 @@
 </div>
 
 <script src="/js/auth.js"></script>
+<script src="/js/checkCurrentGame.js"></script>
 <script>
     let availableTopics = [];
 
     document.addEventListener('DOMContentLoaded', function() {
         if (!AuthService.requireAuth()) return;
+        checkCurrentGame();
         loadTopics();
     });
 

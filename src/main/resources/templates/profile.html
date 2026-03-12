@@ -37,14 +37,21 @@
 
 
 <script src="/js/auth.js"></script>
+<script src="/js/checkAchievements.js"></script>
+<script src="/js/checkCurrentGame.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', async function () {
       // Проверяем авторизацию
       if (!AuthService.requireAuth()) return;
+      checkCurrentGame();
 
       // Пытаемся загрузить свежие данные профиля
       const freshData = await AuthService.loadUserProfile();
 
+      session = localStorage.getItem('session');
+      if (session) {
+        checkAndAttachAchievements(session);
+      }
       if (freshData) {
         // Отображаем данные профиля
         AuthService.displayUserProfile(freshData);

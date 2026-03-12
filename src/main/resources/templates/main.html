@@ -28,12 +28,19 @@
 </body>
 
 <script src="/js/auth.js"></script>
+<script src="/js/checkAchievements.js"></script>
+<script src="/js/checkCurrentGame.js"></script>
 <script>
   // Проверяем авторизацию при загрузке главной страницы
   document.addEventListener('DOMContentLoaded', function () {
     if (!AuthService.requireAuth()) return;
+    checkCurrentGame();
 
-    // Показываем информацию о пользователе (опционально)
+
+    session = localStorage.getItem('session');
+    if (session) {
+      checkAndAttachAchievements(session);
+    }
     try {
       const userData = AuthService.getUser();
       if (userData) {
