@@ -1,6 +1,5 @@
 package com.mipt.service;
 
-import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Game;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,19 +11,15 @@ public class QuestionLoadingService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(QuestionLoadingService.class);
 
-  private final DbService dbService;
   private final MlQuestionRequestProducerService mlQuestionRequestProducer;
 
-  public QuestionLoadingService(DbService dbService,
-      MlQuestionRequestProducerService mlQuestionRequestProducer) {
-    this.dbService = dbService;
+  public QuestionLoadingService(MlQuestionRequestProducerService mlQuestionRequestProducer) {
     this.mlQuestionRequestProducer = mlQuestionRequestProducer;
   }
 
   /**
-   * Sends a question generation request to Kafka for the ML/LLM pipeline.
-   * Builds a Game with the given parameters and sends it. The consumer will generate
-   * questions and persist them to the DB for this game.
+   * Отправляет в Kafka запрос на генерацию вопросов ML/LLM для игры.
+   * Консьюмер сгенерирует вопросы и сохранит их в БД.
    */
   @Async
   public void loadQuestionsAsync(int gameId, int levelDifficulty, int numberOfQuestions, int topicId) {

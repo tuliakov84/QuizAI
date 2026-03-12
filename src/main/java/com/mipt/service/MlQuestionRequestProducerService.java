@@ -1,49 +1,49 @@
 package com.mipt.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mipt.domainModel.Game;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-/**
- * Sends question generation requests to Kafka for the ML/LLM pipeline.
- * Messages contain the Game with everything needed for the LLM to generate questions.
- */
 @Service
 public class MlQuestionRequestProducerService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MlQuestionRequestProducerService.class);
 
   private final KafkaTemplate<String, String> kafkaTemplate;
-  private final String topicName;
-  private final ObjectMapper objectMapper;
 
-  public MlQuestionRequestProducerService(
-      KafkaTemplate<String, String> kafkaTemplate,
-      @Value("${app.kafka.topic.question-generation-requests}") String topicName,
-      ObjectMapper objectMapper) {
+  @Value("${app.kafka.topic.ml-question-requests}")
+  private String topicName;
+
+  public MlQuestionRequestProducerService(KafkaTemplate<String, String> kafkaTemplate) {
     this.kafkaTemplate = kafkaTemplate;
-    this.topicName = topicName;
-    this.objectMapper = objectMapper;
   }
 
   /**
-   * Sends the game to Kafka for the ML/LLM to generate questions. The consumer will
-   * generate questions and persist them to the DB for this game.
+   * Отправляет в Kafka сообщение с данными игры для генерации вопросов LLM.
+   * Консьюмер использует эти данные для вызова ML-сервиса и сохранения результатов в БД.
    */
   public void sendQuestionGenerationRequest(Game game) {
+    String payload = toJson(game);
+    int gameId = game.getGameId();
     try {
-      String payload = objectMapper.writeValueAsString(game);
-      kafkaTemplate.send(topicName, String.valueOf(game.getGameId()), payload);
-      LOGGER.info("Sent question generation request for gameId={} topicId={} count={}",
-          game.getGameId(), game.getTopicId(), game.getNumberOfQuestions());
-    } catch (JsonProcessingException e) {
-      LOGGER.error("Failed to serialize game for question generation, gameId={}", game.getGameId(), e);
-      throw new RuntimeException("Failed to send question generation request", e);
+      kafkaTemplate.send(topicName, String.valueOf(gameId), payload);
+      LOGGER.info("Sent ML question request for gameId={}, topicId={}", gameId, game.getTopicId());
+    } catch (Exception e) {
+      LOGGER.error("Failed to send ML question request for gameId={}", gameId, e);
+      throw new RuntimeException("Failed to send question generation request to Kafka", e);
     }
+  }
+
+  private static String toJson(Game game) {
+    JSONObject obj = new JSONObject();
+    obj.put("gameId", game.getGameId());
+    obj.put("topicId", game.getTopicId());
+    obj.put("numberOfQuestions", game.getNumberOfQuestions());
+    obj.put("levelDifficulty", game.getLevelDifficultyInt());
+    return obj.toString();
   }
 }

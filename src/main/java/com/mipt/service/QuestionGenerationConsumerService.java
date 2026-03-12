@@ -1,76 +1,74 @@
 package com.mipt.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mipt.QuestionGenerator;
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Game;
 import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 import java.sql.SQLException;
+import java.util.concurrent.CompletableFuture;
 
-/**
- * Consumes question generation requests from Kafka (Game payload), calls the LLM to generate
- * questions, and persists the results to the database.
- */
 @Service
 public class QuestionGenerationConsumerService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(QuestionGenerationConsumerService.class);
 
   private final DbService dbService;
-  private final ObjectMapper objectMapper;
 
-  public QuestionGenerationConsumerService(DbService dbService, ObjectMapper objectMapper) {
+  public QuestionGenerationConsumerService(DbService dbService) {
     this.dbService = dbService;
-    this.objectMapper = objectMapper;
   }
 
-  @KafkaListener(topics = "${app.kafka.topic.question-generation-requests}", groupId = "${spring.kafka.consumer.group-id}")
+  /**
+   * Читает из Kafka запросы на генерацию вопросов ML, запускает генерацию через LLM,
+   * затем сохраняет сгенерированные вопросы в базу данных.
+   */
+  @KafkaListener(topics = "${app.kafka.topic.ml-question-requests}", groupId = "${spring.kafka.consumer.group-id}")
   public void consumeQuestionGenerationRequest(String message) {
     try {
-      Game game = objectMapper.readValue(message, Game.class);
-      LOGGER.info("Consumed question generation request for gameId={} topicId={}",
-          game.getGameId(), game.getTopicId());
-
+      Game game = fromJson(message);
       String topicName = dbService.getTopicById(game.getTopicId()).getName();
-      int levelDifficultyInt = levelDifficultyToInt(game.getLevelDifficulty());
+      int difficult = game.getLevelDifficultyInt();
+      int gameId = game.getGameId();
+      int numberOfQuestions = game.getNumberOfQuestions();
 
-      String payload = buildGeneratorPayload(
-          topicName,
-          game.getNumberOfQuestions(),
-          levelDifficultyInt);
+      String generatorPayload = buildGeneratorPayload(topicName, numberOfQuestions, difficult);
+      LOGGER.info("Processing question generation request for gameId={}, topicId={}", gameId, game.getTopicId());
 
-      QuestionGenerator.generate(payload)
+      CompletableFuture<String> future = QuestionGenerator.generate(generatorPayload);
+      future
+          .thenAccept(rawJson -> persistQuestions(gameId, rawJson))
           .exceptionally(ex -> {
-            LOGGER.error("Failed to generate questions for gameId={}", game.getGameId(), ex);
+            LOGGER.error("Failed to generate questions for gameId={}", gameId, ex);
             return null;
-          })
-          .thenAccept(json -> {
-            if (json != null) {
-              persistQuestions(game.getGameId(), json);
-            }
           })
           .join();
     } catch (Exception e) {
-      LOGGER.error("Failed to process question generation message: {}", message, e);
+      LOGGER.error("Failed to process Kafka message: {}", message, e);
     }
   }
 
-  private static int levelDifficultyToInt(Game.LevelDifficulty level) {
-    if (level == null) return 1;
-    return switch (level) {
-      case EASY -> 1;
-      case MEDIUM -> 2;
-      case HARD -> 3;
-    };
+  private static Game fromJson(String message) {
+    JSONObject json = new JSONObject(message);
+    Game game = new Game();
+    game.setGameId(json.getInt("gameId"));
+    game.setTopicId(json.getInt("topicId"));
+    game.setNumberOfQuestions(json.getInt("numberOfQuestions"));
+    game.setLevelDifficulty(json.getInt("levelDifficulty"));
+    return game;
   }
 
   private void persistQuestions(int gameId, String rawJson) {
+    if (rawJson == null || rawJson.isBlank()) {
+      LOGGER.warn("Empty or null result from generator for gameId={}", gameId);
+      return;
+    }
     try {
       JSONArray questionsJson = new JSONArray(rawJson);
       dbService.loadQuestions(gameId, questionsJson);

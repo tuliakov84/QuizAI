@@ -341,7 +341,7 @@ public class ApiController {
       Integer[] preset = dbService.getPreset(gameId);
       data.setAuthorId(preset[0]);
 
-      // AI loadQuestions() METHOD NEEDED TO BE HERE !!!
+      // Здесь должен вызываться loadQuestions() для AI
       System.out.println("Sent request");
       questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
 
