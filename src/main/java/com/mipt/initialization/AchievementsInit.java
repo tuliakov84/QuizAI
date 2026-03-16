@@ -1,3 +1,9 @@
+/**
+ * ACHIEVEMENTS INITIALIZER
+ * Инициализация достижений при первом запуске приложения/отсутствии данных
+ * Данные конфигурации берутся из файла resources/achievements.json
+ */
+
 package com.mipt.initialization;
 
 import com.mipt.dbAPI.DbService;

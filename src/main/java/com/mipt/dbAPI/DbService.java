@@ -1,3 +1,14 @@
+/**
+ *
+ * QUIZAI JAVA DB SERVICE
+ * Функциональная библиотека, направленная на взаимодействие с базой данных
+ * Относится только к сервисам, написанным на языке Java
+ * Не путать с PYTHON DB SERVICE
+ *
+ */
+
+
+
 package com.mipt.dbAPI;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;

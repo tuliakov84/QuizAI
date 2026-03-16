@@ -1,6 +1,8 @@
 -- Database initialization script for QuizAI
 -- This script creates all necessary tables and indexes
 
+CREATE EXTENSION IF NOT EXISTS vector;
+
 CREATE TABLE IF NOT EXISTS topics (
     id SERIAL PRIMARY KEY,
     name TEXT
@@ -67,6 +69,7 @@ CREATE TABLE IF NOT EXISTS questions (
     game_id INT REFERENCES games (id) ON DELETE CASCADE,
     question_number INT,
     question_text TEXT,
+    embedding VECTOR(384),
     right_answer_number SMALLINT CHECK (right_answer_number >= 1 AND right_answer_number <= 4),
     answer1 TEXT,
     answer2 TEXT,

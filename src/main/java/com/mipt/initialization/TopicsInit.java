@@ -1,3 +1,8 @@
+/**
+ * TOPICS INITIALIZER
+ * Инициализация тем при первом запуске приложения/отсутствии данных
+ * Данные конфигурации берутся из файла resources/topics.json
+ */
 package com.mipt.initialization;
 
 import com.mipt.dbAPI.DbService;
