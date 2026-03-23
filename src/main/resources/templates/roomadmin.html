@@ -227,8 +227,8 @@
       } else {
         statusElement.className = 'questions-status-value loading';
         statusIcon.textContent = '⏳';
-        statusText.textContent = 'Загрузка вопросов';
-        statusElement.title = 'ИИ генерирует вопросы для квиза...';
+        statusText.textContent = 'Персонализация при старте';
+        statusElement.title = 'Вопросы будут сгенерированы и персонализированы при запуске квиза';
       }
     }
 
@@ -244,10 +244,6 @@
       if (currentPlayers.length < 2) {
         message = 'Для начала квиза нужно минимум 2 игрока';
         messageType = 'warning';
-        isReady = false;
-      } else if (!questionsReady) {
-        message = 'Ожидание загрузки вопросов...';
-        messageType = 'info';
         isReady = false;
       } else {
         isReady = true;

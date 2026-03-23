@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -299,7 +300,10 @@ class QuestionPersonalizer:
             )
 
             if decision_name == "selected":
-                normalized_payload = self._renumber_question(candidate.payload, len(selected_questions) + 1)
+                normalized_payload = self._renumber_question(
+                    candidate.payload,
+                    len(selected_references) + 1,
+                )
                 selected_questions.append(normalized_payload)
                 selected_decisions.append(decision)
                 selected_references.append(
@@ -467,19 +471,20 @@ class DbBackedQuestionPersonalizer:
         candidates: Sequence[QuestionPayload | str],
         *,
         target_count: int | None = None,
+        existing_quiz_questions: Sequence[QuestionPayload | str] | None = None,
         include_existing_game_questions: bool = False,
     ) -> PersonalizationResult:
         player_history = self.load_player_history_embeddings(game_id)
-        existing_quiz_questions = (
-            self.db_service.get_game_questions(game_id)
-            if include_existing_game_questions
-            else []
-        )
+        resolved_existing_questions: list[QuestionPayload | str] = []
+        if include_existing_game_questions:
+            resolved_existing_questions.extend(self.db_service.get_game_questions(game_id))
+        if existing_quiz_questions:
+            resolved_existing_questions.extend(existing_quiz_questions)
         return self.personalizer.select_questions(
             candidates,
             player_history,
             target_count=target_count,
-            existing_quiz_questions=existing_quiz_questions,
+            existing_quiz_questions=resolved_existing_questions,
         )
 
 
@@ -504,6 +509,12 @@ def _load_candidates(path: Path) -> list[QuestionPayload]:
     return [item for item in data if isinstance(item, dict)]
 
 
+def _load_optional_questions(path: Path | None) -> list[QuestionPayload]:
+    if path is None:
+        return []
+    return _load_candidates(path)
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Filter semantic duplicates in a quiz and personalize it for current players.",
@@ -514,6 +525,12 @@ def _parse_args() -> argparse.Namespace:
         type=Path,
         required=True,
         help="Path to a JSON array of question candidates",
+    )
+    parser.add_argument(
+        "--existing-questions-file",
+        type=Path,
+        default=None,
+        help="Optional JSON array of questions already selected for this quiz",
     )
     parser.add_argument(
         "--target-count",
@@ -551,41 +568,44 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
+def main() -> int:
     args = _parse_args()
-    candidates = _load_candidates(args.candidates_file)
-
     try:
-        from service.db_service import DbService
-    except ModuleNotFoundError:
-        from db_service import DbService
+        candidates = _load_candidates(args.candidates_file)
+        existing_questions = _load_optional_questions(args.existing_questions_file)
 
-    try:
+        try:
+            from service.db_service import DbService
+        except ModuleNotFoundError:
+            from db_service import DbService
+
         embedder = SentenceTransformerEmbedder(
             args.model_name,
             local_files_only=args.local_files_only,
         )
-    except RuntimeError as exc:
-        print(str(exc))
-        return
 
-    personalizer = QuestionPersonalizer(
-        embedder,
-        history_similarity_threshold=args.history_threshold,
-        quiz_similarity_threshold=args.quiz_threshold,
-    )
-
-    with DbService() as db_service:
-        db_personalizer = DbBackedQuestionPersonalizer(db_service, personalizer)
-        result = db_personalizer.personalize_game_candidates(
-            args.game_id,
-            candidates,
-            target_count=args.target_count,
-            include_existing_game_questions=args.include_existing_game_questions,
+        personalizer = QuestionPersonalizer(
+            embedder,
+            history_similarity_threshold=args.history_threshold,
+            quiz_similarity_threshold=args.quiz_threshold,
         )
 
-    print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
+        with DbService() as db_service:
+            db_personalizer = DbBackedQuestionPersonalizer(db_service, personalizer)
+            result = db_personalizer.personalize_game_candidates(
+                args.game_id,
+                candidates,
+                target_count=args.target_count,
+                existing_quiz_questions=existing_questions,
+                include_existing_game_questions=args.include_existing_game_questions,
+            )
+
+        print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
+        return 0
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

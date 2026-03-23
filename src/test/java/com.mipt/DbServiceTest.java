@@ -5,9 +5,11 @@ import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Achievement;
 import com.mipt.domainModel.Question;
 import com.mipt.domainModel.Topic;
+import com.mipt.service.QuestionLoadingService;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -18,7 +20,11 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -822,5 +828,208 @@ public class DbServiceTest {
 
     // checking topic2 left
     assertNotNull(dbService.getTopicById(topicId2));
+  }
+
+  @Test
+  void testPersonalizedQuestionLoadingDropsExtraQuestionsAndUsesPlayerHistory()
+      throws SQLException, DatabaseAccessException, JSONException {
+    Integer historyGameId = dbService.createGame("SESSION2", 1, 1, 4, 1);
+    dbService.setCurrentGame("SESSION2", historyGameId);
+    List<Integer> historyQuestionIds = dbService.loadQuestions(historyGameId, new JSONArray("""
+        [
+          {
+            "question_number": 1,
+            "question_text": "Кто написал роман Война и мир?",
+            "available_answers": [
+              {"index": 1, "answer": "Лев Толстой"},
+              {"index": 2, "answer": "Федор Достоевский"},
+              {"index": 3, "answer": "Иван Тургенев"},
+              {"index": 4, "answer": "Николай Гоголь"}
+            ],
+            "right_answer_number": 1
+          }
+        ]
+        """));
+    dbService.addCorrectAnswer("SESSION2", historyQuestionIds.get(0));
+    dbService.leaveGame("SESSION2");
+
+    Integer gameId = dbService.createGame("SESSION", 1, 2, 4, 1);
+    dbService.setCurrentGame("SESSION", gameId);
+    dbService.setCurrentGame("SESSION2", gameId);
+
+    JSONArray generatedCandidates = new JSONArray("""
+        [
+          {
+            "question_number": 1,
+            "question_text": "Кто написал роман Война и мир?",
+            "available_answers": [
+              {"index": 1, "answer": "Лев Толстой"},
+              {"index": 2, "answer": "Федор Достоевский"},
+              {"index": 3, "answer": "Иван Тургенев"},
+              {"index": 4, "answer": "Николай Гоголь"}
+            ],
+            "right_answer_number": 1
+          },
+          {
+            "question_number": 2,
+            "question_text": "Назовите автора романа Война и мир",
+            "available_answers": [
+              {"index": 1, "answer": "Лев Толстой"},
+              {"index": 2, "answer": "Александр Пушкин"},
+              {"index": 3, "answer": "Антон Чехов"},
+              {"index": 4, "answer": "Иван Бунин"}
+            ],
+            "right_answer_number": 1
+          },
+          {
+            "question_number": 3,
+            "question_text": "В каком году началась Первая мировая война?",
+            "available_answers": [
+              {"index": 1, "answer": "1914"},
+              {"index": 2, "answer": "1916"},
+              {"index": 3, "answer": "1918"},
+              {"index": 4, "answer": "1920"}
+            ],
+            "right_answer_number": 1
+          },
+          {
+            "question_number": 4,
+            "question_text": "Столица Японии?",
+            "available_answers": [
+              {"index": 1, "answer": "Токио"},
+              {"index": 2, "answer": "Осака"},
+              {"index": 3, "answer": "Киото"},
+              {"index": 4, "answer": "Саппоро"}
+            ],
+            "right_answer_number": 1
+          }
+        ]
+        """);
+
+    TestQuestionLoadingService questionLoadingService = new TestQuestionLoadingService(
+        dbService,
+        generatedCandidates,
+        List.of("SESSION", "SESSION2")
+    );
+
+    questionLoadingService.loadQuestions(gameId, 1, 2, 1);
+
+    Question firstQuestion = dbService.getQuestion(gameId, 1);
+    Question secondQuestion = dbService.getQuestion(gameId, 2);
+    assertThrows(DatabaseAccessException.class, () -> dbService.getQuestion(gameId, 3));
+
+    List<String> loadedQuestionTexts = List.of(firstQuestion.getQuestionText(), secondQuestion.getQuestionText());
+    assertEquals(2, loadedQuestionTexts.size());
+    assertTrue(loadedQuestionTexts.contains("В каком году началась Первая мировая война?"));
+    assertTrue(loadedQuestionTexts.contains("Столица Японии?"));
+    assertFalse(loadedQuestionTexts.contains("Кто написал роман Война и мир?"));
+    assertFalse(loadedQuestionTexts.contains("Назовите автора романа Война и мир"));
+    assertEquals(2, questionLoadingService.getPersistedEmbeddingIds().size());
+  }
+
+  private static final class TestQuestionLoadingService extends QuestionLoadingService {
+    private final JSONArray generatedCandidates;
+    private final List<String> participantSessions;
+    private final List<Integer> persistedEmbeddingIds = new ArrayList<>();
+
+    private TestQuestionLoadingService(DbService dbService, JSONArray generatedCandidates, List<String> participantSessions) {
+      super(dbService);
+      this.generatedCandidates = generatedCandidates;
+      this.participantSessions = participantSessions;
+    }
+
+    @Override
+    protected JSONArray generateCandidateQuestions(String topicName, int candidateCount, int levelDifficulty) {
+      try {
+        return new JSONArray(generatedCandidates.toString());
+      } catch (JSONException e) {
+        throw new IllegalStateException("Failed to clone generated candidates in test", e);
+      }
+    }
+
+    @Override
+    protected JSONObject personalizeCandidates(
+        int gameId,
+        JSONArray candidateQuestions,
+        int targetCount,
+        JSONArray existingQuestions
+    ) {
+      Set<String> blockedFamilies = new HashSet<>();
+      for (String session : participantSessions) {
+        try {
+          for (Question answeredQuestion : dbService.getCorrectAnswers(session)) {
+            blockedFamilies.add(questionFamily(answeredQuestion.getQuestionText()));
+          }
+        } catch (SQLException | DatabaseAccessException e) {
+          throw new IllegalStateException("Failed to load player history in test", e);
+        }
+      }
+
+      Set<String> selectedFamilies = new HashSet<>();
+      JSONArray selectedQuestions = new JSONArray();
+      JSONArray rejectedCandidates = new JSONArray();
+
+      try {
+        for (int i = 0; i < existingQuestions.length(); i++) {
+          JSONObject existingQuestion = existingQuestions.getJSONObject(i);
+          selectedFamilies.add(questionFamily(existingQuestion.getString("question_text")));
+        }
+
+        for (int i = 0; i < candidateQuestions.length(); i++) {
+          JSONObject candidate = candidateQuestions.getJSONObject(i);
+          String family = questionFamily(candidate.getString("question_text"));
+          if (blockedFamilies.contains(family) || selectedFamilies.contains(family)) {
+            rejectedCandidates.put(candidate);
+            continue;
+          }
+          JSONObject normalized = new JSONObject(candidate.toString());
+          normalized.put("question_number", existingQuestions.length() + selectedQuestions.length() + 1);
+          selectedQuestions.put(normalized);
+          selectedFamilies.add(family);
+          if (selectedQuestions.length() == targetCount) {
+            break;
+          }
+        }
+      } catch (JSONException e) {
+        throw new IllegalStateException("Failed to personalize questions in test", e);
+      }
+
+      try {
+        return new JSONObject()
+            .put("selected_questions", selectedQuestions)
+            .put("rejected_candidates", rejectedCandidates)
+            .put("backup_candidates", new JSONArray());
+      } catch (JSONException e) {
+        throw new IllegalStateException("Failed to build personalization response in test", e);
+      }
+    }
+
+    @Override
+    protected void persistEmbeddings(List<Integer> questionIds) {
+      persistedEmbeddingIds.clear();
+      persistedEmbeddingIds.addAll(questionIds);
+    }
+
+    private List<Integer> getPersistedEmbeddingIds() {
+      return persistedEmbeddingIds;
+    }
+
+    private String questionFamily(String questionText) {
+      String normalized = questionText.toLowerCase()
+          .replace("?", "")
+          .replace("!", "")
+          .replace(",", "")
+          .replace(".", "")
+          .trim();
+
+      if (normalized.contains("война и мир")
+          && (normalized.contains("написал") || normalized.contains("автор"))) {
+        return "war-and-peace-author";
+      }
+      if (normalized.contains("первая мировая")) {
+        return "first-world-war-start";
+      }
+      return normalized;
+    }
   }
 }

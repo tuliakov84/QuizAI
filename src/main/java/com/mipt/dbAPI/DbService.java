@@ -628,9 +628,10 @@ public class DbService {
     return questionEntity.getRightAnswerNumber();
   }
 
-  public void loadQuestions(int gameId, JSONArray jsonArr) throws SQLException, DatabaseAccessException {
+  public List<Integer> loadQuestions(int gameId, JSONArray jsonArr) throws SQLException, DatabaseAccessException {
     GameEntity gameEntity = getGameOrThrow(gameId);
     final int answerAmount = 4;
+    List<Integer> questionIds = new ArrayList<>();
 
     for (int i = 0; i < jsonArr.length(); i++) {
       JSONObject itemObject = jsonArr.getJSONObject(i);
@@ -660,7 +661,10 @@ public class DbService {
       }
 
       questionRepository.save(questionEntity);
+      questionIds.add(questionEntity.getId());
     }
+
+    return questionIds;
   }
 
   public String[] getParticipantUsernames(int gameId) throws SQLException, DatabaseAccessException {

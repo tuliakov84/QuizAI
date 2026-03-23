@@ -370,10 +370,6 @@ public class ApiController {
       Integer[] preset = dbService.getPreset(gameId);
       data.setAuthorId(preset[0]);
 
-      // AI loadQuestions() METHOD NEEDED TO BE HERE !!!
-      System.out.println("Sent request");
-      questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
-
       return joinRoom(data);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to create room '" + data.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
@@ -450,6 +446,10 @@ public class ApiController {
   public ResponseEntity<Object> startGame(@RequestBody Game game) {
     try {
       int gameId = game.getGameId();
+      if (!dbService.isGameReady(gameId)) {
+        Integer[] preset = dbService.getPreset(gameId);
+        questionLoadingService.loadQuestions(gameId, preset[1], preset[2], preset[4]);
+      }
       dbService.setStatus(gameId, 2);
       dbService.setGameStartTime(gameId, Instant.now());
       return new ResponseEntity<>(HttpStatus.OK);
@@ -457,6 +457,9 @@ public class ApiController {
       return new ResponseEntity<>("Failed to start the game " + game.getGameId(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while stating game " + game.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (IllegalStateException e) {
+      return new ResponseEntity<>("Failed to prepare personalized questions for game " + game.getGameId()
+          + ": " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
