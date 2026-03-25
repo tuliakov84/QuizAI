@@ -6,7 +6,6 @@ import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Topic;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import com.mipt.domainModel.Game;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -28,15 +27,14 @@ public class QuestionLoadingService {
   private static final int CANDIDATE_MULTIPLIER = 2;
   private static final int EXTRA_CANDIDATES = 3;
 
-  private final MlQuestionRequestProducerService mlQuestionRequestProducer;
+  private final DbService dbService;
 
-  public QuestionLoadingService(MlQuestionRequestProducerService mlQuestionRequestProducer) {
-    this.mlQuestionRequestProducer = mlQuestionRequestProducer;
+  public QuestionLoadingService(DbService dbService) {
+    this.dbService = dbService;
   }
 
   /**
-   * Отправляет в Kafka запрос на генерацию вопросов ML/LLM для игры.
-   * Консьюмер сгенерирует вопросы и сохранит их в БД.
+   * Triggers question generation for the provided game without blocking the caller thread.
    */
   @Async
   public void loadQuestionsAsync(int gameId, int levelDifficulty, int numberOfQuestions, int topicId) {
@@ -198,17 +196,6 @@ public class QuestionLoadingService {
     return "[{\"topic\":\"" + topicName + "\",\"numberOfQuestions\":" + numberOfQuestions
         + ",\"difficult\":" + levelDifficulty + "}]";
   }
-      Game game = new Game();
-      game.setGameId(gameId);
-      game.setTopicId(topicId);
-      game.setNumberOfQuestions(numberOfQuestions);
-      game.setLevelDifficulty(levelDifficulty);
-      mlQuestionRequestProducer.sendQuestionGenerationRequest(game);
-    } catch (Exception e) {
-      LOGGER.error("Failed to send question generation request for game {}", gameId, e);
-    }
-  }
-}
 
   protected Path pythonScriptPath(String... pathParts) {
     Path result = projectRoot().resolve(Path.of("src", "main", "python"));
