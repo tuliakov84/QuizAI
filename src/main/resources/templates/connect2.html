@@ -34,6 +34,7 @@
 </div>
 
 <script src="/js/auth.js"></script>
+<script src="/js/checkCurrentGame.js"></script>
 <script>
     let selectedGameId = null;
     let availableRooms = [];
@@ -41,6 +42,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
+      checkCurrentGame();
       loadOpenRooms();
       initializeEventHandlers();
 
@@ -256,8 +258,10 @@
 
         if (response.ok) {
           const gameData = await response.json();
-          console.log('Данные квиза:', gameData);
-
+          sessionStorage.setItem('gameInfo', JSON.stringify({
+            totalQuestions: gameData.numberOfQuestions,
+            levelDifficulty: gameData.levelDifficulty
+          }));
           return {
             success: true,
             game: gameData

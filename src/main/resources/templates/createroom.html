@@ -67,6 +67,7 @@
 </div>
 
 <script src="/js/auth.js"></script>
+<script src="/js/checkCurrentGame.js"></script>
 <script>
     let selectedTopic = null;
     let selectedDifficulty = 2; // По умолчанию средняя сложность
@@ -75,6 +76,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
       if (!AuthService.requireAuth()) return;
+      checkCurrentGame();
       loadSelectedTopic();
       setupEventListeners();
     });
@@ -277,7 +279,7 @@
         showMessage('Комната успешно создана! Перенаправление...', 'success');
 
         // Сохраняем данные игры для использования в лобби
-        sessionStorage.setItem('createdGame', JSON.stringify(createdGame));
+        localStorage.setItem('roomData', JSON.stringify(createdGame));
 
         // Перенаправление на страницу лобби
         setTimeout(() => {
@@ -310,4 +312,3 @@
 </body>
 
 </html>
-[file content end]

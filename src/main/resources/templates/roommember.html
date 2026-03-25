@@ -101,6 +101,7 @@
           // Обновляем maxPlayers из полных данных
           if (roomData.participantsNumber) {
             maxPlayers = roomData.participantsNumber;
+            localStorage.setItem('roomData', JSON.stringify(roomData));
             console.log('Максимальное количество игроков установлено:', maxPlayers);
           }
         }

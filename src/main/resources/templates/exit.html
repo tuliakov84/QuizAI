@@ -21,9 +21,11 @@
 
 
 <script src="js/auth.js"></script>
+<script src="/js/checkCurrentGame.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
+      checkCurrentGame();
 
       // Обработчик кнопки "ЕЩЁ ПО КВИЗУ!"
       document.querySelector('.btn1').addEventListener('click', function () {

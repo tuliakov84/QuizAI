@@ -1,25 +1,25 @@
 package com.mipt.domainModel;
 
 public class Question {
-  private int questionId;
-  private int gameId;
+  private Integer questionId;
+  private Integer gameId;
 
   private String questionText;
   private String answer1;
   private String answer2;
   private String answer3;
   private String answer4;
-  private int rightAnswerNumber;
-  private int questionNumber;
-  private int submittedAnswerNumber;
+  private Integer rightAnswerNumber;
+  private Integer questionNumber;
+  private Integer submittedAnswerNumber;
 
   public Question(){
 
   }
 
-  public Question(int questionId, int gameId, String questionText,
+  public Question(Integer questionId, Integer gameId, String questionText,
                   String answer1, String answer2, String answer3, String answer4,
-                  int rightAnswerNumber, int questionNumber) {
+                  Integer rightAnswerNumber, Integer questionNumber) {
     this.questionId = questionId;
     this.gameId = gameId;
     this.questionText = questionText;
@@ -31,19 +31,19 @@ public class Question {
     this.questionNumber = questionNumber;
   }
 
-  public int getQuestionId() {
+  public Integer getQuestionId() {
     return questionId;
   }
 
-  public void setQuestionId(int questionId) {
+  public void setQuestionId(Integer questionId) {
     this.questionId = questionId;
   }
 
-  public int getGameId() {
+  public Integer getGameId() {
     return gameId;
   }
 
-  public void setGameId(int gameId) {
+  public void setGameId(Integer gameId) {
     this.gameId = gameId;
   }
 
@@ -87,27 +87,27 @@ public class Question {
     this.answer4 = answer4;
   }
 
-  public int getRightAnswerNumber() {
+  public Integer getRightAnswerNumber() {
     return rightAnswerNumber;
   }
 
-  public void setRightAnswerNumber(int rightAnswerNumber) {
+  public void setRightAnswerNumber(Integer rightAnswerNumber) {
     this.rightAnswerNumber = rightAnswerNumber;
   }
 
-  public int getQuestionNumber() {
+  public Integer getQuestionNumber() {
     return questionNumber;
   }
 
-  public void setQuestionNumber(int questionNumber) {
+  public void setQuestionNumber(Integer questionNumber) {
     this.questionNumber = questionNumber;
   }
 
-  public int getSubmittedAnswerNumber() {
+  public Integer getSubmittedAnswerNumber() {
     return submittedAnswerNumber;
   }
 
-  public void setSubmittedAnswerNumber(int submittedAnswerNumber) {
+  public void setSubmittedAnswerNumber(Integer submittedAnswerNumber) {
     this.submittedAnswerNumber = submittedAnswerNumber;
   }
 }

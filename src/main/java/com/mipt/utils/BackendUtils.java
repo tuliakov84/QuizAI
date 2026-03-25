@@ -9,7 +9,7 @@ public class BackendUtils {
 
   public int countPoints(int levelDifficulty, int timeTakenToAnswerInSeconds) {
     int difficultMultiplier = 100 * levelDifficulty;
-    double timeMultiplier = (0.5 + 0.5 * (1 - (timeTakenToAnswerInSeconds / MAX_TIME_TO_ANSWER_IN_SECONDS)));
+    double timeMultiplier = (0.5 + 0.5 * (1 - ((double) timeTakenToAnswerInSeconds / MAX_TIME_TO_ANSWER_IN_SECONDS)));
 
     return (int) (difficultMultiplier * timeMultiplier);
   }

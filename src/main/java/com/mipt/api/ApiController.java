@@ -146,7 +146,7 @@ public class ApiController {
         user.setLastActivity(lastActivity.toInstant());
       }
       user.setGlobalPoints(dbService.getGlobalPoints(session));
-      user.setGamesPlayedNumber(gamesPlayed.length);
+      user.setGamesPlayedNumber(dbService.getGamesPlayedNumber(session));
       return new ResponseEntity<>(user, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to get information about account '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
@@ -163,7 +163,7 @@ public class ApiController {
     try {
       String session = user.getSession();
       Integer picId = user.getPicId();
-      if (!picId.equals(0)) {
+      if (picId != null && !picId.equals(0)) {
         dbService.changeProfilePic(session, picId);
         return new ResponseEntity<>(HttpStatus.OK);
       } else {
@@ -248,6 +248,36 @@ public class ApiController {
   }
 
   /**
+   * Returns an array of answered correctly questions
+   */
+  @PostMapping("/users/get-correct-answers")
+  public ResponseEntity<Object> getCorrectAnswers(@RequestBody User user) {
+    try {
+      Question[] questions = dbService.getCorrectAnswers(user.getSession());
+      return new ResponseEntity<>(questions, HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting information about " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
+  /**
+   * Returns a current game DTO
+   */
+  @PostMapping("/users/get-current-game")
+  public ResponseEntity<Object> getCurrentGame(@RequestBody User user) {
+    try {
+      CurrentGameObject currentGameObject = dbService.getCurrentGameObjectBySession(user.getSession());
+      return new ResponseEntity<>(currentGameObject, HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting current game id of " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get information about user: " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
+  /**
    * Joins an open lobby if it has not started yet and returns the resolved game
    * preset together with lobby occupancy and privacy info.
    */
@@ -281,7 +311,6 @@ public class ApiController {
       return new ResponseEntity<>("Database error occurred while joining room '" + data.getGameId() + "'", HttpStatus.NOT_FOUND);
     }
   }
-
   /**
    * Removes the current user from their game lobby.
    */
@@ -421,6 +450,10 @@ public class ApiController {
   public ResponseEntity<Object> startGame(@RequestBody Game game) {
     try {
       int gameId = game.getGameId();
+      if (!dbService.isGameReady(gameId)) {
+        Integer[] preset = dbService.getPreset(gameId);
+        questionLoadingService.loadQuestions(gameId, preset[1], preset[2], preset[4]);
+      }
       dbService.setStatus(gameId, 2);
       dbService.setGameStartTime(gameId, Instant.now());
       return new ResponseEntity<>(HttpStatus.OK);
@@ -428,6 +461,9 @@ public class ApiController {
       return new ResponseEntity<>("Failed to start the game " + game.getGameId(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while stating game " + game.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (IllegalStateException e) {
+      return new ResponseEntity<>("Failed to prepare personalized questions for game " + game.getGameId()
+          + ": " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -457,29 +493,38 @@ public class ApiController {
       int gameId = answerObject.getGameId();
       int questionNumber = answerObject.getQuestionNumber();
       int submittedAnswerNumber = answerObject.getSubmittedAnswerNumber();
-      int rightAnswer = dbService.getRightAnswer(gameId, questionNumber);
+      int timeTaken = answerObject.getTimeTakenToAnswerInSeconds();
 
+      int rightAnswer = dbService.getRightAnswer(gameId, questionNumber);
       int levelDifficulty = dbService.getPreset(gameId)[1];
       String session = answerObject.getSession();
 
-      if (submittedAnswerNumber == rightAnswer) {
-        int timeTakenToAnswerInSeconds = answerObject.getTimeTakenToAnswerInSeconds();
-        int pointsForAnswer = utils.countPoints(levelDifficulty, timeTakenToAnswerInSeconds);
+      System.out.println("=== verifyAnswer ===");
+      System.out.println("gameId=" + gameId + ", question=" + questionNumber);
+      System.out.println("submitted=" + submittedAnswerNumber + ", right=" + rightAnswer);
+      System.out.println("timeTaken=" + timeTaken + " сек");
+      System.out.println("levelDifficulty=" + levelDifficulty);
 
+      if (submittedAnswerNumber == rightAnswer) {
+        int pointsForAnswer = utils.countPoints(levelDifficulty, timeTaken);
+        System.out.println("pointsForAnswer=" + pointsForAnswer);
         dbService.addCurrentGamePoints(session, pointsForAnswer);
         dbService.addGlobalPoints(session, pointsForAnswer);
+        Question question = dbService.getQuestion(gameId, questionNumber);
+        dbService.addCorrectAnswer(session, question.getQuestionId());
       }
 
       int possiblePointsForAnswer = utils.countPossiblePoints(levelDifficulty);
       dbService.addGlobalPossiblePoints(session, possiblePointsForAnswer);
       return new ResponseEntity<>(HttpStatus.OK);
     } catch (DatabaseAccessException e) {
-      return new ResponseEntity<>("Failed to verify " + answerObject.getQuestionNumber() + " for game " + answerObject.getQuestionId(), HttpStatus.NOT_FOUND);
+      e.printStackTrace();
+      return new ResponseEntity<>("Failed to verify ...", HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while verifying question " + answerObject.getQuestionNumber() + " for game " + answerObject.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+      e.printStackTrace();
+      return new ResponseEntity<>("Database error ...", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-
   /**
    * Puts a game into the paused status.
    */

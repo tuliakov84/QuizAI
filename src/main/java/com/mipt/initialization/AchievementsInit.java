@@ -1,17 +1,21 @@
+/**
+ * ACHIEVEMENTS INITIALIZER
+ * Инициализация достижений при первом запуске приложения/отсутствии данных
+ * Данные конфигурации берутся из файла resources/achievements.json
+ */
+
 package com.mipt.initialization;
 
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Achievement;
-import com.mipt.domainModel.Topic;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
+import java.util.HashSet;
+import java.util.Set;
 
 public class AchievementsInit {
   private DbService dbService;
@@ -23,20 +27,27 @@ public class AchievementsInit {
   public void achievementsInit() {
     try {
       JSONParser parser = new JSONParser();
-      Achievement[] dbAchievementsList = dbService.getAllAchievements();
+      // Получаем все существующие достижения из БД
+      Achievement[] dbAchievements = dbService.getAllAchievements();
+      Set<String> existingNames = new HashSet<>();
+      for (Achievement a : dbAchievements) {
+        existingNames.add(a.getName());
+      }
 
+      // Загружаем достижения из файла
       try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("achievements.json")) {
         if (inputStream == null) {
-          throw new FileNotFoundException("File achievements.json not found in classpath");
+          System.err.println("Файл achievements.json не найден в classpath");
+          return;
         }
-
         try (InputStreamReader reader = new InputStreamReader(inputStream)) {
           Object globalObj = parser.parse(reader);
           JSONArray jsonArray = (JSONArray) globalObj;
-          if (jsonArray.size() == dbAchievementsList.length) {
-            for (Object element : jsonArray) {
-              JSONObject obj = (JSONObject) element;
-              String name = (String) obj.get("name");
+          for (Object element : jsonArray) {
+            JSONObject obj = (JSONObject) element;
+            String name = (String) obj.get("name");
+            // Добавляем только если такого имени ещё нет
+            if (!existingNames.contains(name)) {
               Achievement achievement = new Achievement(name);
               achievement.setProfilePicNeeded((Boolean) obj.get("profilePicNeeded"));
               achievement.setDescriptionNeeded((Boolean) obj.get("descriptionNeeded"));
@@ -47,14 +58,15 @@ public class AchievementsInit {
               achievement.setCurrentGameRatingNeeded(((Number) obj.get("currentGameRatingNeeded")).intValue());
               achievement.setCurrentGameLevelDifficultyNeeded(((Number) obj.get("currentGameLevelDifficultyNeeded")).intValue());
               dbService.addAchievement(achievement);
+              System.out.println("Добавлено достижение: " + name);
             }
           }
         } catch (IOException | ParseException e) {
-          System.out.println("Error reading achievements.json: " + e.getMessage());
+          System.err.println("Ошибка чтения achievements.json: " + e.getMessage());
         }
       }
     } catch (Exception e) {
-      System.out.println("Error during achievements initialization: " + e.getMessage());
+      System.err.println("Ошибка инициализации достижений: " + e.getMessage());
     }
   }
 }

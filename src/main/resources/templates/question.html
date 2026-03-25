@@ -33,9 +33,10 @@
 
 <script src="/js/auth.js"></script>
 <script>
+    let timeTaken;
     let gameId = null;
     let currentQuestionNumber = 1;
-    let totalQuestions = 10;
+    let totalQuestions;
     let timeLeft = 30;
     let timerWorker = null;
     let answerSubmitted = false;
@@ -85,29 +86,11 @@
       try {
         const session = AuthService.getsession();
 
-        const response = await fetch('http://localhost:8080/api/game/join', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + session,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            session: session,
-            gameId: parseInt(gameId)
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Ошибка HTTP: ${response.status}`);
-        }
-
-        const gameData = await response.json();
-
-        // Получаем количество вопросов и сложность
-        totalQuestions = gameData.numberOfQuestions || 10;
-
-        // Сохраняем сложность для отправки с ответом
-        levelDifficulty = gameData.levelDifficulty;
+        const roomDataString = localStorage.getItem('roomData');
+        const roomData = JSON.parse(roomDataString);
+        totalQuestions = roomData.numberOfQuestions;
+        levelDifficulty = roomData.levelDifficulty;
+        console.log(totalQuestions);
 
         timeLeft = timePerQuestion;
 
@@ -207,12 +190,11 @@
     }
 
     function selectAnswer(answerNumber) {
+      timeTaken = Date.now() - questionStartTime; // Время, затраченное на ответ
       if (answerSubmitted) return;
 
       selectedAnswer = answerNumber;
       answerSubmitted = true;
-      timeTaken = (Date.now() - questionStartTime) / 1000;
-      console.log(timeTaken);
 
       // Выделяем выбранный ответ
       const answerButtons = document.querySelectorAll('.btn');
@@ -238,7 +220,6 @@
 
     function startTimer() {
       questionStartTime = Date.now();
-      console.log(`time of start: ${questionStartTime}`);
       timeLeft = timePerQuestion;
       updateTimerDisplay();
 
@@ -333,7 +314,7 @@
       try {
         const session = AuthService.getsession();
 
-        console.log(`Отправка ответа: ${answerNumber}, время: ${timeTaken.toFixed(1)}с, сложность: ${levelDifficulty}`);
+        console.log(`Отправка ответа: ${answerNumber}, время: ${timeTaken / 1000}, сложность: ${levelDifficulty}`);
 
         // Преобразуем числовую сложность в enum формат
         let difficultyEnum = 'MEDIUM'; // По умолчанию
@@ -355,7 +336,7 @@
             gameId: parseInt(gameId),
             questionNumber: currentQuestionNumber,
             submittedAnswerNumber: answerNumber,
-            timeTakenToAnswerInSeconds: timeTaken,
+            timeTakenToAnswerInSeconds: timeTaken / 1000,
             session: session,
             levelDifficulty: difficultyEnum,
             questionId: currentQuestionData ? currentQuestionData.questionId : 0
