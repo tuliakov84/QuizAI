@@ -40,6 +40,8 @@ async function checkCurrentGame() {
             const differance = Date.now() - startTime;
             const questionNumber = Math.floor(differance / timePerQuestion) + 1;
 
+            console.error('differance:', differance);
+            console.error('номер вопроса:', questionNumber);
             window.location.href = `question.html?gameId=${gameId}&question=${questionNumber}`;
         }
     } catch (error) {

@@ -343,10 +343,16 @@ public class DbService {
   public CurrentGameObject getCurrentGameObjectBySession(String session) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     GameEntity gameEntity = userEntity.getCurrentGame();
+    if (gameEntity == null) {
+      CurrentGameObject empty = new CurrentGameObject();
+      empty.setGameId(null);
+      empty.setGameStartTime(null);
+      return empty;
+    }
     GameEntity game = getGameOrThrow(gameEntity.getId());
     CurrentGameObject currentGameObject = new CurrentGameObject();
     currentGameObject.setGameId(game.getId());
-    currentGameObject.setGameStartTime(game.getGameStartTime().toInstant());
+    currentGameObject.setGameStartTime(game.getGameStartTime() != null ? game.getGameStartTime().toInstant() : null);
     return currentGameObject;
   }
 

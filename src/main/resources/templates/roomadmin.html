@@ -79,6 +79,7 @@
     let isQuizStarting = false; // Флаг, что квиз начинается
     let questionsReady = false; // Флаг готовности вопросов
     let isCheckingQuestions = false; // Флаг проверки вопросов (чтобы избежать множественных проверок)
+    let isInternalNavigation = false;
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
@@ -227,8 +228,8 @@
       } else {
         statusElement.className = 'questions-status-value loading';
         statusIcon.textContent = '⏳';
-        statusText.textContent = 'Загрузка вопросов';
-        statusElement.title = 'ИИ генерирует вопросы для квиза...';
+        statusText.textContent = 'Персонализация при старте';
+        statusElement.title = 'Вопросы будут сгенерированы и персонализированы при запуске квиза';
       }
     }
 
@@ -244,10 +245,6 @@
       if (currentPlayers.length < 2) {
         message = 'Для начала квиза нужно минимум 2 игрока';
         messageType = 'warning';
-        isReady = false;
-      } else if (!questionsReady) {
-        message = 'Ожидание загрузки вопросов...';
-        messageType = 'info';
         isReady = false;
       } else {
         isReady = true;
@@ -513,6 +510,7 @@
 
     // Функция остановки игры и выхода
     async function stopGameAndExit() {
+      isInternalNavigation = true;
       try {
         const session = AuthService.getsession();
 
@@ -563,6 +561,7 @@
     let isNavigatingToQuiz = false;
 
     async function startQuiz() {
+      isInternalNavigation = true;
       // Проверяем все условия перед началом
       if (currentPlayers.length < 2) {
         alert('Для начала квиза нужно минимум 2 игрока');
@@ -623,19 +622,36 @@
 
     // Очистка при размонтировании компонента
     window.addEventListener('beforeunload', function (e) {
-      // Только если пользователь действительно уходит со страницы (не переход на квиз)
-      if (!isNavigatingToQuiz) {
-        // Показываем предупреждение при закрытии вкладки/браузера
-        e.preventDefault();
-        e.returnValue = 'При выходе комната будет удалена. Вы уверены, что хотите выйти?';
-        return e.returnValue;
-      }
+    // Если это не внутренний переход (например, кнопка "Назад" или старт квиза) и есть gameId
+    if (!isInternalNavigation && gameId) {
+        const session = AuthService.getsession();
+        const url = 'http://localhost:8080/api/game/delete';
+        const data = JSON.stringify({ gameId: parseInt(gameId) });
 
-      // Останавливаем обновление списка игроков при любом уходе со страницы
-      if (refreshInterval) {
+        // Отправляем запрос без ожидания ответа
+        if (navigator.sendBeacon) {
+            const blob = new Blob([data], { type: 'application/json' });
+            navigator.sendBeacon(url, blob);
+        } else {
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: data,
+                keepalive: true
+            }).catch(err => console.error('Ошибка отправки запроса при закрытии:', err));
+        }
+
+        // Показываем предупреждение
+        e.preventDefault();
+        e.returnValue = 'Вы уверены, что хотите покинуть страницу? Комната будет удалена.';
+        return e.returnValue;
+    }
+
+    // Останавливаем обновление списка игроков при любом уходе со страницы
+    if (refreshInterval) {
         clearInterval(refreshInterval);
-      }
-    });
+    }
+});
 </script>
 </body>
 
