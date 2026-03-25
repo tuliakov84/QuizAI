@@ -370,6 +370,10 @@ public class ApiController {
       Integer[] preset = dbService.getPreset(gameId);
       data.setAuthorId(preset[0]);
 
+      // Здесь должен вызываться loadQuestions() для AI
+      System.out.println("Sent request");
+      questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
+
       return joinRoom(data);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to create room '" + data.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
