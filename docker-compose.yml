@@ -51,6 +51,20 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
 
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: kafka-init-topics
+    restart: "no"
+    depends_on:
+      kafka:
+        condition: service_started
+    networks:
+      - kafka-network
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    volumes:
+      - ./docker/kafka-topics-init.sh:/kafka-topics-init.sh:ro
+    entrypoint: ["/bin/bash", "/kafka-topics-init.sh"]
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -69,7 +83,7 @@ services:
 
 
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg13
     container_name: quizai-postgres
     restart: unless-stopped
     environment:

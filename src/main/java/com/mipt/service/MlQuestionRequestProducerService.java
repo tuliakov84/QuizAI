@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 @Service
 public class MlQuestionRequestProducerService {
 
@@ -15,7 +17,7 @@ public class MlQuestionRequestProducerService {
 
   private final KafkaTemplate<String, String> kafkaTemplate;
 
-  @Value("${app.kafka.topic.ml-question-requests}")
+  @Value("${app.kafka.topic.question-generation-requests}")
   private String topicName;
 
   public MlQuestionRequestProducerService(KafkaTemplate<String, String> kafkaTemplate) {
@@ -27,23 +29,70 @@ public class MlQuestionRequestProducerService {
    * Консьюмер использует эти данные для вызова ML-сервиса и сохранения результатов в БД.
    */
   public void sendQuestionGenerationRequest(Game game) {
-    String payload = toJson(game);
+    String payload = toJson(game, UUID.randomUUID().toString(), 0, null);
     int gameId = game.getGameId();
     try {
       kafkaTemplate.send(topicName, String.valueOf(gameId), payload);
-      LOGGER.info("Sent ML question request for gameId={}, topicId={}", gameId, game.getTopicId());
+      LOGGER.info("Sent question generation request for gameId={}, topicId={}", gameId, game.getTopicId());
     } catch (Exception e) {
-      LOGGER.error("Failed to send ML question request for gameId={}", gameId, e);
+      LOGGER.error("Failed to send question generation request for gameId={}", gameId, e);
       throw new RuntimeException("Failed to send question generation request to Kafka", e);
     }
   }
 
-  private static String toJson(Game game) {
+  public void sendRegenerationRequest(
+      int gameId,
+      int topicId,
+      int levelDifficulty,
+      int numberOfQuestions,
+      String requestId,
+      int attempt,
+      String questionNumbersToRegenerateJsonArray
+  ) {
+    String payload = toJson(
+        buildGame(gameId, topicId, levelDifficulty, numberOfQuestions),
+        requestId,
+        attempt,
+        questionNumbersToRegenerateJsonArray
+    );
+    try {
+      kafkaTemplate.send(topicName, String.valueOf(gameId), payload);
+      LOGGER.info("Sent regeneration request for gameId={}, requestId={}, attempt={}", gameId, requestId, attempt);
+    } catch (Exception e) {
+      LOGGER.error("Failed to send regeneration request for gameId={}, requestId={}", gameId, requestId, e);
+      throw new RuntimeException("Failed to send regeneration request to Kafka", e);
+    }
+  }
+
+  private static Game buildGame(int gameId, int topicId, int levelDifficulty, int numberOfQuestions) {
+    Game game = new Game();
+    game.setGameId(gameId);
+    game.setTopicId(topicId);
+    game.setLevelDifficulty(levelDifficulty);
+    game.setNumberOfQuestions(numberOfQuestions);
+    return game;
+  }
+
+  private static String toJson(
+      Game game,
+      String requestId,
+      int attempt,
+      String questionNumbersToRegenerateJsonArray
+  ) {
     JSONObject obj = new JSONObject();
+    obj.put("requestId", requestId);
+    obj.put("status", "REQUESTED");
     obj.put("gameId", game.getGameId());
     obj.put("topicId", game.getTopicId());
     obj.put("numberOfQuestions", game.getNumberOfQuestions());
     obj.put("levelDifficulty", game.getLevelDifficultyInt());
+    obj.put("attempt", attempt);
+    if (questionNumbersToRegenerateJsonArray != null && !questionNumbersToRegenerateJsonArray.isBlank()) {
+      obj.put("questionNumbersToRegenerate", new org.json.JSONArray(questionNumbersToRegenerateJsonArray));
+      obj.put("isRegeneration", true);
+    } else {
+      obj.put("isRegeneration", false);
+    }
     return obj.toString();
   }
 }
