@@ -193,6 +193,18 @@ public class DbServiceTest {
   }
 
   @Test
+  void testRegisterWithEmailAndAuthenticateByEmail() throws SQLException, DatabaseAccessException {
+    assertFalse(dbService.checkEmailExists("email-user@example.com"));
+    dbService.register("emailUser", "EmailPass1!", "email-user@example.com");
+    assertTrue(dbService.checkEmailExists("email-user@example.com"));
+
+    dbService.authenticate("email-user@example.com", "EmailPass1!", "EMAIL_SESSION");
+
+    assertEquals("email-user@example.com", dbService.getEmail("EMAIL_SESSION"));
+    assertEquals("emailUser", dbService.getUsername("EMAIL_SESSION"));
+  }
+
+  @Test
   void testChangeProfilePic_GetProfilePic() throws SQLException, DatabaseAccessException {
     assertThrows(DatabaseAccessException.class, () -> dbService.changeProfilePic("NOT_EXISTING_SESSION", 1));
 

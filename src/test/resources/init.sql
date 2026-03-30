@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
     session TEXT,
     username TEXT,
     password TEXT,
+    email TEXT,
     current_game_id INT,
     pic_id INT,
     description TEXT,
@@ -79,6 +80,7 @@ CREATE TABLE IF NOT EXISTS answered_correctly_questions (
 
 CREATE INDEX topics_idx ON topics USING HASH (name);
 CREATE INDEX users_idx ON users USING HASH (session);
+CREATE INDEX users_email_idx ON users USING HASH (email);
 
 INSERT INTO games (status, participants_number) VALUES (0, 1);
 INSERT INTO topics (name) VALUES ('testTopic');

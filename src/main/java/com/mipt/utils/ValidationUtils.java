@@ -8,6 +8,8 @@ public class ValidationUtils {
   
   // Password: at least 8 characters, contains uppercase, lowercase, digit, and special character
   private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");
+
+  private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
   
   // Description: 10-200 characters, alphanumeric, spaces, periods, commas, hyphens
   private static final Pattern DESCRIPTION_PATTERN = Pattern.compile("^[a-zA-Zа-яА-Я0-9.,\\s-]{1,200}$");
@@ -43,6 +45,13 @@ public class ValidationUtils {
       return false;
     }
     return PASSWORD_PATTERN.matcher(password).matches();
+  }
+
+  public static boolean emailValidation(String email) {
+    if (email == null || email.isBlank()) {
+      return false;
+    }
+    return EMAIL_PATTERN.matcher(email).matches();
   }
 
   /**

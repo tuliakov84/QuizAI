@@ -59,6 +59,8 @@ public class ApiController {
         dbService.authenticate(user.getUsername(), user.getPassword(), session);
         user.setSession(session);
         user.setUserId(dbService.getUserId(session));
+        user.setUsername(dbService.getUsername(session));
+        user.setEmail(dbService.getEmail(session));
         Integer currentGameId = dbService.getCurrentGame(session);
         if (currentGameId != null) {
           Game currentGame = new Game();
@@ -86,22 +88,10 @@ public class ApiController {
    */
   @PostMapping("/auth/register")
   public ResponseEntity<Object> register(@RequestBody User user) {
-    try {
-      String username = user.getUsername();
-      String password = user.getPassword();
-      if (!ValidationUtils.passwordValidation(password)) {
-        return new ResponseEntity<>("Password validation error. Bad password", HttpStatus.BAD_REQUEST);
-      }
-      if (!ValidationUtils.usernameValidation(username)) {
-        return new ResponseEntity<>("Username validation error. Bad username", HttpStatus.BAD_REQUEST);
-      }
-      dbService.register(username, password);
-      return auth(user);
-    } catch (DatabaseAccessException e) {
-      return new ResponseEntity<>("Failed to register user '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
-    } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while registering user '" + user.getUsername() + "'", HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+    return new ResponseEntity<>(
+        "Direct registration is disabled. Use the OTP-based registration flow.",
+        HttpStatus.BAD_REQUEST
+    );
   }
 
   /**
@@ -141,6 +131,7 @@ public class ApiController {
       user.setPicId(dbService.getProfilePic(session));
       user.setDescription(dbService.getDescription(session));
       user.setUsername(dbService.getUsername(session));
+      user.setEmail(dbService.getEmail(session));
       Timestamp lastActivity = dbService.getLastActivity(session);
       if (lastActivity != null) {
         user.setLastActivity(lastActivity.toInstant());

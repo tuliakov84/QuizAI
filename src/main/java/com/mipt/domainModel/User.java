@@ -12,6 +12,7 @@ public class User {
   private String session;
   private String username;
   private String password;
+  private String email;
   private Integer picId;
   private String description;
   private Instant lastActivity;
@@ -67,6 +68,14 @@ public class User {
   public void setPassword(String password) {
     this.password = password;
 
+  }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public void setEmail(String email) {
+    this.email = email;
   }
 
   public Integer getPicId() {
