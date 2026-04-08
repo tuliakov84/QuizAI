@@ -507,6 +507,12 @@ public class DbService {
 
     List<UserEntity> participants = userRepository.findByCurrentGame_Id(gameId);
     for (UserEntity userEntity : participants) {
+      GameHistoryEntity history = new GameHistoryEntity();
+      history.setGame(gameEntity);
+      history.setUser(userEntity);
+      gameHistoryRepository.save(history);
+
+      userEntity.setGamesPlayedNumber(userEntity.getGamesPlayedNumber() + 1);
       userEntity.setCurrentGame(null);
       userEntity.setCurrentGamePoints(0);
     }
