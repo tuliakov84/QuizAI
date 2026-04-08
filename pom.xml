@@ -182,6 +182,8 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
+
+            <!-- Убираем maven-shade-plugin, так как spring-boot-maven-plugin уже создает исполняемый JAR -->
         </plugins>
     </build>
 </project>

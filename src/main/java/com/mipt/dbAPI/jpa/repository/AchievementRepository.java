@@ -14,12 +14,12 @@ public interface AchievementRepository extends JpaRepository<AchievementEntity, 
       from AchievementEntity a
       where a.profilePicNeeded = :profilePicNeeded
         and a.descriptionNeeded = :descriptionNeeded
-        and a.gamesNumberNeeded >= :gamesNumberNeeded
-        and a.globalPointsNeeded >= :globalPointsNeeded
-        and a.globalRatingPlaceNeeded >= :globalRatingPlaceNeeded
-        and a.currentGamePointsNeeded >= :currentGamePointsNeeded
-        and a.currentGameRatingNeeded >= :currentGameRatingNeeded
-        and a.currentGameLevelDifficultyNeeded >= :currentGameLevelDifficultyNeeded
+        and coalesce(a.gamesNumberNeeded, 0) >= :gamesNumberNeeded
+        and coalesce(a.globalPointsNeeded, 0) >= :globalPointsNeeded
+        and coalesce(a.globalRatingPlaceNeeded, 0) >= :globalRatingPlaceNeeded
+        and coalesce(a.currentGamePointsNeeded, 0) >= :currentGamePointsNeeded
+        and coalesce(a.currentGameRatingNeeded, 0) >= :currentGameRatingNeeded
+        and coalesce(a.currentGameLevelDifficultyNeeded, 0) >= :currentGameLevelDifficultyNeeded
         and not exists (
           select 1
           from UserAchievementEntity ua

@@ -14,7 +14,7 @@ public class GameEntity {
   private Integer id;
 
   @Column(name = "status")
-  private int status;
+  private Integer status;
 
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "author_id")
@@ -33,7 +33,7 @@ public class GameEntity {
   private Integer numberOfQuestions;
 
   @Column(name = "participants_number")
-  private int participantsNumber;
+  private Integer participantsNumber;
 
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "topic_id")
@@ -49,11 +49,11 @@ public class GameEntity {
     return id;
   }
 
-  public int getStatus() {
+  public Integer getStatus() {
     return status;
   }
 
-  public void setStatus(int status) {
+  public void setStatus(Integer status) {
     this.status = status;
   }
 
@@ -97,11 +97,11 @@ public class GameEntity {
     this.numberOfQuestions = numberOfQuestions;
   }
 
-  public int getParticipantsNumber() {
+  public Integer getParticipantsNumber() {
     return participantsNumber;
   }
 
-  public void setParticipantsNumber(int participantsNumber) {
+  public void setParticipantsNumber(Integer participantsNumber) {
     this.participantsNumber = participantsNumber;
   }
 

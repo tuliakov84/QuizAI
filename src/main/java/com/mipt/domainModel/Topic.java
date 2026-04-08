@@ -1,7 +1,7 @@
 package com.mipt.domainModel;
 
 public class Topic {
-  private int topicId;
+  private Integer topicId;
   private String name;
 
   public Topic() {
@@ -12,11 +12,11 @@ public class Topic {
     this.name = name;
   }
 
-  public int getTopicId() {
+  public Integer getTopicId() {
     return topicId;
   }
   
-  public void setTopicId(int topicId) {
+  public void setTopicId(Integer topicId) {
     this.topicId = topicId;
   }
 

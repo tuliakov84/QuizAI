@@ -146,7 +146,7 @@ public class ApiController {
         user.setLastActivity(lastActivity.toInstant());
       }
       user.setGlobalPoints(dbService.getGlobalPoints(session));
-      user.setGamesPlayedNumber(gamesPlayed.length);
+      user.setGamesPlayedNumber(dbService.getGamesPlayedNumber(session));
       return new ResponseEntity<>(user, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to get information about account '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
@@ -163,7 +163,7 @@ public class ApiController {
     try {
       String session = user.getSession();
       Integer picId = user.getPicId();
-      if (!picId.equals(0)) {
+      if (picId != null && !picId.equals(0)) {
         dbService.changeProfilePic(session, picId);
         return new ResponseEntity<>(HttpStatus.OK);
       } else {
@@ -248,6 +248,21 @@ public class ApiController {
   }
 
   /**
+   * Returns an array of answered correctly questions
+   */
+  @PostMapping("/users/get-correct-answers")
+  public ResponseEntity<Object> getCorrectAnswers(@RequestBody User user) {
+    try {
+      Question[] questions = dbService.getCorrectAnswers(user.getSession());
+      return new ResponseEntity<>(questions, HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting information about " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
+  /**
    * Returns a current game DTO
    */
   @PostMapping("/users/get-current-game")
@@ -258,7 +273,7 @@ public class ApiController {
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while getting current game id of " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     } catch (DatabaseAccessException e) {
-      return new ResponseEntity<>("Failed to get information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
+      return new ResponseEntity<>("Failed to get information about user: " + e.getMessage(), HttpStatus.NOT_FOUND);
     }
   }
 
@@ -355,10 +370,6 @@ public class ApiController {
       Integer[] preset = dbService.getPreset(gameId);
       data.setAuthorId(preset[0]);
 
-      // AI loadQuestions() METHOD NEEDED TO BE HERE !!!
-      System.out.println("Sent request");
-      questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
-
       return joinRoom(data);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to create room '" + data.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
@@ -435,6 +446,10 @@ public class ApiController {
   public ResponseEntity<Object> startGame(@RequestBody Game game) {
     try {
       int gameId = game.getGameId();
+      if (!dbService.isGameReady(gameId)) {
+        Integer[] preset = dbService.getPreset(gameId);
+        questionLoadingService.loadQuestions(gameId, preset[1], preset[2], preset[4]);
+      }
       dbService.setStatus(gameId, 2);
       dbService.setGameStartTime(gameId, Instant.now());
       return new ResponseEntity<>(HttpStatus.OK);
@@ -442,6 +457,9 @@ public class ApiController {
       return new ResponseEntity<>("Failed to start the game " + game.getGameId(), HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while stating game " + game.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (IllegalStateException e) {
+      return new ResponseEntity<>("Failed to prepare personalized questions for game " + game.getGameId()
+          + ": " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -488,6 +506,8 @@ public class ApiController {
         System.out.println("pointsForAnswer=" + pointsForAnswer);
         dbService.addCurrentGamePoints(session, pointsForAnswer);
         dbService.addGlobalPoints(session, pointsForAnswer);
+        Question question = dbService.getQuestion(gameId, questionNumber);
+        dbService.addCorrectAnswer(session, question.getQuestionId());
       }
 
       int possiblePointsForAnswer = utils.countPossiblePoints(levelDifficulty);

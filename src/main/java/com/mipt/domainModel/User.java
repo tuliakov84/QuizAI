@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.List;
 
 public class User {
-  private int userId;
+  private Integer userId;
   private Game currentGame;
   private Integer[] achievements;
   private Integer[] gamesPlayed;
@@ -12,19 +12,19 @@ public class User {
   private String session;
   private String username;
   private String password;
-  private int picId;
+  private Integer picId;
   private String description;
   private Instant lastActivity;
-  private int gamesPlayedNumber;
-  private int globalPoints;
-  private int globalPossiblePoints;
-  private int currentGamePoints;
+  private Integer gamesPlayedNumber;
+  private Integer globalPoints;
+  private Integer globalPossiblePoints;
+  private Integer currentGamePoints;
 
   public User() {
 
   }
 
-  public User(int userId, String password, String username) {
+  public User(Integer userId, String password, String username) {
     this.userId = userId;
     this.password = password;
     this.username = username;
@@ -43,11 +43,11 @@ public class User {
 
   }
 
-  public void setUserId(int userId) {
+  public void setUserId(Integer userId) {
     this.userId = userId;
   }
   
-  public int getUserId() {
+  public Integer getUserId() {
     return userId;
   }
 
@@ -69,11 +69,11 @@ public class User {
 
   }
 
-  public int getPicId() {
+  public Integer getPicId() {
     return picId;
   }
 
-  public void setPicId(int picId) {
+  public void setPicId(Integer picId) {
     this.picId = picId;
 
   }
@@ -95,38 +95,38 @@ public class User {
     this.lastActivity = lastActivity;
   }
 
-  public int getGamesPlayedNumber() {
+  public Integer getGamesPlayedNumber() {
     return gamesPlayedNumber;
   }
 
-  public void setGamesPlayedNumber(int gamesPlayedNumber) {
+  public void setGamesPlayedNumber(Integer gamesPlayedNumber) {
     this.gamesPlayedNumber = gamesPlayedNumber;
 
   }
 
-  public int getGlobalPoints() {
+  public Integer getGlobalPoints() {
     return globalPoints;
   }
 
-  public void setGlobalPoints(int globalPoints) {
+  public void setGlobalPoints(Integer globalPoints) {
     this.globalPoints = globalPoints;
 
   }
 
-  public int getGlobalPossiblePoints() {
+  public Integer getGlobalPossiblePoints() {
     return globalPossiblePoints;
   }
 
-  public void setGlobalPossiblePoints(int globalPossiblePoints) {
+  public void setGlobalPossiblePoints(Integer globalPossiblePoints) {
     this.globalPossiblePoints = globalPossiblePoints;
 
   }
 
-  public int getCurrentGamePoints() {
+  public Integer getCurrentGamePoints() {
     return currentGamePoints;
   }
 
-  public void setCurrentGamePoints(int currentGamePoints) {
+  public void setCurrentGamePoints(Integer currentGamePoints) {
     this.currentGamePoints = currentGamePoints;
 
   }

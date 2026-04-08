@@ -2,12 +2,12 @@ package com.mipt.domainModel;
 
 public class Achieved extends Achievement {
   private String session;
-  private int achievementId;
+  private Integer achievementId;
 
   public String getSession() {
     return session;
   }
-  public int getAchievementId() {
+  public Integer getAchievementId() {
     return achievementId;
   }
 
@@ -15,7 +15,7 @@ public class Achieved extends Achievement {
     this.session = session;
   }
 
-  public void setAchievementId(int achievementId) {
+  public void setAchievementId(Integer achievementId) {
     this.achievementId = achievementId;
   }
 }

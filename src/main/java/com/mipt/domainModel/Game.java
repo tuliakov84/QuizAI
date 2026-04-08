@@ -3,19 +3,19 @@ package com.mipt.domainModel;
 import java.time.Instant;
 
 public class Game {
-  private int gameId;
-  private int authorId;
-  private int topicId;
-  private int questionId;
+  private Integer gameId;
+  private Integer authorId;
+  private Integer topicId;
+  private Integer questionId;
   private Status status;
   private Instant createdAt;
   private Instant gameStartTime;
   private Instant gameEndTime;
-  private int numberOfQuestions;
+  private Integer numberOfQuestions;
   private boolean isPrivate;
   private LevelDifficulty levelDifficulty;
-  private int participantsNumber;
-  private int currentParticipantsNumber;
+  private Integer participantsNumber;
+  private Integer currentParticipantsNumber;
 
   public enum Status {
     WAITING,
@@ -33,7 +33,7 @@ public class Game {
   public Game() {
   }
 
-  public Game(int gameId, int authorId, int topicId, LevelDifficulty levelDifficulty) {
+  public Game(Integer gameId, Integer authorId, Integer topicId, LevelDifficulty levelDifficulty) {
     this.gameId = gameId;
     this.authorId = authorId;
     this.topicId = topicId;
@@ -42,35 +42,35 @@ public class Game {
     this.createdAt = Instant.now();
   }
 
-  public int getGameId() {
+  public Integer getGameId() {
     return gameId;
   }
 
-  public void setGameId(int gameId) {
+  public void setGameId(Integer gameId) {
     this.gameId = gameId;
   }
 
-  public int getAuthorId() {
+  public Integer getAuthorId() {
     return authorId;
   }
 
-  public void setAuthorId(int authorId) {
+  public void setAuthorId(Integer authorId) {
     this.authorId = authorId;
   }
 
-  public int getTopicId() {
+  public Integer getTopicId() {
     return topicId;
   }
 
-  public void setTopicId(int topicId) {
+  public void setTopicId(Integer topicId) {
     this.topicId = topicId;
   }
 
-  public int getQuestionId() {
+  public Integer getQuestionId() {
     return questionId;
   }
 
-  public void setQuestionId(int questionId) {
+  public void setQuestionId(Integer questionId) {
     this.questionId = questionId;
   }
 
@@ -106,11 +106,11 @@ public class Game {
     this.gameEndTime = gameEndTime;
   }
 
-  public int getNumberOfQuestions() {
+  public Integer getNumberOfQuestions() {
     return numberOfQuestions;
   }
 
-  public void setNumberOfQuestions(int numberOfQuestions) {
+  public void setNumberOfQuestions(Integer numberOfQuestions) {
     this.numberOfQuestions = numberOfQuestions;
   }
 
@@ -134,19 +134,19 @@ public class Game {
     }
   }
 
-  public int getParticipantsNumber() {
+  public Integer getParticipantsNumber() {
     return participantsNumber;
   }
 
-  public void setParticipantsNumber(int participantsNumber) {
+  public void setParticipantsNumber(Integer participantsNumber) {
     this.participantsNumber = participantsNumber;
   }
 
-  public int getCurrentParticipantsNumber() {
+  public Integer getCurrentParticipantsNumber() {
     return currentParticipantsNumber;
   }
 
-  public void setCurrentParticipantsNumber(int currentParticipantsNumber) {
+  public void setCurrentParticipantsNumber(Integer currentParticipantsNumber) {
     this.currentParticipantsNumber = currentParticipantsNumber;
   }
 }

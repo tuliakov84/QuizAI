@@ -23,7 +23,7 @@ public class UserEntity {
   private String session;
 
   @Column(name = "pic_id")
-  private int picId;
+  private Integer picId;
 
   @Column(name = "description")
   private String description;
@@ -32,16 +32,16 @@ public class UserEntity {
   private Timestamp lastActivity;
 
   @Column(name = "games_played_number")
-  private int gamesPlayedNumber;
+  private Integer gamesPlayedNumber;
 
   @Column(name = "global_points")
-  private int globalPoints;
+  private Integer globalPoints;
 
   @Column(name = "global_possible_points")
-  private int globalPossiblePoints;
+  private Integer globalPossiblePoints;
 
   @Column(name = "current_game_points")
-  private int currentGamePoints;
+  private Integer currentGamePoints;
 
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "current_game_id")
@@ -75,11 +75,11 @@ public class UserEntity {
     this.session = session;
   }
 
-  public int getPicId() {
+  public Integer getPicId() {
     return picId;
   }
 
-  public void setPicId(int picId) {
+  public void setPicId(Integer picId) {
     this.picId = picId;
   }
 
@@ -99,35 +99,35 @@ public class UserEntity {
     this.lastActivity = lastActivity;
   }
 
-  public int getGamesPlayedNumber() {
+  public Integer getGamesPlayedNumber() {
     return gamesPlayedNumber;
   }
 
-  public void setGamesPlayedNumber(int gamesPlayedNumber) {
+  public void setGamesPlayedNumber(Integer gamesPlayedNumber) {
     this.gamesPlayedNumber = gamesPlayedNumber;
   }
 
-  public int getGlobalPoints() {
+  public Integer getGlobalPoints() {
     return globalPoints;
   }
 
-  public void setGlobalPoints(int globalPoints) {
+  public void setGlobalPoints(Integer globalPoints) {
     this.globalPoints = globalPoints;
   }
 
-  public int getGlobalPossiblePoints() {
+  public Integer getGlobalPossiblePoints() {
     return globalPossiblePoints;
   }
 
-  public void setGlobalPossiblePoints(int globalPossiblePoints) {
+  public void setGlobalPossiblePoints(Integer globalPossiblePoints) {
     this.globalPossiblePoints = globalPossiblePoints;
   }
 
-  public int getCurrentGamePoints() {
+  public Integer getCurrentGamePoints() {
     return currentGamePoints;
   }
 
-  public void setCurrentGamePoints(int currentGamePoints) {
+  public void setCurrentGamePoints(Integer currentGamePoints) {
     this.currentGamePoints = currentGamePoints;
   }
 
