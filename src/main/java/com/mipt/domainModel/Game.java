@@ -148,7 +148,7 @@ public class Game {
     };
   }
 
-  public int getParticipantsNumber() {
+  public Integer getParticipantsNumber() {
     return participantsNumber;
   }
 

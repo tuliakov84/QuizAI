@@ -29,9 +29,13 @@ public class MlQuestionRequestProducerService {
    * Консьюмер использует эти данные для вызова ML-сервиса и сохранения результатов в БД.
    */
   public void sendQuestionGenerationRequest(Game game) {
-    String payload = toJson(game, UUID.randomUUID().toString(), 0, null);
+    String payload = toJson(game, UUID.randomUUID().toString(), 0, null, null);
     int gameId = game.getGameId();
     try {
+      LOGGER.info(
+          "Step P1: sending initial generation request. gameId={}, topicId={}, difficulty={}, numberOfQuestions={}",
+          gameId, game.getTopicId(), game.getLevelDifficultyInt(), game.getNumberOfQuestions()
+      );
       kafkaTemplate.send(topicName, String.valueOf(gameId), payload);
       LOGGER.info("Sent question generation request for gameId={}, topicId={}", gameId, game.getTopicId());
     } catch (Exception e) {
@@ -47,15 +51,21 @@ public class MlQuestionRequestProducerService {
       int numberOfQuestions,
       String requestId,
       int attempt,
-      String questionNumbersToRegenerateJsonArray
+      String questionNumbersToRegenerateJsonArray,
+      String questionIdsToReplaceJsonArray
   ) {
     String payload = toJson(
         buildGame(gameId, topicId, levelDifficulty, numberOfQuestions),
         requestId,
         attempt,
-        questionNumbersToRegenerateJsonArray
+        questionNumbersToRegenerateJsonArray,
+        questionIdsToReplaceJsonArray
     );
     try {
+      LOGGER.info(
+          "Step P2: sending regeneration request. gameId={}, requestId={}, attempt={}, questionNumbers={}, questionIdsToReplace={}",
+          gameId, requestId, attempt, questionNumbersToRegenerateJsonArray, questionIdsToReplaceJsonArray
+      );
       kafkaTemplate.send(topicName, String.valueOf(gameId), payload);
       LOGGER.info("Sent regeneration request for gameId={}, requestId={}, attempt={}", gameId, requestId, attempt);
     } catch (Exception e) {
@@ -77,7 +87,8 @@ public class MlQuestionRequestProducerService {
       Game game,
       String requestId,
       int attempt,
-      String questionNumbersToRegenerateJsonArray
+      String questionNumbersToRegenerateJsonArray,
+      String questionIdsToReplaceJsonArray
   ) {
     JSONObject obj = new JSONObject();
     obj.put("requestId", requestId);
@@ -89,6 +100,9 @@ public class MlQuestionRequestProducerService {
     obj.put("attempt", attempt);
     if (questionNumbersToRegenerateJsonArray != null && !questionNumbersToRegenerateJsonArray.isBlank()) {
       obj.put("questionNumbersToRegenerate", new org.json.JSONArray(questionNumbersToRegenerateJsonArray));
+      if (questionIdsToReplaceJsonArray != null && !questionIdsToReplaceJsonArray.isBlank()) {
+        obj.put("questionIdsToReplace", new org.json.JSONArray(questionIdsToReplaceJsonArray));
+      }
       obj.put("isRegeneration", true);
     } else {
       obj.put("isRegeneration", false);

@@ -1,5 +1,3 @@
-version: '3.8'
-
 name: quizai
 
 services:
@@ -102,6 +100,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  python-validation-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.python-worker
+    container_name: python-validation-worker
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    environment:
+      QUIZAI_DB_HOST: postgres
+      QUIZAI_DB_PORT: 5432
+      QUIZAI_DB_NAME: quizai
+      QUIZAI_DB_USER: postgres
+      QUIZAI_DB_PASSWORD: postgres
+      QUIZAI_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      QUIZAI_KAFKA_AUTO_OFFSET_RESET: earliest
+    networks:
+      - kafka-network
 
 
 volumes:

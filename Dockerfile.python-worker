@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY requirements-python-worker.txt /app/requirements-python-worker.txt
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir --prefer-binary -r /app/requirements-python-worker.txt
+
+COPY src /app/src
+
+CMD ["python", "-u", "src/main/python/service/kafka_question_validation_worker.py"]

@@ -370,6 +370,8 @@ public class ApiController {
       Integer[] preset = dbService.getPreset(gameId);
       data.setAuthorId(preset[0]);
 
+      System.out.println("create");
+
       // Здесь должен вызываться loadQuestions() для AI
       System.out.println("Sent request");
       questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
@@ -452,7 +454,17 @@ public class ApiController {
       int gameId = game.getGameId();
       if (!dbService.isGameReady(gameId)) {
         Integer[] preset = dbService.getPreset(gameId);
-        questionLoadingService.loadQuestions(gameId, preset[1], preset[2], preset[4]);
+        int neededNumber = preset[2] == null ? 0 : preset[2];
+        long questionCount = dbService.countQuestionsInGame(gameId);
+        if (questionCount < neededNumber) {
+          questionLoadingService.loadQuestions(gameId, preset[1], preset[2], preset[4]);
+        }
+        if (!dbService.isGameReady(gameId)) {
+          return new ResponseEntity<>(
+              "Game is not ready yet: questions are loading or awaiting semantic validation for game " + gameId,
+              HttpStatus.CONFLICT
+          );
+        }
       }
       dbService.setStatus(gameId, 2);
       dbService.setGameStartTime(gameId, Instant.now());

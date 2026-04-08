@@ -45,8 +45,12 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @Transactional
@@ -494,6 +498,7 @@ public class DbService {
     gameEntity.setNumberOfQuestions(numberOfQuestions);
     gameEntity.setParticipantsNumber(participantsNumber);
     gameEntity.setTopic(topicEntity);
+    gameEntity.setQuestionsValidated(false);
 
     return gameRepository.save(gameEntity).getId();
   }
@@ -590,7 +595,18 @@ public class DbService {
     GameEntity gameEntity = getGameOrThrow(gameId);
     long currentNumber = questionRepository.countByGame_Id(gameId);
     int neededNumber = intOrZero(gameEntity.getNumberOfQuestions());
-    return neededNumber == currentNumber;
+    return neededNumber == currentNumber && Boolean.TRUE.equals(gameEntity.getQuestionsValidated());
+  }
+
+  public long countQuestionsInGame(int gameId) throws DatabaseAccessException, SQLException {
+    getGameOrThrow(gameId);
+    return questionRepository.countByGame_Id(gameId);
+  }
+
+  public void setQuestionsValidated(int gameId, boolean validated) throws SQLException, DatabaseAccessException {
+    GameEntity gameEntity = getGameOrThrow(gameId);
+    gameEntity.setQuestionsValidated(validated);
+    gameRepository.save(gameEntity);
   }
 
   public Question getQuestion(int gameId, int questionNumber) throws SQLException, DatabaseAccessException {
@@ -632,39 +648,107 @@ public class DbService {
     GameEntity gameEntity = getGameOrThrow(gameId);
     final int answerAmount = 4;
     List<Integer> questionIds = new ArrayList<>();
+    Set<Integer> payloadQuestionNumbers = new HashSet<>();
 
     for (int i = 0; i < jsonArr.length(); i++) {
       JSONObject itemObject = jsonArr.getJSONObject(i);
       int questionNumber = itemObject.getInt("question_number");
-      String questionText = itemObject.getString("question_text");
-      int rightAnswerNumber = itemObject.getInt("right_answer_number");
-
-      QuestionEntity questionEntity = new QuestionEntity();
-      questionEntity.setGame(gameEntity);
-      questionEntity.setQuestionNumber(questionNumber);
-      questionEntity.setQuestionText(questionText);
-      questionEntity.setRightAnswerNumber(rightAnswerNumber);
-
-      JSONArray availableAnswers = itemObject.getJSONArray("available_answers");
-      for (int j = 0; j < answerAmount; j++) {
-        JSONObject answerObject = availableAnswers.getJSONObject(j);
-        int answerIndex = answerObject.getInt("index");
-        String answer = answerObject.getString("answer");
-
-        switch (answerIndex) {
-          case 1 -> questionEntity.setAnswer1(answer);
-          case 2 -> questionEntity.setAnswer2(answer);
-          case 3 -> questionEntity.setAnswer3(answer);
-          case 4 -> questionEntity.setAnswer4(answer);
-          default -> throw new DatabaseAccessException("Bad answer index");
-        }
+      if (!payloadQuestionNumbers.add(questionNumber)) {
+        throw new DatabaseAccessException("Duplicate question_number in payload: " + questionNumber);
       }
 
+      QuestionEntity questionEntity = questionRepository
+          .findByGame_IdAndQuestionNumber(gameId, questionNumber)
+          .orElseGet(() -> {
+            QuestionEntity created = new QuestionEntity();
+            created.setGame(gameEntity);
+            created.setQuestionNumber(questionNumber);
+            return created;
+          });
+
+      applyQuestionPayload(questionEntity, itemObject, answerAmount);
       questionRepository.save(questionEntity);
       questionIds.add(questionEntity.getId());
     }
 
+    setQuestionsValidated(gameId, true);
     return questionIds;
+  }
+
+  public void replaceQuestionsByIds(int gameId, List<Integer> questionIdsToReplace, JSONArray generatedQuestions)
+      throws SQLException, DatabaseAccessException {
+    if (questionIdsToReplace == null || questionIdsToReplace.isEmpty() || generatedQuestions == null || generatedQuestions.isEmpty()) {
+      return;
+    }
+    if (questionIdsToReplace.size() != generatedQuestions.length()) {
+      throw new DatabaseAccessException("Replacement size mismatch");
+    }
+
+    Map<Integer, QuestionEntity> questionsById = new HashMap<>();
+    for (QuestionEntity questionEntity : questionRepository.findByGame_IdAndIdIn(gameId, questionIdsToReplace)) {
+      questionsById.put(questionEntity.getId(), questionEntity);
+    }
+    if (questionsById.size() != questionIdsToReplace.size()) {
+      throw new DatabaseAccessException("Some question ids are not found in game " + gameId);
+    }
+
+    for (int i = 0; i < questionIdsToReplace.size(); i++) {
+      int questionId = questionIdsToReplace.get(i);
+      JSONObject itemObject = generatedQuestions.getJSONObject(i);
+      QuestionEntity target = questionsById.get(questionId);
+      if (target == null) {
+        throw new DatabaseAccessException("Question id " + questionId + " does not belong to game " + gameId);
+      }
+
+      applyQuestionPayload(target, itemObject, 4);
+
+      questionRepository.save(target);
+    }
+  }
+
+  public List<Integer> getQuestionNumbersByIds(int gameId, List<Integer> questionIds)
+      throws SQLException, DatabaseAccessException {
+    if (questionIds == null || questionIds.isEmpty()) {
+      return List.of();
+    }
+
+    Map<Integer, Integer> numbersById = new HashMap<>();
+    for (QuestionEntity questionEntity : questionRepository.findByGame_IdAndIdIn(gameId, questionIds)) {
+      numbersById.put(questionEntity.getId(), questionEntity.getQuestionNumber());
+    }
+    if (numbersById.size() != questionIds.size()) {
+      throw new DatabaseAccessException("Some question ids are not found in game " + gameId);
+    }
+
+    List<Integer> result = new ArrayList<>();
+    for (Integer questionId : questionIds) {
+      result.add(numbersById.get(questionId));
+    }
+    return result;
+  }
+
+  private static void applyQuestionPayload(QuestionEntity questionEntity, JSONObject itemObject, int answerAmount)
+      throws DatabaseAccessException {
+    questionEntity.setQuestionText(itemObject.getString("question_text"));
+    questionEntity.setRightAnswerNumber(itemObject.getInt("right_answer_number"));
+
+    JSONArray availableAnswers = itemObject.getJSONArray("available_answers");
+    if (availableAnswers.length() < answerAmount) {
+      throw new DatabaseAccessException("Not enough answers for question payload");
+    }
+    for (int j = 0; j < answerAmount; j++) {
+      JSONObject answerObject = availableAnswers.getJSONObject(j);
+      int answerIndex = answerObject.getInt("index");
+      String answer = answerObject.getString("answer");
+
+      switch (answerIndex) {
+        case 1 -> questionEntity.setAnswer1(answer);
+        case 2 -> questionEntity.setAnswer2(answer);
+        case 3 -> questionEntity.setAnswer3(answer);
+        case 4 -> questionEntity.setAnswer4(answer);
+        default -> throw new DatabaseAccessException("Bad answer index");
+      }
+    }
   }
 
   public String[] getParticipantUsernames(int gameId) throws SQLException, DatabaseAccessException {
@@ -885,6 +969,7 @@ public class DbService {
     initialGame.setStatus(0);
     initialGame.setParticipantsNumber(1);
     initialGame.setPrivate(null);
+    initialGame.setQuestionsValidated(false);
     gameRepository.save(initialGame);
   }
 

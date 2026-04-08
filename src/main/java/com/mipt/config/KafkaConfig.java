@@ -38,4 +38,18 @@ public class KafkaConfig {
   ) {
     return TopicBuilder.name(name).partitions(3).replicas(1).build();
   }
+
+  @Bean
+  public NewTopic pythonValidationRequestsTopic(
+      @Value("${app.kafka.topic.python-validation-requests}") String name
+  ) {
+    return TopicBuilder.name(name).partitions(3).replicas(1).build();
+  }
+
+  @Bean
+  public NewTopic pythonValidationResultsTopic(
+      @Value("${app.kafka.topic.python-validation-results}") String name
+  ) {
+    return TopicBuilder.name(name).partitions(3).replicas(1).build();
+  }
 }

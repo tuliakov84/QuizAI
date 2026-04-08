@@ -47,7 +47,8 @@ CREATE TABLE IF NOT EXISTS games (
     level_difficulty SMALLINT,
     number_of_questions INT,
     participants_number SMALLINT,
-    topic_id INT REFERENCES topics (id) ON DELETE SET NULL
+    topic_id INT REFERENCES topics (id) ON DELETE SET NULL,
+    questions_validated BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 ALTER TABLE users ADD CONSTRAINT fk_users_current_game FOREIGN KEY (current_game_id) REFERENCES games (id) ON DELETE SET NULL;

@@ -125,6 +125,7 @@ class CandidateDecision:
     reason: str | None = None
     conflicting_player_ids: list[int] = field(default_factory=list)
     conflicting_question: str | None = None
+    source_question_id: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -139,6 +140,7 @@ class CandidateDecision:
             "reason": self.reason,
             "conflicting_player_ids": self.conflicting_player_ids,
             "conflicting_question": self.conflicting_question,
+            "source_question_id": self.source_question_id,
         }
 
 
@@ -186,6 +188,7 @@ class _PreparedCandidate:
     min_novelty: float
     max_history_similarity: float
     conflicting_player_ids: list[int]
+    source_question_id: int | None
 
     @property
     def score(self) -> float:
@@ -266,6 +269,7 @@ class QuestionPersonalizer:
                         max_quiz_similarity=max_quiz_similarity,
                         reason="similar_to_player_history",
                         conflicting_player_ids=candidate.conflicting_player_ids,
+                        source_question_id=candidate.source_question_id,
                     )
                 )
                 continue
@@ -283,6 +287,7 @@ class QuestionPersonalizer:
                         max_quiz_similarity=max_quiz_similarity,
                         reason="similar_to_quiz_question",
                         conflicting_question=conflicting_question,
+                        source_question_id=candidate.source_question_id,
                     )
                 )
                 continue
@@ -297,6 +302,7 @@ class QuestionPersonalizer:
                 min_novelty=candidate.min_novelty,
                 max_history_similarity=candidate.max_history_similarity,
                 max_quiz_similarity=max_quiz_similarity,
+                source_question_id=candidate.source_question_id,
             )
 
             if decision_name == "selected":
@@ -374,6 +380,9 @@ class QuestionPersonalizer:
                     min_novelty=min_novelty,
                     max_history_similarity=max_history_similarity,
                     conflicting_player_ids=conflicting_player_ids,
+                    source_question_id=(
+                        int(payload.get("id")) if payload.get("id") is not None else None
+                    ),
                 )
             )
         return prepared

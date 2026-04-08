@@ -30,5 +30,8 @@ create_topic "question-generation-requests"
 create_topic "ml-question-results"
 # Python embedding_service: массив id вопросов
 create_topic "ml-question-requests"
+# Python validation worker: запрос/результат валидации и регенерации
+create_topic "python-validation-requests"
+create_topic "python-validation-results"
 
 echo "QuizAI Kafka topics are ready."
