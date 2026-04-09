@@ -12,6 +12,7 @@ import com.mipt.service.QuestionLoadingService;
 import org.json.JSONArray;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.*;
@@ -519,14 +520,17 @@ public class ApiController {
   @PostMapping("/game/verify-answer")
   public ResponseEntity<Object> verifyAnswer(@RequestBody AnswerObject answerObject) {
     try {
-      int gameId = answerObject.getGameId();
-      int questionNumber = answerObject.getQuestionNumber();
-      int submittedAnswerNumber = answerObject.getSubmittedAnswerNumber();
-      int timeTaken = answerObject.getTimeTakenToAnswerInSeconds() != null ? answerObject.getTimeTakenToAnswerInSeconds() : 0;
+      int gameId = requireAnswerField(answerObject.getGameId(), "gameId");
+      int questionNumber = requireAnswerField(answerObject.getQuestionNumber(), "questionNumber");
+      int submittedAnswerNumber = requireAnswerField(answerObject.getSubmittedAnswerNumber(), "submittedAnswerNumber");
+      int timeTaken = requireAnswerField(answerObject.getTimeTakenToAnswerInSeconds(), "timeTakenToAnswerInSeconds");
+      String session = requireAnswerField(answerObject.getSession(), "session");
+      if (session.isBlank()) {
+        return new ResponseEntity<>("Field 'session' must not be blank", HttpStatus.BAD_REQUEST);
+      }
 
       int rightAnswer = dbService.getRightAnswer(gameId, questionNumber);
       int levelDifficulty = dbService.getPreset(gameId)[1];
-      String session = answerObject.getSession();
 
       System.out.println("=== verifyAnswer ===");
       System.out.println("gameId=" + gameId + ", question=" + questionNumber);
@@ -546,13 +550,37 @@ public class ApiController {
       int possiblePointsForAnswer = utils.countPossiblePoints(levelDifficulty);
       dbService.addGlobalPossiblePoints(session, possiblePointsForAnswer);
       return new ResponseEntity<>(HttpStatus.OK);
+    } catch (IllegalArgumentException e) {
+      return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
     } catch (DatabaseAccessException e) {
+      if ("Game is not active".equals(e.getMessage())) {
+        return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT);
+      }
       e.printStackTrace();
       return new ResponseEntity<>("Failed to verify ...", HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
       e.printStackTrace();
       return new ResponseEntity<>("Database error ...", HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+    return new ResponseEntity<>("Malformed request body", HttpStatus.BAD_REQUEST);
+  }
+
+  private int requireAnswerField(Integer value, String fieldName) {
+    if (value == null) {
+      throw new IllegalArgumentException("Field '" + fieldName + "' must not be null");
+    }
+    return value;
+  }
+
+  private String requireAnswerField(String value, String fieldName) {
+    if (value == null) {
+      throw new IllegalArgumentException("Field '" + fieldName + "' must not be null");
+    }
+    return value;
   }
   /**
    * Puts a game into the paused status.
