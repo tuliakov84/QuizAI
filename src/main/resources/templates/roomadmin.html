@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="/styles/roomadmin_style.css">
     <title>QUIZAI</title>
 </head>
@@ -14,7 +17,7 @@
     <main>
         <div class="left">
             <header>
-                <a href="main.html" class="btn_back">НАЗАД</a>
+                <a href="#" id="back-button" class="btn_back">НАЗАД</a>
                 <h1 class="h11">QUIZ AI ARENA</h1>
             </header>
 
@@ -73,564 +76,470 @@
 <script>
     let gameId = null;
     let refreshInterval = null;
-    let maxPlayers = 10; // Максимальное количество игроков
-    let isPrivate = false; // Текущая приватность комнаты
-    let currentPlayers = []; // Текущий список игроков
-    let isQuizStarting = false; // Флаг, что квиз начинается
-    let questionsReady = false; // Флаг готовности вопросов
-    let isCheckingQuestions = false; // Флаг проверки вопросов (чтобы избежать множественных проверок)
+    let maxPlayers = 10;
+    let isPrivate = false;
+    let currentPlayers = [];
+    let isQuizStarting = false;
+    let questionsReady = false;
+    let isCheckingQuestions = false;
+    let isInternalNavigation = false;
 
-    document.addEventListener('DOMContentLoaded', function () {
-      if (!AuthService.requireAuth()) return;
+    // Получение текущей игры пользователя
+    async function getCurrentGameFromServer() {
+        const session = AuthService.getsession();
+        if (!session) return { gameId: null, gameStartTime: null };
 
-      // Загружаем тему из localStorage и отображаем её
-      loadThemeFromLocalStorage();
+        try {
+            const response = await fetch('http://localhost:8080/api/users/get-current-game', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + session,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ session: session })
+            });
+            if (!response.ok) return { gameId: null, gameStartTime: null };
+            return await response.json();
+        } catch (error) {
+            console.error('Ошибка получения текущей игры:', error);
+            return { gameId: null, gameStartTime: null };
+        }
+    }
 
-      // Получаем gameId из URL параметров
-      const urlParams = new URLSearchParams(window.location.search);
-      gameId = urlParams.get('gameId');
+    // Проверка, началась ли игра, и перенаправление, если нужно
+    async function checkAndRedirectIfGameStarted() {
+        const currentGame = await getCurrentGameFromServer();
+        if (currentGame.gameId && currentGame.gameStartTime) {
+            const startTime = new Date(currentGame.gameStartTime).getTime();
+            const timePerQuestion = 30000;
+            const diff = Date.now() - startTime;
+            const questionNumber = Math.floor(diff / timePerQuestion) + 1;
+            window.location.replace(`question.html?gameId=${currentGame.gameId}&question=${questionNumber}`);
+            return true;
+        }
+        return false;
+    }
 
-      if (!gameId) {
-        console.error('Game ID не найден в URL');
-        return;
-      }
-
-      initializeRoom();
-      setupEventListeners();
+    // Обработчик при показе страницы (в т.ч. из bfcache)
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted) {
+            console.log('Страница восстановлена из bfcache, перезагрузка...');
+            window.location.reload();
+        }
     });
 
-    // Загрузка темы из localStorage
-    function loadThemeFromLocalStorage() {
-      try {
-        const themeElement = document.getElementById('quiz-theme');
-        const selectedTopicData = localStorage.getItem('selectedTopic');
+    // Основная инициализация
+    document.addEventListener('DOMContentLoaded', async function () {
+        if (!AuthService.requireAuth()) return;
 
-        if (selectedTopicData) {
-          const selectedTopic = JSON.parse(selectedTopicData);
-          themeElement.textContent = selectedTopic.name;
+        // 1. Проверяем, не началась ли уже игра
+        const redirected = await checkAndRedirectIfGameStarted();
+        if (redirected) return;
+
+        // 2. Получаем актуальную игру (если пользователь уже в лобби)
+        const currentGame = await getCurrentGameFromServer();
+
+        if (currentGame.gameId && !currentGame.gameStartTime) {
+            gameId = currentGame.gameId;
         } else {
-          themeElement.textContent = 'Тема не выбрана';
-          console.warn('Тема не найдена в localStorage');
-        }
-      } catch (error) {
-        console.error('Ошибка загрузки темы из localStorage:', error);
-        document.getElementById('quiz-theme').textContent = 'Ошибка загрузки темы';
-      }
-    }
-
-    function initializeRoom() {
-      // Загружаем данные комнаты
-      loadRoomData();
-
-      // Начинаем периодическое обновление каждые 3 секунды
-      refreshInterval = setInterval(updateLobby, 3000);
-
-      // Сразу загружаем данные при инициализации
-      updateLobby();
-    }
-
-    async function updateLobby() {
-      try {
-        // Обновляем данные лобби
-        await loadPlayers();
-
-        // Проверяем готовность вопросов (раз в 5 секунд)
-        if (!questionsReady) {
-          await checkQuestionsReady();
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlGameId = urlParams.get('gameId');
+            if (urlGameId) {
+                gameId = parseInt(urlGameId);
+            } else {
+                window.location.replace('main.html');
+                return;
+            }
         }
 
-        // После загрузки проверяем возможность начала квиза
-        updateStartButtonState();
-      } catch (error) {
-        console.error('Ошибка обновления лобби:', error);
-      }
-    }
+        // 3. Инициализируем лобби
+        await initializeRoom();
+        setupEventListeners();
+    });
 
-    function setupEventListeners() {
-      // Обработчики для кнопок приватности
-      document.querySelectorAll('.privacy-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-          e.preventDefault();
-          changeRoomPrivacy(this.dataset.private === 'true');
-        });
-      });
-
-      // Обработчик для кнопки начала квиза
-      document.getElementById('start-quiz-btn').addEventListener('click', function (e) {
-        e.preventDefault();
-        if (!this.classList.contains('disabled') && !isQuizStarting) {
-          startQuiz();
-        }
-      });
-    }
-
-    // Проверка готовности вопросов
-    async function checkQuestionsReady() {
-      if (isCheckingQuestions) return; // Избегаем множественных одновременных запросов
-
-      try {
-        isCheckingQuestions = true;
-        const session = AuthService.getsession();
-
-        // Используем тот же endpoint, что и для получения списка игроков
-        const response = await fetch('http://localhost:8080/api/game/get/lobby', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + session,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            gameId: parseInt(gameId)
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Ошибка HTTP: ${response.status}`);
+    // Инициализация лобби
+    async function initializeRoom() {
+        const roomData = await loadRoomData();
+        if (!roomData) {
+            alert('Не удалось загрузить данные комнаты. Возможно, вы не являетесь создателем.');
+            window.location.replace('main.html');
+            return;
         }
 
-        const lobbyData = await response.json();
-
-        // Проверяем наличие поля questionsReady в ответе
-        if (lobbyData.questionsReady !== undefined) {
-          questionsReady = lobbyData.questionsReady;
-        } else {
-          console.warn('Поле questionsReady отсутствует в ответе сервера');
-          // Если поле отсутствует, проверяем по другому признаку - например, готовность игры
-          questionsReady = lobbyData.ready || false;
-        }
-
-        // Обновляем отображение статуса вопросов
-        updateQuestionsStatus();
-
-        return questionsReady;
-      } catch (error) {
-        console.error('Ошибка проверки готовности вопросов:', error);
-        questionsReady = false;
-        updateQuestionsStatus();
-        return false;
-      } finally {
-        isCheckingQuestions = false;
-      }
+        loadTheme();
+        refreshInterval = setInterval(() => updateLobby(), 3000);
+        await updateLobby();
     }
 
-    // Обновление отображения статуса вопросов
-    function updateQuestionsStatus() {
-      const statusElement = document.getElementById('questions-status');
-      const statusText = statusElement.querySelector('.status-text');
-      const statusIcon = statusElement.querySelector('.status-icon');
-
-      if (questionsReady) {
-        statusElement.className = 'questions-status-value ready';
-        statusIcon.textContent = '✅';
-        statusText.textContent = 'Вопросы готовы';
-        statusElement.title = 'Все вопросы загружены и проверены';
-      } else {
-        statusElement.className = 'questions-status-value loading';
-        statusIcon.textContent = '⏳';
-        statusText.textContent = 'Персонализация при старте';
-        statusElement.title = 'Вопросы будут сгенерированы и персонализированы при запуске квиза';
-      }
-    }
-
-    // Обновление состояния кнопки начала квиза
-    function updateStartButtonState() {
-      const startBtn = document.getElementById('start-quiz-btn');
-      const messageElement = document.getElementById('start-quiz-message');
-
-      let isReady = false;
-      let message = '';
-      let messageType = '';
-
-      if (currentPlayers.length < 2) {
-        message = 'Для начала квиза нужно минимум 2 игрока';
-        messageType = 'warning';
-        isReady = false;
-      } else {
-        isReady = true;
-      }
-
-      if (isReady) {
-        enableStartButton();
-        if (messageElement) {
-          messageElement.style.display = 'none';
-        }
-
-        // Автоматический старт при заполнении комнаты (только если вопросы готовы)
-        if (currentPlayers.length >= maxPlayers && !isQuizStarting) {
-          console.log('Комната заполнена и вопросы готовы - начинаем квиз автоматически...');
-          // Небольшая задержка для лучшего UX
-          setTimeout(() => startQuiz(), 1000);
-        }
-      } else {
-        disableStartButton(message);
-        if (messageElement && message) {
-          messageElement.textContent = message;
-          messageElement.className = `message ${messageType}`;
-          messageElement.style.display = 'block';
-        }
-      }
-    }
-
-    // Изменение приватности комнаты
-    async function changeRoomPrivacy(newPrivacy) {
-      try {
-        const session = AuthService.getsession();
-
-        const response = await fetch('http://localhost:8080/api/game/set/private', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + session,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            gameId: parseInt(gameId),
-            isPrivate: newPrivacy
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Ошибка HTTP: ${response.status}`);
-        }
-
-        // Обновляем UI
-        updatePrivacyButtons(newPrivacy);
-        isPrivate = newPrivacy;
-
-        alert(`Комната теперь ${newPrivacy ? 'ЗАКРЫТАЯ' : 'ОТКРЫТАЯ'}`);
-
-      } catch (error) {
-        console.error('Ошибка изменения приватности комнаты:', error);
-        alert('Ошибка изменения приватности: ' + error.message);
-      }
-    }
-
-    // Обновление кнопок приватности
-    function updatePrivacyButtons(privacy) {
-      // Снимаем выделение со всех кнопок приватности
-      document.querySelectorAll('.privacy-btn').forEach(b => {
-        b.classList.remove('active');
-      });
-
-      // Выделяем выбранную кнопку
-      const activeButton = document.querySelector(`.privacy-btn[data-private="${privacy}"]`);
-      if (activeButton) {
-        activeButton.classList.add('active');
-      }
-    }
-
-    // Загрузка данных комнаты
+    // Загрузка данных комнаты (проверка, что пользователь – создатель)
     async function loadRoomData() {
-      try {
         const session = AuthService.getsession();
+        try {
+            const response = await fetch('http://localhost:8080/api/game/join', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + session,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    session: session,
+                    gameId: gameId
+                })
+            });
+            if (!response.ok) return null;
+            const roomData = await response.json();
 
-        const response = await fetch('http://localhost:8080/api/game/join', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + session,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            session: session,
-            gameId: parseInt(gameId)
-          })
-        });
+            const currentUser = AuthService.getUser();
+            if (roomData.authorId && currentUser && roomData.authorId !== currentUser.userId) {
+                console.warn('Пользователь не является создателем комнаты');
+                return null;
+            }
 
-        if (!response.ok) {
-          throw new Error(`Ошибка HTTP: ${response.status}`);
+            updateRoomInfo(roomData);
+            return roomData;
+        } catch (error) {
+            console.error('Ошибка загрузки данных комнаты:', error);
+            return null;
         }
+    }
 
-        const roomData = await response.json();
+    // Загрузка темы
+    function loadTheme() {
+        try {
+            const themeElement = document.getElementById('quiz-theme');
+            const selectedTopicData = localStorage.getItem('selectedTopic');
+            if (selectedTopicData) {
+                const selectedTopic = JSON.parse(selectedTopicData);
+                themeElement.textContent = selectedTopic.name;
+            } else {
+                themeElement.textContent = 'Тема не выбрана';
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки темы:', error);
+            document.getElementById('quiz-theme').textContent = 'Ошибка загрузки темы';
+        }
+    }
 
-        // Обновляем информацию о комнате
-        updateRoomInfo(roomData);
-
-      } catch (error) {
-        console.error('Ошибка загрузки данных комнаты:', error);
-      }
+    // Обновление лобби
+    async function updateLobby() {
+        try {
+            await loadPlayers();
+            if (!questionsReady) await checkQuestionsReady();
+            updateStartButtonState();
+        } catch (error) {
+            console.error('Ошибка обновления лобби:', error);
+        }
     }
 
     // Загрузка списка игроков
     async function loadPlayers() {
-      try {
         const session = AuthService.getsession();
+        try {
+            const response = await fetch('http://localhost:8080/api/game/get/lobby', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + session,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ gameId: gameId })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const lobbyData = await response.json();
 
-        const response = await fetch('http://localhost:8080/api/game/get/lobby', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + session,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            gameId: parseInt(gameId)
-          })
-        });
+            if (lobbyData.playersUsernames) {
+                currentPlayers = lobbyData.playersUsernames.map((username, idx) => ({ username, userId: idx + 1 }));
+            } else {
+                currentPlayers = [];
+            }
+            displayPlayers(currentPlayers);
 
-        if (!response.ok) {
-          throw new Error(`Ошибка HTTP: ${response.status}`);
+            if (lobbyData.questionsReady !== undefined) questionsReady = lobbyData.questionsReady;
+            else if (lobbyData.ready !== undefined) questionsReady = lobbyData.ready;
+
+            return currentPlayers;
+        } catch (error) {
+            console.error('Ошибка загрузки игроков:', error);
+            currentPlayers = [];
+            displayPlayers([]);
+            return [];
         }
+    }
 
-        const lobbyData = await response.json();
+    // Проверка готовности вопросов
+    async function checkQuestionsReady() {
+        if (isCheckingQuestions) return;
+        isCheckingQuestions = true;
+        try {
+            const session = AuthService.getsession();
+            const response = await fetch('http://localhost:8080/api/game/get/lobby', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + session,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ gameId: gameId })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const lobbyData = await response.json();
 
-        console.log('Данные лобби:', lobbyData);
+            questionsReady = lobbyData.questionsReady ?? lobbyData.ready ?? false;
+            updateQuestionsStatus();
+        } catch (error) {
+            console.error('Ошибка проверки готовности вопросов:', error);
+            questionsReady = false;
+            updateQuestionsStatus();
+        } finally {
+            isCheckingQuestions = false;
+        }
+    }
 
-        if (!lobbyData.playersUsernames) {
-          console.warn('Поле playersUsernames отсутствует в ответе');
-          currentPlayers = [];
+    // Обновление отображения статуса вопросов
+    function updateQuestionsStatus() {
+        const statusElement = document.getElementById('questions-status');
+        const statusText = statusElement.querySelector('.status-text');
+        const statusIcon = statusElement.querySelector('.status-icon');
+        if (questionsReady) {
+            statusElement.className = 'questions-status-value ready';
+            statusIcon.textContent = '✅';
+            statusText.textContent = 'Вопросы готовы';
         } else {
-          // Преобразуем массив имен игроков в массив объектов
-          currentPlayers = lobbyData.playersUsernames.map((username, index) => ({
-            username: username,
-            userId: index + 1
-          }));
+            statusElement.className = 'questions-status-value loading';
+            statusIcon.textContent = '⏳';
+            statusText.textContent = 'Персонализация при старте';
         }
-
-        displayPlayers(currentPlayers);
-
-        // Получаем готовность вопросов из того же ответа (если есть)
-        if (lobbyData.questionsReady !== undefined) {
-          questionsReady = lobbyData.questionsReady;
-          updateQuestionsStatus();
-        }
-
-        // Получаем статус ready из ответа (если есть)
-        if (lobbyData.ready !== undefined && !questionsReady) {
-          // Если нет отдельного флага questionsReady, используем общий ready
-          questionsReady = lobbyData.ready;
-          updateQuestionsStatus();
-        }
-
-        return currentPlayers;
-
-      } catch (error) {
-        console.error('Ошибка загрузки списка игроков:', error);
-        currentPlayers = [];
-        displayPlayers([]);
-        return [];
-      }
     }
 
-    // Отображение списка игроков
+    // Отображение игроков
     function displayPlayers(players) {
-      const container = document.getElementById('players-container');
-      const countElement = document.getElementById('players-count');
-
-      container.innerHTML = '';
-
-      if (players.length === 0) {
-        container.innerHTML = '<div class="no-players">Нет участников</div>';
-        countElement.textContent = '0/' + maxPlayers;
-        return;
-      }
-
-      players.forEach(player => {
-        const playerElement = document.createElement('div');
-        playerElement.className = 'player';
-        playerElement.textContent = player.username;
-        container.appendChild(playerElement);
-      });
-
-      // Обновляем счетчик игроков
-      countElement.textContent = `${players.length}/${maxPlayers}`;
+        const container = document.getElementById('players-container');
+        const countElement = document.getElementById('players-count');
+        container.innerHTML = '';
+        if (players.length === 0) {
+            container.innerHTML = '<div class="no-players">Нет участников</div>';
+        } else {
+            players.forEach(player => {
+                const div = document.createElement('div');
+                div.className = 'player';
+                div.textContent = player.username;
+                container.appendChild(div);
+            });
+        }
+        countElement.textContent = `${players.length}/${maxPlayers}`;
     }
 
-    // Включение кнопки начала квиза
+    // Обновление состояния кнопки старта
+    function updateStartButtonState() {
+        const startBtn = document.getElementById('start-quiz-btn');
+        const messageElement = document.getElementById('start-quiz-message');
+        if (currentPlayers.length < 2) {
+            disableStartButton('Для начала квиза нужно минимум 2 игрока');
+            if (messageElement) {
+                messageElement.textContent = 'Для начала квиза нужно минимум 2 игрока';
+                messageElement.style.display = 'block';
+            }
+            return;
+        }
+        if (!questionsReady) {
+            disableStartButton('Вопросы еще не готовы. Пожалуйста, подождите...');
+            if (messageElement) {
+                messageElement.textContent = 'Вопросы еще не готовы. Пожалуйста, подождите...';
+                messageElement.style.display = 'block';
+            }
+            return;
+        }
+        enableStartButton();
+        if (messageElement) messageElement.style.display = 'none';
+
+        // Автоматический старт при заполнении комнаты
+        if (currentPlayers.length >= maxPlayers && !isQuizStarting) {
+            setTimeout(() => startQuiz(), 1000);
+        }
+    }
+
     function enableStartButton() {
-      const startBtn = document.getElementById('start-quiz-btn');
-      startBtn.classList.remove('disabled');
-      startBtn.style.pointerEvents = 'auto';
-      startBtn.style.opacity = '1';
-      startBtn.textContent = 'НАЧАТЬ КВИЗ ДОСРОЧНО';
+        const btn = document.getElementById('start-quiz-btn');
+        btn.classList.remove('disabled');
+        btn.style.pointerEvents = 'auto';
+        btn.style.opacity = '1';
+        btn.textContent = 'НАЧАТЬ КВИЗ ДОСРОЧНО';
     }
 
-    // Отключение кнопки начала квиза
-    function disableStartButton(reason = '') {
-      const startBtn = document.getElementById('start-quiz-btn');
-      startBtn.classList.add('disabled');
-      startBtn.style.pointerEvents = 'none';
-      startBtn.style.opacity = '0.5';
-
-      if (reason) {
-        startBtn.title = reason;
-        console.log('Кнопка заблокирована:', reason);
-      }
+    function disableStartButton(reason) {
+        const btn = document.getElementById('start-quiz-btn');
+        btn.classList.add('disabled');
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '0.5';
+        btn.title = reason;
     }
 
-    // Обновление информации о комнате
+    // Обновление информации о комнате (ссылка, приватность, максимум игроков)
     function updateRoomInfo(roomData) {
-        // Обновляем ссылку-приглашение
         const linkElement = document.getElementById('invite-link');
         const fullLink = `${window.location.origin}/room.html?gameId=${gameId}`;
         linkElement.textContent = fullLink;
+        document.getElementById('invite-id').textContent = `${gameId}`;
 
-        const IDElement = document.getElementById('invite-id');
-        IDElement.textContent = `${gameId}`;
-
-        // Копирование ссылки по клику
         document.querySelector('.copy-icon').addEventListener('click', function () {
             navigator.clipboard.writeText(fullLink)
                 .then(() => {
-                    const originalText = this.textContent;
+                    const original = this.textContent;
                     this.textContent = '✅';
-                    setTimeout(() => {
-                        this.textContent = originalText;
-                    }, 2000);
+                    setTimeout(() => { this.textContent = original; }, 2000);
                 })
                 .catch(err => console.error('Ошибка копирования:', err));
         });
 
-        // Устанавливаем начальную приватность из данных комнаты
         if (roomData.isPrivate !== undefined) {
             isPrivate = roomData.isPrivate;
             updatePrivacyButtons(isPrivate);
         }
-
-        // Получаем максимальное количество игроков из данных комнаты (если есть)
         if (roomData.participantsNumber) {
             maxPlayers = roomData.participantsNumber;
-            // Сразу обновляем счетчик
             document.getElementById('players-count').textContent = `0/${maxPlayers}`;
         }
     }
 
-    // Обработчик для кнопки "Назад"
-    document.querySelector('.btn_back').addEventListener('click', function (e) {
-      e.preventDefault();
-      confirmExit();
-    });
-
-    // Функция подтверждения выхода
-    function confirmExit() {
-      const confirmed = confirm('При выходе комната будет удалена. Вы уверены, что хотите выйти?');
-
-      if (confirmed) {
-        stopGameAndExit();
-      }
-    }
-
-    // Функция остановки игры и выхода
-    async function stopGameAndExit() {
-      try {
+    // Изменение приватности
+    async function changeRoomPrivacy(newPrivacy) {
         const session = AuthService.getsession();
-
-        const response = await fetch('http://localhost:8080/api/game/delete', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + session,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            gameId: parseInt(gameId)
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Ошибка HTTP: ${response.status}`);
+        try {
+            const response = await fetch('http://localhost:8080/api/game/set/private', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + session,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ gameId: gameId, isPrivate: newPrivacy })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            isPrivate = newPrivacy;
+            updatePrivacyButtons(newPrivacy);
+            alert(`Комната теперь ${newPrivacy ? 'ЗАКРЫТАЯ' : 'ОТКРЫТАЯ'}`);
+        } catch (error) {
+            console.error('Ошибка изменения приватности:', error);
+            alert('Ошибка изменения приватности: ' + error.message);
         }
-
-        // Останавливаем обновление списка игроков
-        if (refreshInterval) {
-          clearInterval(refreshInterval);
-        }
-
-        localStorage.removeItem('currentGameId');
-        localStorage.removeItem('selectedTopic');
-        // Перенаправляем на главную страницу
-        window.location.href = 'main.html';
-
-      } catch (error) {
-        console.error('Ошибка остановки игры:', error);
-        alert('Ошибка при выходе из комнаты: ' + error.message);
-      }
     }
 
-    // Также обрабатываем закрытие вкладки/браузера
-    window.addEventListener('beforeunload', function (e) {
-      // Только если пользователь действительно уходит со страницы
-      if (!isNavigatingToQuiz) {
-        // Для современных браузеров мы не можем выполнить асинхронный запрос здесь,
-        // но можем показать предупреждение
-        e.preventDefault();
-        e.returnValue = 'При выходе комната будет удалена. Вы уверены, что хотите выйти?';
-        return e.returnValue;
-      }
-    });
+    function updatePrivacyButtons(privacy) {
+        document.querySelectorAll('.privacy-btn').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = document.querySelector(`.privacy-btn[data-private="${privacy}"]`);
+        if (activeBtn) activeBtn.classList.add('active');
+    }
 
-    // Флаг для отслеживания навигации внутри приложения
-    let isNavigatingToQuiz = false;
-
+    // Начало квиза
     async function startQuiz() {
-      // Проверяем все условия перед началом
-      if (currentPlayers.length < 2) {
-        alert('Для начала квиза нужно минимум 2 игрока');
-        return;
-      }
+        if (isQuizStarting) return;
+        if (currentPlayers.length < 2) {
+            alert('Для начала квиза нужно минимум 2 игрока');
+            return;
+        }
+        if (!questionsReady) {
+            alert('Вопросы еще не готовы. Пожалуйста, подождите...');
+            return;
+        }
 
-      if (!questionsReady) {
-        alert('Вопросы еще не готовы. Пожалуйста, подождите...');
-        return;
-      }
-
-      if (isQuizStarting) {
-        console.log('Квиз уже начинается...');
-        return;
-      }
-
-      try {
         isQuizStarting = true;
-        isNavigatingToQuiz = true;
+        isInternalNavigation = true;
         disableStartButton('Квиз начинается...');
 
         const session = AuthService.getsession();
+        try {
+            const response = await fetch('http://localhost:8080/api/game/start', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + session,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ gameId: gameId })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-        const response = await fetch('http://localhost:8080/api/game/start', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + session,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            gameId: parseInt(gameId)
-          })
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Ошибка HTTP: ${response.status}: ${errorText}`);
+            if (refreshInterval) clearInterval(refreshInterval);
+            // После старта переходим на первый вопрос
+            window.location.replace(`question.html?gameId=${gameId}&question=1`);
+        } catch (error) {
+            console.error('Ошибка начала квиза:', error);
+            alert('Ошибка начала квиза: ' + error.message);
+            isQuizStarting = false;
+            isInternalNavigation = false;
+            updateStartButtonState();
         }
-
-        // Останавливаем обновление перед переходом
-        if (refreshInterval) {
-          clearInterval(refreshInterval);
-        }
-
-        // Перенаправляем на страницу с вопросами
-        window.location.href = `question.html?gameId=${gameId}`;
-
-      } catch (error) {
-        isQuizStarting = false;
-        isNavigatingToQuiz = false;
-        console.error('Ошибка начала квиза:', error);
-        alert('Ошибка начала квиза: ' + error.message);
-
-        // Включаем кнопку обратно в случае ошибки
-        updateStartButtonState();
-      }
     }
 
-    // Очистка при размонтировании компонента
-    window.addEventListener('beforeunload', function (e) {
-      // Только если пользователь действительно уходит со страницы (не переход на квиз)
-      if (!isNavigatingToQuiz) {
-        // Показываем предупреждение при закрытии вкладки/браузера
-        e.preventDefault();
-        e.returnValue = 'При выходе комната будет удалена. Вы уверены, что хотите выйти?';
-        return e.returnValue;
-      }
+    // Выход и удаление игры
+    async function stopGameAndExit() {
+        isInternalNavigation = true;
+        const session = AuthService.getsession();
+        try {
+            const response = await fetch('http://localhost:8080/api/game/delete', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + session,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ gameId: gameId })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (refreshInterval) clearInterval(refreshInterval);
+            localStorage.removeItem('currentGameId');
+            localStorage.removeItem('selectedTopic');
+            window.location.replace('main.html');
+        } catch (error) {
+            console.error('Ошибка удаления игры:', error);
+            alert('Ошибка при выходе: ' + error.message);
+        }
+    }
 
-      // Останавливаем обновление списка игроков при любом уходе со страницы
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
-      }
+    function confirmExit() {
+        if (confirm('При выходе комната будет удалена. Вы уверены, что хотите выйти?')) {
+            stopGameAndExit();
+        }
+    }
+
+    // Обработчики событий
+    function setupEventListeners() {
+        document.querySelectorAll('.privacy-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                changeRoomPrivacy(btn.dataset.private === 'true');
+            });
+        });
+
+        document.getElementById('start-quiz-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!e.target.classList.contains('disabled') && !isQuizStarting) startQuiz();
+        });
+
+        const backBtn = document.getElementById('back-button');
+        backBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            confirmExit();
+        });
+    }
+
+    // Обработка закрытия страницы (beacon)
+    window.addEventListener('beforeunload', function (e) {
+        if (!isInternalNavigation && gameId) {
+            const session = AuthService.getsession();
+            const url = 'http://localhost:8080/api/game/delete';
+            const data = JSON.stringify({ gameId: gameId });
+            if (navigator.sendBeacon) {
+                const blob = new Blob([data], { type: 'application/json' });
+                navigator.sendBeacon(url, blob);
+            } else {
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: data,
+                    keepalive: true
+                }).catch(err => console.error('Ошибка sendBeacon:', err));
+            }
+            e.preventDefault();
+            e.returnValue = 'Вы уверены, что хотите покинуть страницу? Комната будет удалена.';
+            return e.returnValue;
+        }
+        if (refreshInterval) clearInterval(refreshInterval);
     });
 </script>
 </body>

@@ -248,6 +248,23 @@ public class ApiController {
   }
 
   /**
+   * Returns all questions (including right answers) for a specific game from
+   * the requesting user's game history.
+   */
+  @PostMapping("/users/get-history-questions")
+  public ResponseEntity<Object> getHistoryQuestions(@RequestBody RoomJoinObject data) {
+    try {
+      Question[] questions = dbService.getQuizHistoryQuestions(data.getSession(), data.getGameId());
+      return new ResponseEntity<>(questions, HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting history questions for game " + data.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get history questions for game " + data.getGameId() + ": " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
+
+  /**
    * Returns an array of answered correctly questions
    */
   @PostMapping("/users/get-correct-answers")
@@ -505,7 +522,7 @@ public class ApiController {
       int gameId = answerObject.getGameId();
       int questionNumber = answerObject.getQuestionNumber();
       int submittedAnswerNumber = answerObject.getSubmittedAnswerNumber();
-      int timeTaken = answerObject.getTimeTakenToAnswerInSeconds();
+      int timeTaken = answerObject.getTimeTakenToAnswerInSeconds() != null ? answerObject.getTimeTakenToAnswerInSeconds() : 0;
 
       int rightAnswer = dbService.getRightAnswer(gameId, questionNumber);
       int levelDifficulty = dbService.getPreset(gameId)[1];

@@ -74,6 +74,13 @@
     let isPrivate = false; // По умолчанию открытая комната
     let isCreatingRoom = false; // Флаг для отслеживания процесса создания
 
+    // bfcache-fix.js
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted) {
+            console.log('Страница восстановлена из bfcache, перезагрузка...');
+            window.location.reload();
+        }
+    });
     document.addEventListener('DOMContentLoaded', function() {
       if (!AuthService.requireAuth()) return;
       checkCurrentGame();
@@ -166,7 +173,7 @@
       // Обработчики для полей ввода
       const participantsInput = document.getElementById('participants-count');
       const questionsInput = document.getElementById('questions-count');
-      
+
       [participantsInput, questionsInput].forEach(input => {
         input.addEventListener('input', function() {
           if (isCreatingRoom) {
@@ -186,14 +193,14 @@
     function setCreatingState(isCreating) {
       isCreatingRoom = isCreating;
       const createBtn = document.getElementById('create-room-btn');
-      
+
       if (isCreating) {
         // Блокируем кнопку
         createBtn.classList.add('disabled');
         createBtn.innerHTML = 'СОЗДАНИЕ...';
         createBtn.style.opacity = '0.6';
         createBtn.style.cursor = 'not-allowed';
-        
+
         // Блокируем все интерактивные элементы
         document.querySelectorAll('.difficulty-btn, .privacy-btn, input').forEach(el => {
           el.classList.add('disabled');
@@ -208,7 +215,7 @@
         createBtn.innerHTML = 'СОЗДАТЬ КОМНАТУ';
         createBtn.style.opacity = '';
         createBtn.style.cursor = '';
-        
+
         // Разблокируем все интерактивные элементы
         document.querySelectorAll('.difficulty-btn, .privacy-btn, input').forEach(el => {
           el.classList.remove('disabled');
