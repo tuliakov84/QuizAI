@@ -134,6 +134,20 @@ public class Game {
     }
   }
 
+  /**
+   * Возвращает числовую сложность для payload LLM/ML: 1 = EASY, 2 = MEDIUM, 3 = HARD.
+   */
+  public int getLevelDifficultyInt() {
+    if (levelDifficulty == null) {
+      return 1;
+    }
+    return switch (levelDifficulty) {
+      case EASY -> 1;
+      case MEDIUM -> 2;
+      case HARD -> 3;
+    };
+  }
+
   public Integer getParticipantsNumber() {
     return participantsNumber;
   }

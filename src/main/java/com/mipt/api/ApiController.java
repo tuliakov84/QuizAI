@@ -12,6 +12,7 @@ import com.mipt.service.QuestionLoadingService;
 import org.json.JSONArray;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.*;
@@ -239,6 +240,23 @@ public class ApiController {
   }
 
   /**
+   * Returns all questions (including right answers) for a specific game from
+   * the requesting user's game history.
+   */
+  @PostMapping("/users/get-history-questions")
+  public ResponseEntity<Object> getHistoryQuestions(@RequestBody RoomJoinObject data) {
+    try {
+      Question[] questions = dbService.getQuizHistoryQuestions(data.getSession(), data.getGameId());
+      return new ResponseEntity<>(questions, HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting history questions for game " + data.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get history questions for game " + data.getGameId() + ": " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
+
+  /**
    * Returns an array of answered correctly questions
    */
   @PostMapping("/users/get-correct-answers")
@@ -361,6 +379,12 @@ public class ApiController {
       Integer[] preset = dbService.getPreset(gameId);
       data.setAuthorId(preset[0]);
 
+      System.out.println("create");
+
+      // Здесь должен вызываться loadQuestions() для AI
+      System.out.println("Sent request");
+      questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
+
       return joinRoom(data);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to create room '" + data.getGameId() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
@@ -439,7 +463,17 @@ public class ApiController {
       int gameId = game.getGameId();
       if (!dbService.isGameReady(gameId)) {
         Integer[] preset = dbService.getPreset(gameId);
-        questionLoadingService.loadQuestions(gameId, preset[1], preset[2], preset[4]);
+        int neededNumber = preset[2] == null ? 0 : preset[2];
+        long questionCount = dbService.countQuestionsInGame(gameId);
+        if (questionCount < neededNumber) {
+          questionLoadingService.loadQuestions(gameId, preset[1], preset[2], preset[4]);
+        }
+        if (!dbService.isGameReady(gameId)) {
+          return new ResponseEntity<>(
+              "Game is not ready yet: questions are loading or awaiting semantic validation for game " + gameId,
+              HttpStatus.CONFLICT
+          );
+        }
       }
       dbService.setStatus(gameId, 2);
       dbService.setGameStartTime(gameId, Instant.now());
@@ -477,14 +511,17 @@ public class ApiController {
   @PostMapping("/game/verify-answer")
   public ResponseEntity<Object> verifyAnswer(@RequestBody AnswerObject answerObject) {
     try {
-      int gameId = answerObject.getGameId();
-      int questionNumber = answerObject.getQuestionNumber();
-      int submittedAnswerNumber = answerObject.getSubmittedAnswerNumber();
-      int timeTaken = answerObject.getTimeTakenToAnswerInSeconds();
+      int gameId = requireAnswerField(answerObject.getGameId(), "gameId");
+      int questionNumber = requireAnswerField(answerObject.getQuestionNumber(), "questionNumber");
+      int submittedAnswerNumber = requireAnswerField(answerObject.getSubmittedAnswerNumber(), "submittedAnswerNumber");
+      int timeTaken = requireAnswerField(answerObject.getTimeTakenToAnswerInSeconds(), "timeTakenToAnswerInSeconds");
+      String session = requireAnswerField(answerObject.getSession(), "session");
+      if (session.isBlank()) {
+        return new ResponseEntity<>("Field 'session' must not be blank", HttpStatus.BAD_REQUEST);
+      }
 
       int rightAnswer = dbService.getRightAnswer(gameId, questionNumber);
       int levelDifficulty = dbService.getPreset(gameId)[1];
-      String session = answerObject.getSession();
 
       System.out.println("=== verifyAnswer ===");
       System.out.println("gameId=" + gameId + ", question=" + questionNumber);
@@ -504,13 +541,37 @@ public class ApiController {
       int possiblePointsForAnswer = utils.countPossiblePoints(levelDifficulty);
       dbService.addGlobalPossiblePoints(session, possiblePointsForAnswer);
       return new ResponseEntity<>(HttpStatus.OK);
+    } catch (IllegalArgumentException e) {
+      return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
     } catch (DatabaseAccessException e) {
+      if ("Game is not active".equals(e.getMessage())) {
+        return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT);
+      }
       e.printStackTrace();
       return new ResponseEntity<>("Failed to verify ...", HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
       e.printStackTrace();
       return new ResponseEntity<>("Database error ...", HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+    return new ResponseEntity<>("Malformed request body", HttpStatus.BAD_REQUEST);
+  }
+
+  private int requireAnswerField(Integer value, String fieldName) {
+    if (value == null) {
+      throw new IllegalArgumentException("Field '" + fieldName + "' must not be null");
+    }
+    return value;
+  }
+
+  private String requireAnswerField(String value, String fieldName) {
+    if (value == null) {
+      throw new IllegalArgumentException("Field '" + fieldName + "' must not be null");
+    }
+    return value;
   }
   /**
    * Puts a game into the paused status.

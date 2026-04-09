@@ -45,6 +45,13 @@ public class GameEntity {
   @Column(name = "game_end_time")
   private Timestamp gameEndTime;
 
+  /**
+   * After async Python semantic validation completes successfully ({@code VALIDATED} event).
+   * Until then the lobby must not report the game as ready even if questions exist in DB.
+   */
+  @Column(name = "questions_validated")
+  private Boolean questionsValidated;
+
   public Integer getId() {
     return id;
   }
@@ -127,5 +134,13 @@ public class GameEntity {
 
   public void setGameEndTime(Timestamp gameEndTime) {
     this.gameEndTime = gameEndTime;
+  }
+
+  public Boolean getQuestionsValidated() {
+    return questionsValidated;
+  }
+
+  public void setQuestionsValidated(Boolean questionsValidated) {
+    this.questionsValidated = questionsValidated;
   }
 }

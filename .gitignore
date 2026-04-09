@@ -57,3 +57,5 @@ src/main/resources/global-leaderboards.json
 /application-local.properties
 !/application-local.properties.example
 /secrets/
+__pycache__/
+*.pyc

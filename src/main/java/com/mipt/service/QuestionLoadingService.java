@@ -1,13 +1,14 @@
 package com.mipt.service;
 
-import com.mipt.QuestionGenerator;
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Topic;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import com.mipt.domainModel.Game;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -27,25 +28,52 @@ public class QuestionLoadingService {
   private static final int CANDIDATE_MULTIPLIER = 2;
   private static final int EXTRA_CANDIDATES = 3;
 
+  private final MlQuestionRequestProducerService mlQuestionRequestProducer;
   private final DbService dbService;
+  /** false — синхронная загрузка (в т.ч. для unit-тестов без Kafka) */
+  private final boolean useKafkaForLoad;
 
-  public QuestionLoadingService(DbService dbService) {
-    this.dbService = dbService;
+  @Autowired
+  public QuestionLoadingService(MlQuestionRequestProducerService mlQuestionRequestProducer, DbService dbService) {
+    this(mlQuestionRequestProducer, dbService, true);
   }
 
   /**
-   * Triggers question generation for the provided game without blocking the caller thread.
+   * @param useKafkaForLoad если {@code false}, вопросы собираются локально (персонализация + БД), без Kafka.
+   */
+  public QuestionLoadingService(
+      MlQuestionRequestProducerService mlQuestionRequestProducer,
+      DbService dbService,
+      boolean useKafkaForLoad
+  ) {
+    this.mlQuestionRequestProducer = mlQuestionRequestProducer;
+    this.dbService = dbService;
+    this.useKafkaForLoad = useKafkaForLoad;
+  }
+
+  /**
+   * Отправляет в Kafka запрос на генерацию вопросов ML/LLM для игры.
+   * Консьюмер сгенерирует вопросы и сохранит их в БД.
    */
   @Async
   public void loadQuestionsAsync(int gameId, int levelDifficulty, int numberOfQuestions, int topicId) {
     try {
-      loadQuestions(gameId, levelDifficulty, numberOfQuestions, topicId);
+      sendGenerationRequest(gameId, levelDifficulty, numberOfQuestions, topicId);
     } catch (Exception e) {
-      LOGGER.error("Failed to generate personalized questions for game {}", gameId, e);
+      LOGGER.error("Failed to send generation request for game {}", gameId, e);
     }
   }
 
   public void loadQuestions(int gameId, int levelDifficulty, int numberOfQuestions, int topicId)
+      throws SQLException, DatabaseAccessException {
+    if (useKafkaForLoad) {
+      sendGenerationRequest(gameId, levelDifficulty, numberOfQuestions, topicId);
+    } else {
+      loadQuestionsInline(gameId, levelDifficulty, numberOfQuestions, topicId);
+    }
+  }
+
+  private void loadQuestionsInline(int gameId, int levelDifficulty, int numberOfQuestions, int topicId)
       throws SQLException, DatabaseAccessException {
     Topic topic = dbService.getTopicById(topicId);
     JSONArray selectedQuestions = buildPersonalizedQuestionSet(
@@ -54,12 +82,22 @@ public class QuestionLoadingService {
         levelDifficulty,
         numberOfQuestions
     );
-
     List<Integer> questionIds = dbService.loadQuestions(gameId, selectedQuestions);
     persistEmbeddings(questionIds);
   }
 
-  protected JSONArray buildPersonalizedQuestionSet(
+  private void sendGenerationRequest(int gameId, int levelDifficulty, int numberOfQuestions, int topicId)
+      throws SQLException, DatabaseAccessException {
+    Topic topic = dbService.getTopicById(topicId);
+    Game game = new Game();
+    game.setGameId(gameId);
+    game.setTopicId(topic.getTopicId());
+    game.setLevelDifficulty(levelDifficulty);
+    game.setNumberOfQuestions(numberOfQuestions);
+    mlQuestionRequestProducer.sendQuestionGenerationRequest(game);
+  }
+
+  private JSONArray buildPersonalizedQuestionSet(
       int gameId,
       String topicName,
       int levelDifficulty,
@@ -104,9 +142,7 @@ public class QuestionLoadingService {
   }
 
   protected JSONArray generateCandidateQuestions(String topicName, int candidateCount, int levelDifficulty) {
-    String payload = buildGeneratorPayload(topicName, candidateCount, levelDifficulty);
-    String rawCandidatesJson = QuestionGenerator.generate(payload).join();
-    return new JSONArray(rawCandidatesJson);
+    return new JSONArray();
   }
 
   protected JSONObject personalizeCandidates(
@@ -160,14 +196,14 @@ public class QuestionLoadingService {
     }
   }
 
-  protected Path writeTempJson(String prefix, JSONArray payload) throws IOException {
+  private Path writeTempJson(String prefix, JSONArray payload) throws IOException {
     Path tempFile = Files.createTempFile(prefix, ".json");
     Files.writeString(tempFile, payload.toString(), StandardCharsets.UTF_8);
     tempFile.toFile().deleteOnExit();
     return tempFile;
   }
 
-  protected ProcessResult runCommand(List<String> command) throws IOException, InterruptedException {
+  private ProcessResult runCommand(List<String> command) throws IOException, InterruptedException {
     ProcessBuilder processBuilder = new ProcessBuilder(command);
     processBuilder.directory(projectRoot().toFile());
 
@@ -188,16 +224,11 @@ public class QuestionLoadingService {
     return new ProcessResult(stdout, stderr);
   }
 
-  protected int calculateCandidateCount(int remainingQuestions) {
+  private int calculateCandidateCount(int remainingQuestions) {
     return Math.max(remainingQuestions * CANDIDATE_MULTIPLIER, remainingQuestions + EXTRA_CANDIDATES);
   }
 
-  protected String buildGeneratorPayload(String topicName, int numberOfQuestions, int levelDifficulty) {
-    return "[{\"topic\":\"" + topicName + "\",\"numberOfQuestions\":" + numberOfQuestions
-        + ",\"difficult\":" + levelDifficulty + "}]";
-  }
-
-  protected Path pythonScriptPath(String... pathParts) {
+  private Path pythonScriptPath(String... pathParts) {
     Path result = projectRoot().resolve(Path.of("src", "main", "python"));
     for (String pathPart : pathParts) {
       result = result.resolve(pathPart);
@@ -205,10 +236,11 @@ public class QuestionLoadingService {
     return result;
   }
 
-  protected Path projectRoot() {
+  private Path projectRoot() {
     return Path.of(System.getProperty("user.dir"));
   }
 
-  protected record ProcessResult(String stdout, String stderr) {
+  private record ProcessResult(String stdout, String stderr) {
   }
 }
+

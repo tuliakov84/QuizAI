@@ -38,7 +38,6 @@
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
-      checkCurrentGame();
 
       // Получаем gameId из URL параметров
       const urlParams = new URLSearchParams(window.location.search);

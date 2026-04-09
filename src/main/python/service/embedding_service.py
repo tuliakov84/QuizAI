@@ -6,28 +6,44 @@ Creates embeddings for quizai questions
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 
-from aiokafka import AIOKafkaConsumer
 from sentence_transformers import SentenceTransformer, util
 
 from db_service import DbService
 
-EMBEDDING_REQUEST_TOPIC = "ml-question-requests"
-KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
-
-
 class Embedder:
+    """
+    Lazy-loads the transformer so Kafka consumers can subscribe immediately.
+    First inference may take minutes if the model is downloaded from the network.
+    """
+
     def __init__(
         self,
         model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
     ) -> None:
-        self.model = SentenceTransformer(model_name)
+        self._model_name = model_name
+        self._model: SentenceTransformer | None = None
+
+    @property
+    def model(self) -> SentenceTransformer:
+        if self._model is None:
+            logging.info(
+                "Loading SentenceTransformer model %r (first use; download/load can take several minutes)...",
+                self._model_name,
+            )
+            self._model = SentenceTransformer(self._model_name)
+            logging.info("SentenceTransformer model ready.")
+        return self._model
 
     def get_embedding(self, sentence: str):
         return self.model.encode(sentence, convert_to_tensor=True)
+
+    def encode(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        vectors = self.model.encode(texts, convert_to_numpy=True, normalize_embeddings=False)
+        return [[float(value) for value in row] for row in vectors]
 
     def cosine_similarity(self, sent1: str, sent2: str) -> float:
         emb1 = self.get_embedding(sent1)
@@ -42,46 +58,43 @@ def parse_question_ids(message_value) -> list[int]:
     return [int(question_id) for question_id in message_value]
 
 
-async def handle_message(db_service: DbService, embedder: Embedder, message_value) -> None:
-    question_ids = parse_question_ids(message_value)
+def generate_and_persist_embeddings_for_ids(
+    db_service: DbService,
+    embedder: Embedder,
+    question_ids: list[int],
+) -> list[int]:
+    logging.info("Step PY2: loading question texts for embeddings. ids=%s", question_ids)
     question_rows = db_service.get_question_texts(question_ids)
+    question_texts = [question_text for _, question_text in question_rows if question_text]
+    logging.info(
+        "Step PY3: encoding embeddings in batch. requested=%s, with_text=%s",
+        len(question_ids),
+        len(question_texts),
+    )
+    vectors = embedder.model.encode(question_texts, convert_to_numpy=True) if question_texts else []
 
     embeddings_dict: dict[int, list[float]] = {}
+    vector_idx = 0
     for db_id, question_text in question_rows:
         if not question_text:
             continue
-        embeddings_dict[db_id] = embedder.get_embedding(question_text).tolist()
+        embeddings_dict[db_id] = [float(value) for value in vectors[vector_idx]]
+        vector_idx += 1
 
     if embeddings_dict:
         db_service.load_embeddings(embeddings_dict)
-        logging.info("Stored embeddings for %s questions", len(embeddings_dict))
+        logging.info("Step PY4: stored embeddings in DB. stored_count=%s, ids=%s", len(embeddings_dict), list(embeddings_dict.keys()))
+    return list(embeddings_dict.keys())
 
 
-async def consume() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    consumer = AIOKafkaConsumer(
-        EMBEDDING_REQUEST_TOPIC,
-        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-        group_id="quizai-embedding-service",
-        value_deserializer=lambda payload: json.loads(payload.decode("utf-8")),
-        auto_offset_reset="earliest",
-        enable_auto_commit=True,
-    )
-    db_service = DbService()
-    embedder = Embedder()
-
-    await consumer.start()
-    try:
-        async for message in consumer:
-            logging.info("Received embedding request: %s", message.value)
-            await handle_message(db_service, embedder, message.value)
-    except Exception as exc:
-        logging.exception("Embedding service failed: %s", exc)
-        raise
-    finally:
-        await consumer.stop()
-        db_service.close()
+async def handle_message(db_service: DbService, embedder: Embedder, message_value) -> None:
+    question_ids = parse_question_ids(message_value)
+    generate_and_persist_embeddings_for_ids(db_service, embedder, question_ids)
 
 
 if __name__ == "__main__":
-    asyncio.run(consume())
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.info(
+        "embedding_service.py no longer consumes Kafka directly. "
+        "Use kafka_question_validation_worker.py for Kafka-driven flow."
+    )

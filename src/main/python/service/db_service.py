@@ -238,6 +238,18 @@ class DbService:
             for row in rows
         ]
 
+    def get_game_question_ids(self, game_id: int) -> list[int]:
+        self.cur.execute(
+            """
+            SELECT id
+            FROM questions
+            WHERE game_id = %s
+            ORDER BY question_number, id
+            """,
+            (game_id,),
+        )
+        return [row[0] for row in self.cur.fetchall()]
+
     def update_question(
         self,
         target_question_id: int,

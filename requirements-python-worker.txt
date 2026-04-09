@@ -1,0 +1,4 @@
+sentence-transformers==5.2.3
+aiokafka==0.13.0
+psycopg2-binary==2.9.11
+jproperties==2.1.2

@@ -23,7 +23,7 @@ public class Main {
       System.out.println(Thread.currentThread().getName() + " started");
 
       // Интервал в 3 часа в миллисекундах
-      final long PROCESS_INTERVAL_MS = 10 * 1000;
+      final long PROCESS_INTERVAL_MS = 3 * 60 * 60 * 1000;
 
       while (!Thread.currentThread().isInterrupted()) {
         try {

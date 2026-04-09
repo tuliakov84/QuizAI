@@ -5,6 +5,7 @@ import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Achievement;
 import com.mipt.domainModel.Question;
 import com.mipt.domainModel.Topic;
+import com.mipt.service.MlQuestionRequestProducerService;
 import com.mipt.service.QuestionLoadingService;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
@@ -27,6 +28,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 @Testcontainers
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -945,7 +947,7 @@ public class DbServiceTest {
     private final List<Integer> persistedEmbeddingIds = new ArrayList<>();
 
     private TestQuestionLoadingService(DbService dbService, JSONArray generatedCandidates, List<String> participantSessions) {
-      super(dbService);
+      super(mock(MlQuestionRequestProducerService.class), dbService, false);
       this.generatedCandidates = generatedCandidates;
       this.participantSessions = participantSessions;
     }
