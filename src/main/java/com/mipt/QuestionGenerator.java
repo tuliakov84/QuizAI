@@ -3,106 +3,128 @@ package com.mipt;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CompletionException;
 
 public class QuestionGenerator {
 
-  // Хранилище уже сгенерированных вопросов для предотвращения повторов
-  private static final Set<String> generatedQuestions = new HashSet<>();
-  private static final Object lock = new Object();
+  private static final String DEFAULT_LLM_URL = "http://localhost:11434/api/chat";
+  private static final String DEFAULT_LLM_MODEL = "qwen2.5";
+  private static final int DEFAULT_CONNECT_TIMEOUT_SECONDS = 30;
+  private static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 120;
+  private static final int DEFAULT_MAX_RETRIES_PER_QUESTION = 3;
+  private static final double DEFAULT_TEMPERATURE = 0.5;
+  private static final int DEFAULT_NUM_PREDICT = 1024;
 
-//    public static CompletableFuture<String> generate(String jsonString) {
-//        JSONArray inputArray = new JSONArray(jsonString);
-//        JSONObject obj = inputArray.getJSONObject(0);
-//
-//        String topic = obj.getString("topic");
-//        int numberOfQuestions = obj.getInt("numberOfQuestions");
-//        int difficult = obj.getInt("difficult");
-//
-//        // Очищаем хранилище при каждом новом вызове
-//        synchronized (lock) {
-//            generatedQuestions.clear();
-//        }
-//
-//        if (numberOfQuestions > 1) {
-//            return generateSequentially(topic, numberOfQuestions, difficult);
-//        }
-//
-//        return generateSingleQuestion(topic, difficult, 1, "");
-//    }
+  private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+      .connectTimeout(Duration.ofSeconds(readIntConfig("app.llm.connect-timeout-seconds", "APP_LLM_CONNECT_TIMEOUT_SECONDS", DEFAULT_CONNECT_TIMEOUT_SECONDS)))
+      .build();
 
-  /**
-   * Заглушка: вместо реального вызова нейросети возвращает содержимое файла ml-answer-example.json
-   * @param jsonString входные параметры (игнорируются)
-   * @return CompletableFuture с JSON-строкой, содержащей массив вопросов
-   */
-  public static CompletableFuture<String> generate(String jsonString) {
-    try {
-      // Читаем файл ml-answer-example.json из classpath (папка resources)
-      InputStream inputStream = QuestionGenerator.class.getClassLoader()
-          .getResourceAsStream("ml-answer-example.json");
-      if (inputStream == null) {
-        throw new RuntimeException("File ml-answer-example.json not found in resources");
-      }
-      String content = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-      return CompletableFuture.completedFuture(content);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to read mock questions file", e);
-    }
+  private record GenerationInput(
+      String topic,
+      int numberOfQuestions,
+      int difficult,
+      List<Integer> targetQuestionNumbers,
+      List<String> existingQuestionTexts
+  ) {
   }
 
-  private static CompletableFuture<String> generateSingleQuestion(String topic, int difficult,
-                                                                  int questionNumber, String previousQuestions) {
-    String url = "http://localhost:11434/api/chat";
+  private record GenerationContext(
+      String topic,
+      int difficult,
+      List<Integer> targetQuestionNumbers,
+      int maxRetriesPerQuestion,
+      Set<String> usedQuestionKeys,
+      StringBuilder previousQuestions
+  ) {
+  }
 
-    // Добавляем контекст о предыдущих вопросах, чтобы избежать повторов
-    String contextPrompt = previousQuestions.isEmpty() ?
-        "Пока нет сгенерированных вопросов." :
-        "Уже сгенерированы следующие вопросы:\n" + previousQuestions;
+  public static CompletableFuture<String> generate(String jsonString) {
+    GenerationInput input = parseInput(jsonString);
+    Set<String> usedQuestionKeys = new HashSet<>();
 
-    String prompt = String.format(
-        "Сгенерируй УНИКАЛЬНЫЙ вопрос на тему '%s'. Сложность: %d (1-легко, 3-сложно).\n\n" +
-            "%s\n\n" +
-            "ВАЖНО: Вопрос должен быть уникальным и не повторять уже сгенерированные выше.\n\n" +
-            "Формат ответа ТОЛЬКО JSON-объект следующей структуры:\n" +
-            "{\n" +
-            "  \"question_number\": %d,\n" +
-            "  \"question_text\": \"Текст вопроса на русском языке\",\n" +
-            "  \"available_answers\": [\n" +
-            "    {\"index\": 1, \"answer\": \"Вариант ответа 1\"},\n" +
-            "    {\"index\": 2, \"answer\": \"Вариант ответа 2\"},\n" +
-            "    {\"index\": 3, \"answer\": \"Вариант ответа 3\"},\n" +
-            "    {\"index\": 4, \"answer\": \"Вариант ответа 4\"}\n" +
-            "  ],\n" +
-            "  \"right_answer_number\": номер_правильного_ответа_от_1_до_4\n" +
-            "}\n\n" +
-            "Требования к вопросу:\n" +
-            "1. Все на русском языке\n" +
-            "2. Только JSON, без других слов\n" +
-            "3. Правильный JSON синтаксис\n" +
-            "4. Вопрос должен быть УНИКАЛЬНЫМ и не повторять предыдущие\n" +
-            "5. Варианты ответов должны быть разнообразными и релевантными",
-        topic, difficult, contextPrompt, questionNumber
+    for (String existingText : input.existingQuestionTexts) {
+      String normalized = normalizeQuestionText(existingText);
+      if (!normalized.isEmpty()) {
+        usedQuestionKeys.add(normalized);
+      }
+    }
+
+    StringBuilder previousQuestions = new StringBuilder();
+    for (String existing : input.existingQuestionTexts) {
+      if (existing != null && !existing.isBlank()) {
+        previousQuestions.append("- ").append(existing.trim()).append("\n");
+      }
+    }
+
+    GenerationContext context = new GenerationContext(
+        input.topic,
+        input.difficult,
+        input.targetQuestionNumbers,
+        readIntConfig("app.llm.max-retries-per-question", "APP_LLM_MAX_RETRIES_PER_QUESTION", DEFAULT_MAX_RETRIES_PER_QUESTION),
+        usedQuestionKeys,
+        previousQuestions
     );
 
+    return generateRecursively(context, 0, input.numberOfQuestions, 0, new JSONArray())
+        .thenApply(JSONArray::toString);
+  }
+
+  private static CompletableFuture<JSONArray> generateRecursively(
+      GenerationContext context,
+      int currentIndex,
+      int totalQuestions,
+      int retryCount,
+      JSONArray allQuestions
+  ) {
+    if (currentIndex >= totalQuestions) {
+      return CompletableFuture.completedFuture(allQuestions);
+    }
+
+    int targetNumber = context.targetQuestionNumbers.isEmpty()
+        ? currentIndex + 1
+        : context.targetQuestionNumbers.get(currentIndex);
+
+    if (retryCount > context.maxRetriesPerQuestion) {
+      JSONObject fallback = buildFallbackQuestion(targetNumber, context.topic, currentIndex);
+      registerQuestionAndContext(fallback, context.previousQuestions, context.usedQuestionKeys);
+      allQuestions.put(fallback);
+      return generateRecursively(context, currentIndex + 1, totalQuestions, 0, allQuestions);
+    }
+
+    return generateSingleQuestion(context, targetNumber)
+        .thenCompose(generatedQuestion -> {
+          if (generatedQuestion == null) {
+            return generateRecursively(context, currentIndex, totalQuestions, retryCount + 1, allQuestions);
+          }
+
+          registerQuestionAndContext(generatedQuestion, context.previousQuestions, context.usedQuestionKeys);
+          allQuestions.put(generatedQuestion);
+          return generateRecursively(context, currentIndex + 1, totalQuestions, 0, allQuestions);
+        });
+  }
+
+  private static CompletableFuture<JSONObject> generateSingleQuestion(GenerationContext context, int questionNumber) {
+    String prompt = buildPrompt(context, questionNumber);
+
     JSONObject payload = new JSONObject();
-    payload.put("model", "qwen2.5");
+    payload.put("model", readStringConfig("app.llm.model", "APP_LLM_MODEL", DEFAULT_LLM_MODEL));
     payload.put("format", "json");
     payload.put("stream", false);
 
     JSONObject options = new JSONObject();
-    options.put("temperature", 0.7); // Немного повышаем температуру для разнообразия
-    options.put("num_predict", 2048);
+    options.put("temperature", readDoubleConfig("app.llm.temperature", "APP_LLM_TEMPERATURE", DEFAULT_TEMPERATURE));
+    options.put("num_predict", readIntConfig("app.llm.num-predict", "APP_LLM_NUM_PREDICT", DEFAULT_NUM_PREDICT));
     payload.put("options", options);
 
     JSONArray messages = new JSONArray();
@@ -113,20 +135,17 @@ public class QuestionGenerator {
 
     payload.put("messages", messages);
 
-    HttpClient client = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(30))
-        .build();
-
     HttpRequest req = HttpRequest.newBuilder()
-        .uri(URI.create(url))
+        .uri(URI.create(readStringConfig("app.llm.url", "APP_LLM_URL", DEFAULT_LLM_URL)))
+        .timeout(Duration.ofSeconds(readIntConfig("app.llm.request-timeout-seconds", "APP_LLM_REQUEST_TIMEOUT_SECONDS", DEFAULT_REQUEST_TIMEOUT_SECONDS)))
         .header("Content-Type", "application/json")
         .POST(HttpRequest.BodyPublishers.ofString(payload.toString(), StandardCharsets.UTF_8))
         .build();
 
-    return client.sendAsync(req, HttpResponse.BodyHandlers.ofString())
+    return HTTP_CLIENT.sendAsync(req, HttpResponse.BodyHandlers.ofString())
         .thenApply(response -> {
           if (response.statusCode() != 200) {
-            System.err.println("Ошибка API: " + response.statusCode());
+            System.err.println("LLM API returned non-200 status: " + response.statusCode());
             return null;
           }
 
@@ -142,101 +161,129 @@ public class QuestionGenerator {
             }
 
             JSONObject questionObj = new JSONObject(jsonContent);
-
-            // Проверяем уникальность вопроса
-            String questionText = questionObj.optString("question_text",
-                questionObj.optString("question", ""));
-
-            synchronized (lock) {
-              // Если вопрос уже был сгенерирован, возвращаем null для повторной генерации
-              if (!questionText.isEmpty() && generatedQuestions.contains(questionText.toLowerCase())) {
-                System.err.println("Обнаружен повторный вопрос: " + questionText.substring(0, Math.min(50, questionText.length())));
-                return null;
-              }
-              generatedQuestions.add(questionText.toLowerCase());
-            }
-
             JSONObject fixedQuestion = fixQuestionStructure(questionObj, questionNumber);
+
+            String questionText = fixedQuestion.optString("question_text", "");
+            String normalized = normalizeQuestionText(questionText);
+            if (normalized.isEmpty() || context.usedQuestionKeys.contains(normalized)) {
+              return null;
+            }
             return fixedQuestion;
 
           } catch (Exception e) {
-            System.err.println("Ошибка при генерации вопроса " + questionNumber + ": " + e.getMessage());
+            System.err.println("Failed to parse LLM question " + questionNumber + ": " + e.getMessage());
             return null;
           }
         })
         .exceptionally(ex -> {
-          System.err.println("Исключение при запросе вопроса " + questionNumber + ": " + ex.getMessage());
+          System.err.println("LLM request failed for question " + questionNumber + ": " + ex.getMessage());
           return null;
-        })
-        .thenApply(questionObj -> {
-          if (questionObj == null) {
-            return "null";
-          }
-          return questionObj.toString();
         });
   }
 
-  private static CompletableFuture<String> generateSequentially(String topic, int numberOfQuestions, int difficult) {
-    AtomicInteger generatedCount = new AtomicInteger(0);
-    JSONArray allQuestions = new JSONArray();
-    StringBuilder previousQuestions = new StringBuilder();
+  private static GenerationInput parseInput(String jsonString) {
+    try {
+      JSONArray inputArray = new JSONArray(jsonString);
+      if (inputArray.isEmpty()) {
+        throw new IllegalArgumentException("Generator payload array is empty");
+      }
+      JSONObject obj = inputArray.getJSONObject(0);
 
-    // Вместо параллельной генерации делаем последовательную с учетом предыдущих вопросов
-    return generateQuestionRecursively(topic, difficult, numberOfQuestions, 1,
-        generatedCount, allQuestions, previousQuestions, 0);
-  }
+      String topic = obj.getString("topic").trim();
+      int numberOfQuestions = obj.getInt("numberOfQuestions");
+      int difficult = obj.getInt("difficult");
 
-  private static CompletableFuture<String> generateQuestionRecursively(String topic, int difficult,
-                                                                       int totalQuestions, int currentQuestion,
-                                                                       AtomicInteger generatedCount,
-                                                                       JSONArray allQuestions,
-                                                                       StringBuilder previousQuestions,
-                                                                       int retryCount) {
-    if (currentQuestion > totalQuestions || retryCount > 3) { // Максимум 3 попытки на вопрос
-      JSONObject result = new JSONObject();
-      result.put("generated_count", generatedCount.get());
-      result.put("questions", allQuestions);
-
-      System.out.println("Сгенерировано вопросов: " + generatedCount.get() + " из " + totalQuestions);
-
-      if (generatedCount.get() < totalQuestions) {
-        System.out.println("Предупреждение: получено " + generatedCount.get() +
-            " уникальных вопросов вместо " + totalQuestions);
+      if (topic.isEmpty()) {
+        throw new IllegalArgumentException("Topic must not be empty");
+      }
+      if (numberOfQuestions <= 0) {
+        throw new IllegalArgumentException("numberOfQuestions must be > 0");
       }
 
-      return CompletableFuture.completedFuture(allQuestions.toString());
+      JSONArray questionNumbersToRegenerate = obj.optJSONArray("questionNumbersToRegenerate");
+      List<Integer> targetNumbers = new ArrayList<>();
+      if (questionNumbersToRegenerate != null && !questionNumbersToRegenerate.isEmpty()) {
+        for (int i = 0; i < questionNumbersToRegenerate.length(); i++) {
+          targetNumbers.add(questionNumbersToRegenerate.getInt(i));
+        }
+      }
+      if (!targetNumbers.isEmpty()) {
+        numberOfQuestions = targetNumbers.size();
+      }
+
+      JSONArray existingQuestionsArray = obj.optJSONArray("existingQuestions");
+      List<String> existingQuestionTexts = new ArrayList<>();
+      if (existingQuestionsArray != null && !existingQuestionsArray.isEmpty()) {
+        for (int i = 0; i < existingQuestionsArray.length(); i++) {
+          String questionText = existingQuestionsArray.optString(i, "").trim();
+          if (!questionText.isEmpty()) {
+            existingQuestionTexts.add(questionText);
+          }
+        }
+      }
+
+      return new GenerationInput(topic, numberOfQuestions, difficult, targetNumbers, existingQuestionTexts);
+    } catch (Exception e) {
+      throw new CompletionException("Invalid generator payload: " + e.getMessage(), e);
     }
+  }
 
-    return generateSingleQuestion(topic, difficult, currentQuestion, previousQuestions.toString())
-        .thenCompose(result -> {
-          if (result.equals("null")) {
-            // Если не удалось сгенерировать, пробуем еще раз
-            System.err.println("Попытка " + (retryCount + 1) + " для вопроса " + currentQuestion + " не удалась");
-            return generateQuestionRecursively(topic, difficult, totalQuestions, currentQuestion,
-                generatedCount, allQuestions, previousQuestions, retryCount + 1);
-          }
+  private static String buildPrompt(GenerationContext context, int questionNumber) {
+    String uniquenessContext = context.previousQuestions.isEmpty()
+        ? "Нет ранее сгенерированных вопросов."
+        : "Запрещено повторять или перефразировать следующие вопросы:\n" + context.previousQuestions;
+    String modeHint = context.targetQuestionNumbers.isEmpty()
+        ? "Режим: первичная генерация"
+        : "Режим: перегенерация отдельных вопросов";
 
-          try {
-            JSONObject question = new JSONObject(result);
+    return String.format(
+        "Ты генерируешь вопрос для онлайн-квиза.\n" +
+            "%s\n" +
+            "%s\n" +
+            "Тема: %s\n" +
+            "Сложность: %d (1 = легко, 2 = средне, 3 = сложно).\n" +
+            "Номер вопроса: %d\n\n" +
+            "Верни строго один JSON-объект БЕЗ markdown и без дополнительных пояснений.\n" +
+            "Формат строго такой:\n" +
+            "{\n" +
+            "  \"question_number\": %d,\n" +
+            "  \"question_text\": \"...\",\n" +
+            "  \"available_answers\": [\n" +
+            "    {\"index\": 1, \"answer\": \"...\"},\n" +
+            "    {\"index\": 2, \"answer\": \"...\"},\n" +
+            "    {\"index\": 3, \"answer\": \"...\"},\n" +
+            "    {\"index\": 4, \"answer\": \"...\"}\n" +
+            "  ],\n" +
+            "  \"right_answer_number\": 1..4\n" +
+            "}\n\n" +
+            "Ограничения:\n" +
+            "1) Только русский язык.\n" +
+            "2) Только один правильный ответ.\n" +
+            "3) Варианты ответов правдоподобные и различающиеся по смыслу.\n" +
+            "4) Не используй вопросы из списка запрета.\n" +
+            "5) Не добавляй текст вне JSON.",
+        modeHint,
+        uniquenessContext,
+        context.topic,
+        context.difficult,
+        questionNumber,
+        questionNumber
+    );
+  }
 
-            // Добавляем вопрос в список
-            allQuestions.put(question);
-            generatedCount.incrementAndGet();
-
-            // Обновляем контекст для следующих вопросов
-            String questionText = question.getString("question_text");
-            previousQuestions.append(currentQuestion).append(". ").append(questionText).append("\n");
-
-            // Переходим к следующему вопросу
-            return generateQuestionRecursively(topic, difficult, totalQuestions, currentQuestion + 1,
-                generatedCount, allQuestions, previousQuestions, 0);
-
-          } catch (Exception e) {
-            System.err.println("Ошибка при обработке вопроса " + currentQuestion + ": " + e.getMessage());
-            return generateQuestionRecursively(topic, difficult, totalQuestions, currentQuestion,
-                generatedCount, allQuestions, previousQuestions, retryCount + 1);
-          }
-        });
+  private static void registerQuestionAndContext(
+      JSONObject question,
+      StringBuilder previousQuestions,
+      Set<String> usedQuestionKeys
+  ) {
+    String questionText = question.optString("question_text", "").trim();
+    if (!questionText.isEmpty()) {
+      String normalized = normalizeQuestionText(questionText);
+      if (!normalized.isEmpty()) {
+        usedQuestionKeys.add(normalized);
+      }
+      previousQuestions.append("- ").append(questionText).append("\n");
+    }
   }
 
   private static String extractValidJson(String content) {
@@ -275,6 +322,64 @@ public class QuestionGenerator {
     return null;
   }
 
+  private static String normalizeQuestionText(String text) {
+    if (text == null) {
+      return "";
+    }
+    return text
+        .toLowerCase()
+        .replaceAll("[\\p{Punct}]", " ")
+        .replaceAll("\\s+", " ")
+        .trim();
+  }
+
+  private static JSONObject buildFallbackQuestion(int questionNumber, String topic, int questionIndex) {
+    JSONObject fallback = new JSONObject();
+    fallback.put("question_number", questionNumber);
+    fallback.put("question_text", "Какой из вариантов наиболее связан с темой \"" + topic + "\"? (резервный вопрос " + (questionIndex + 1) + ")");
+
+    JSONArray answers = new JSONArray();
+    for (int i = 1; i <= 4; i++) {
+      JSONObject answer = new JSONObject();
+      answer.put("index", i);
+      answer.put("answer", "Вариант " + i);
+      answers.put(answer);
+    }
+    fallback.put("available_answers", answers);
+    fallback.put("right_answer_number", 1);
+    return fallback;
+  }
+
+  private static String readStringConfig(String sysProperty, String envName, String defaultValue) {
+    String fromSystem = System.getProperty(sysProperty);
+    if (fromSystem != null && !fromSystem.isBlank()) {
+      return fromSystem.trim();
+    }
+    String fromEnv = System.getenv(envName);
+    if (fromEnv != null && !fromEnv.isBlank()) {
+      return fromEnv.trim();
+    }
+    return defaultValue;
+  }
+
+  private static int readIntConfig(String sysProperty, String envName, int defaultValue) {
+    String raw = readStringConfig(sysProperty, envName, String.valueOf(defaultValue));
+    try {
+      return Integer.parseInt(raw);
+    } catch (NumberFormatException e) {
+      return defaultValue;
+    }
+  }
+
+  private static double readDoubleConfig(String sysProperty, String envName, double defaultValue) {
+    String raw = readStringConfig(sysProperty, envName, String.valueOf(defaultValue));
+    try {
+      return Double.parseDouble(raw);
+    } catch (NumberFormatException e) {
+      return defaultValue;
+    }
+  }
+
   private static JSONObject fixQuestionStructure(JSONObject question, int expectedNumber) {
     try {
       JSONObject fixed = new JSONObject();
@@ -294,18 +399,14 @@ public class QuestionGenerator {
         for (int i = 0; i < Math.min(4, originalAnswers.length()); i++) {
           JSONObject answerObj = originalAnswers.getJSONObject(i);
           JSONObject fixedAnswer = new JSONObject();
-
-          if (answerObj.has("index")) {
-            fixedAnswer.put("index", answerObj.getInt("index"));
-          } else {
-            fixedAnswer.put("index", i + 1);
-          }
+          fixedAnswer.put("index", i + 1);
 
           if (answerObj.has("answer")) {
             String answerText = answerObj.getString("answer");
             answerText = answerText.replaceAll("\"Впитер\"", "Юпитер")
                 .replaceAll("\"Ипитер\"", "Юпитер")
                 .replaceAll("\"\\\\\"", "\"") // Убираем экранированные кавычки
+                .replaceAll("^\"|\"$", "")
                 .trim();
             fixedAnswer.put("answer", answerText);
           } else {

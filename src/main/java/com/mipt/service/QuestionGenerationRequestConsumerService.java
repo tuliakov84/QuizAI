@@ -12,6 +12,9 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 @ConditionalOnExpression(
     "'${app.service.role:backend}' == 'generator' || '${app.service.role:backend}' == 'both'"
@@ -43,8 +46,13 @@ public class QuestionGenerationRequestConsumerService {
           gameId, topicId, levelDifficulty, numberOfQuestions, request.optString("requestId", ""), request.optInt("attempt", 0)
       );
       JSONArray questionNumbersToRegenerate = request.optJSONArray("questionNumbersToRegenerate");
+      JSONArray existingQuestions = new JSONArray();
+      boolean regenerationRequested = request.optBoolean("isRegeneration", false);
       if (questionNumbersToRegenerate != null && !questionNumbersToRegenerate.isEmpty()) {
         numberOfQuestions = questionNumbersToRegenerate.length();
+        regenerationRequested = true;
+        List<Integer> targetNumbers = toIntList(questionNumbersToRegenerate);
+        existingQuestions = new JSONArray(dbService.getQuestionTextsByGameIdExceptNumbers(gameId, targetNumbers));
         LOGGER.info(
             "Step A2: regeneration mode. gameId={}, numbersToRegenerate={}, effectiveCount={}",
             gameId, questionNumbersToRegenerate, numberOfQuestions
@@ -52,7 +60,14 @@ public class QuestionGenerationRequestConsumerService {
       }
 
       String topicName = dbService.getTopicById(topicId).getName();
-      String generatorPayload = buildGeneratorPayload(topicName, numberOfQuestions, levelDifficulty);
+      String generatorPayload = buildGeneratorPayload(
+          topicName,
+          numberOfQuestions,
+          levelDifficulty,
+          regenerationRequested,
+          questionNumbersToRegenerate,
+          existingQuestions
+      );
       LOGGER.info("Step A3: calling QuestionGenerator. gameId={}, topicName={}, payloadCount={}", gameId, topicName, numberOfQuestions);
       JSONArray generatedQuestions = new JSONArray(QuestionGenerator.generate(generatorPayload).join());
       LOGGER.info("Step A4: QuestionGenerator returned {} questions for gameId={}", generatedQuestions.length(), gameId);
@@ -79,9 +94,34 @@ public class QuestionGenerationRequestConsumerService {
     }
   }
 
-  private static String buildGeneratorPayload(String topicName, int numberOfQuestions, int levelDifficulty) {
-    return "[{\"topic\":\"" + topicName + "\",\"numberOfQuestions\":" + numberOfQuestions
-        + ",\"difficult\":" + levelDifficulty + "}]";
+  private static String buildGeneratorPayload(
+      String topicName,
+      int numberOfQuestions,
+      int levelDifficulty,
+      boolean isRegeneration,
+      JSONArray questionNumbersToRegenerate,
+      JSONArray existingQuestions
+  ) {
+    JSONObject payloadObject = new JSONObject();
+    payloadObject.put("topic", topicName);
+    payloadObject.put("numberOfQuestions", numberOfQuestions);
+    payloadObject.put("difficult", levelDifficulty);
+    payloadObject.put("isRegeneration", isRegeneration);
+    if (questionNumbersToRegenerate != null && !questionNumbersToRegenerate.isEmpty()) {
+      payloadObject.put("questionNumbersToRegenerate", questionNumbersToRegenerate);
+    }
+    if (existingQuestions != null && !existingQuestions.isEmpty()) {
+      payloadObject.put("existingQuestions", existingQuestions);
+    }
+    return new JSONArray().put(payloadObject).toString();
+  }
+
+  private static List<Integer> toIntList(JSONArray jsonArray) {
+    List<Integer> result = new ArrayList<>();
+    for (int i = 0; i < jsonArray.length(); i++) {
+      result.add(jsonArray.getInt(i));
+    }
+    return result;
   }
 
   private static void alignQuestionNumbers(JSONArray questions, JSONArray targetQuestionNumbers) {

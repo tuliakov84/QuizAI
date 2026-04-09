@@ -857,6 +857,26 @@ public class DbService {
     return result;
   }
 
+  public List<String> getQuestionTextsByGameIdExceptNumbers(int gameId, List<Integer> excludedQuestionNumbers)
+      throws SQLException, DatabaseAccessException {
+    getGameOrThrow(gameId);
+    Set<Integer> excluded = excludedQuestionNumbers == null
+        ? Set.of()
+        : new HashSet<>(excludedQuestionNumbers);
+
+    List<String> texts = new ArrayList<>();
+    for (QuestionEntity questionEntity : questionRepository.findByGame_IdOrderByQuestionNumberAscIdAsc(gameId)) {
+      if (excluded.contains(questionEntity.getQuestionNumber())) {
+        continue;
+      }
+      String text = questionEntity.getQuestionText();
+      if (text != null && !text.isBlank()) {
+        texts.add(text.trim());
+      }
+    }
+    return texts;
+  }
+
   private static void applyQuestionPayload(QuestionEntity questionEntity, JSONObject itemObject, int answerAmount)
       throws DatabaseAccessException {
     try {
