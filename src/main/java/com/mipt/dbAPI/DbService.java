@@ -48,6 +48,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -226,15 +227,42 @@ public class DbService {
     return userRepository.existsByUsername(username);
   }
 
+  public boolean checkEmailExists(String email) throws SQLException {
+    if (email == null || email.isBlank()) {
+      return false;
+    }
+    return userRepository.existsByEmail(normalizeEmail(email));
+  }
+
   public void register(String username, String password) throws SQLException, DatabaseAccessException {
+    register(username, password, null);
+  }
+
+  public void register(String username, String password, String email) throws SQLException, DatabaseAccessException {
     if (checkUserExists(username)) {
       throw new DatabaseAccessException("User already exists");
     }
+    if (email != null && !email.isBlank() && checkEmailExists(email)) {
+      throw new DatabaseAccessException("Email already exists");
+    }
 
     String hashedPassword = BCrypt.withDefaults().hashToString(12, password.toCharArray());
+    registerHashedPassword(username, hashedPassword, email);
+  }
+
+  public void registerHashedPassword(String username, String passwordHash, String email)
+      throws SQLException, DatabaseAccessException {
+    if (checkUserExists(username)) {
+      throw new DatabaseAccessException("User already exists");
+    }
+    if (email != null && !email.isBlank() && checkEmailExists(email)) {
+      throw new DatabaseAccessException("Email already exists");
+    }
+
     UserEntity userEntity = new UserEntity();
     userEntity.setUsername(username);
-    userEntity.setPassword(hashedPassword);
+    userEntity.setPassword(passwordHash);
+    userEntity.setEmail(normalizeEmail(email));
     userEntity.setPicId(0);
     userEntity.setDescription("");
     userEntity.setGamesPlayedNumber(0);
@@ -245,7 +273,7 @@ public class DbService {
   }
 
   public void authenticate(String username, String password, String session) throws SQLException, DatabaseAccessException {
-    UserEntity userEntity = userRepository.findByUsername(username).orElseThrow(DatabaseAccessException::new);
+    UserEntity userEntity = userRepository.findByUsernameOrEmail(username).orElseThrow(DatabaseAccessException::new);
 
     BCrypt.Result result = BCrypt.verifyer().verify(password.toCharArray(), userEntity.getPassword());
     if (!result.verified) {
@@ -264,6 +292,12 @@ public class DbService {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     String hashedPassword = BCrypt.withDefaults().hashToString(12, newPassword.toCharArray());
     userEntity.setPassword(hashedPassword);
+    userRepository.save(userEntity);
+  }
+
+  public void changePasswordHashByEmail(String email, String passwordHash) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = userRepository.findByEmail(normalizeEmail(email)).orElseThrow(DatabaseAccessException::new);
+    userEntity.setPassword(passwordHash);
     userRepository.save(userEntity);
   }
 
@@ -286,6 +320,20 @@ public class DbService {
   public String getUsername(String session) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     return userEntity.getUsername();
+  }
+
+  public String getEmail(String session) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    return userEntity.getEmail();
+  }
+
+  public String getEmailByUsername(String username) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = userRepository.findByUsername(username).orElseThrow(DatabaseAccessException::new);
+    return userEntity.getEmail();
+  }
+
+  public boolean userExistsByEmail(String email) throws SQLException {
+    return checkEmailExists(email);
   }
 
   public void changeDescription(String session, String description) throws SQLException, DatabaseAccessException {
@@ -507,6 +555,13 @@ public class DbService {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     userEntity.setSession(null);
     userRepository.save(userEntity);
+  }
+
+  private String normalizeEmail(String email) {
+    if (email == null || email.isBlank()) {
+      return null;
+    }
+    return email.trim().toLowerCase(Locale.ROOT);
   }
 
   //

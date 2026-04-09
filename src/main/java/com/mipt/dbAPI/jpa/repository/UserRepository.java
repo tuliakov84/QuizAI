@@ -14,7 +14,19 @@ public interface UserRepository extends JpaRepository<UserEntity, Integer> {
 
   Optional<UserEntity> findByUsername(String username);
 
+  Optional<UserEntity> findByEmail(String email);
+
   boolean existsByUsername(String username);
+
+  boolean existsByEmail(String email);
+
+  @Query("""
+      select u
+      from UserEntity u
+      where u.username = :identifier
+         or lower(u.email) = lower(:identifier)
+      """)
+  Optional<UserEntity> findByUsernameOrEmail(@Param("identifier") String identifier);
 
   List<UserEntity> findByCurrentGame_Id(Integer gameId);
 

@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
     session TEXT,
     username TEXT,
     password TEXT,
+    email TEXT,
     current_game_id INT,
     pic_id INT,
     description TEXT,
@@ -87,6 +88,7 @@ CREATE TABLE IF NOT EXISTS answered_correctly_questions (
 CREATE INDEX IF NOT EXISTS topics_idx ON topics USING HASH (name);
 CREATE INDEX IF NOT EXISTS users_idx ON users USING HASH (session);
 CREATE INDEX IF NOT EXISTS users_username_idx ON users USING HASH (username);
+CREATE INDEX IF NOT EXISTS users_email_idx ON users USING HASH (email);
 CREATE INDEX IF NOT EXISTS games_status_idx ON games (status);
 CREATE INDEX IF NOT EXISTS games_topic_idx ON games (topic_id);
 CREATE INDEX IF NOT EXISTS answered_correctly_questions_idx ON answered_correctly_questions (user_id);
