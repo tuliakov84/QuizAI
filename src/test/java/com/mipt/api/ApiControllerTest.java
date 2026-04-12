@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -133,7 +134,14 @@ class ApiControllerTest {
     verify(dbService).addCorrectAnswer("session-1", 99);
     verify(dbService).addGlobalPossiblePoints(eq("session-1"), anyInt());
   }
-}
 
+  @Test
+  void getAllGameModes_returnsCatalog() throws Exception {
+    mockMvc.perform(get("/api/game-mode/get-all"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("CASUAL")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("DUEL")));
+  }
+}
 
 

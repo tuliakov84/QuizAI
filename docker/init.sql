@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS users (
     games_played_number INT,
     global_points INT,
     global_possible_points INT,
-    current_game_points INT
+    current_game_points INT,
+    coin_balance INT NOT NULL DEFAULT 100
 );
 
 CREATE TABLE IF NOT EXISTS games (
@@ -48,7 +49,8 @@ CREATE TABLE IF NOT EXISTS games (
     number_of_questions INT,
     participants_number SMALLINT,
     topic_id INT REFERENCES topics (id) ON DELETE SET NULL,
-    questions_validated BOOLEAN NOT NULL DEFAULT FALSE
+    questions_validated BOOLEAN NOT NULL DEFAULT FALSE,
+    game_mode VARCHAR(32) NOT NULL DEFAULT 'CASUAL'
 );
 
 ALTER TABLE users ADD CONSTRAINT fk_users_current_game FOREIGN KEY (current_game_id) REFERENCES games (id) ON DELETE SET NULL;
@@ -84,9 +86,21 @@ CREATE TABLE IF NOT EXISTS answered_correctly_questions (
     question_id INT REFERENCES questions (id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS coin_transactions (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users (id) ON DELETE CASCADE,
+    game_id INT REFERENCES games (id) ON DELETE SET NULL,
+    transaction_type VARCHAR(64) NOT NULL,
+    amount_delta INT NOT NULL,
+    balance_after INT NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS topics_idx ON topics USING HASH (name);
 CREATE INDEX IF NOT EXISTS users_idx ON users USING HASH (session);
 CREATE INDEX IF NOT EXISTS users_username_idx ON users USING HASH (username);
 CREATE INDEX IF NOT EXISTS games_status_idx ON games (status);
 CREATE INDEX IF NOT EXISTS games_topic_idx ON games (topic_id);
 CREATE INDEX IF NOT EXISTS answered_correctly_questions_idx ON answered_correctly_questions (user_id);
+CREATE INDEX IF NOT EXISTS coin_transactions_user_idx ON coin_transactions (user_id);

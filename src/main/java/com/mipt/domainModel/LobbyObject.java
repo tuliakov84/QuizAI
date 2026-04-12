@@ -1,5 +1,7 @@
 package com.mipt.domainModel;
 
+import com.mipt.gameModes.GameMode;
+
 import java.util.List;
 
 public class LobbyObject {
@@ -7,6 +9,7 @@ public class LobbyObject {
   private Status status;
   private List<String> playersUsernames;
   private Boolean questionReady;
+  private GameMode gameMode;
 
   public Boolean getReady() {
     return questionReady;
@@ -50,5 +53,13 @@ public class LobbyObject {
 
   public Status getStatus() {
     return status;
+  }
+
+  public GameMode getGameMode() {
+    return gameMode;
+  }
+
+  public void setGameMode(GameMode gameMode) {
+    this.gameMode = gameMode;
   }
 }

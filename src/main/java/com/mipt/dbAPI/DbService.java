@@ -12,8 +12,10 @@
 package com.mipt.dbAPI;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
+import com.mipt.bank.CoinTransactionType;
 import com.mipt.dbAPI.jpa.entity.AchievementEntity;
 import com.mipt.dbAPI.jpa.entity.AnsweredCorrectlyQuestionEntity;
+import com.mipt.dbAPI.jpa.entity.CoinTransactionEntity;
 import com.mipt.dbAPI.jpa.entity.GameEntity;
 import com.mipt.dbAPI.jpa.entity.GameHistoryEntity;
 import com.mipt.dbAPI.jpa.entity.QuestionEntity;
@@ -22,6 +24,7 @@ import com.mipt.dbAPI.jpa.entity.UserAchievementEntity;
 import com.mipt.dbAPI.jpa.entity.UserEntity;
 import com.mipt.dbAPI.jpa.repository.AchievementRepository;
 import com.mipt.dbAPI.jpa.repository.AnsweredCorrectlyQuestionRepository;
+import com.mipt.dbAPI.jpa.repository.CoinTransactionRepository;
 import com.mipt.dbAPI.jpa.repository.GameHistoryRepository;
 import com.mipt.dbAPI.jpa.repository.GameRepository;
 import com.mipt.dbAPI.jpa.repository.QuestionRepository;
@@ -32,6 +35,8 @@ import com.mipt.domainModel.Achievement;
 import com.mipt.domainModel.CurrentGameObject;
 import com.mipt.domainModel.Question;
 import com.mipt.domainModel.Topic;
+import com.mipt.gameModes.GameMode;
+import com.mipt.gameModes.GameModeCatalog;
 import com.mipt.utils.QuestionPayloadFinalNormalizer;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -59,6 +64,7 @@ public class DbService {
   // API of QUIZ AI ARENA database
 
   private static final String DELETE_ALL_KEYWORD = "DELETE_ALL_RECORDS_IN_DATABASE";
+  private static final int DEFAULT_STARTING_COIN_BALANCE = 100;
 
   private final UserRepository userRepository;
   private final GameRepository gameRepository;
@@ -68,6 +74,7 @@ public class DbService {
   private final UserAchievementRepository userAchievementRepository;
   private final AnsweredCorrectlyQuestionRepository answeredCorrectlyQuestionRepository;
   private final TopicRepository topicRepository;
+  private final CoinTransactionRepository coinTransactionRepository;
   private final ConfigurableApplicationContext localContext;
 
   @Autowired
@@ -79,7 +86,8 @@ public class DbService {
       AchievementRepository achievementRepository,
       UserAchievementRepository userAchievementRepository,
       AnsweredCorrectlyQuestionRepository answeredCorrectlyQuestionRepository,
-      TopicRepository topicRepository
+      TopicRepository topicRepository,
+      CoinTransactionRepository coinTransactionRepository
   ) {
     this(
         userRepository,
@@ -90,6 +98,7 @@ public class DbService {
         userAchievementRepository,
         answeredCorrectlyQuestionRepository,
         topicRepository,
+        coinTransactionRepository,
         null
     );
   }
@@ -108,6 +117,7 @@ public class DbService {
         bundle.userAchievementRepository,
         bundle.answeredCorrectlyQuestionRepository,
         bundle.topicRepository,
+        bundle.coinTransactionRepository,
         bundle.context
     );
   }
@@ -121,6 +131,7 @@ public class DbService {
       UserAchievementRepository userAchievementRepository,
       AnsweredCorrectlyQuestionRepository answeredCorrectlyQuestionRepository,
       TopicRepository topicRepository,
+      CoinTransactionRepository coinTransactionRepository,
       ConfigurableApplicationContext localContext
   ) {
     this.userRepository = userRepository;
@@ -131,6 +142,7 @@ public class DbService {
     this.userAchievementRepository = userAchievementRepository;
     this.answeredCorrectlyQuestionRepository = answeredCorrectlyQuestionRepository;
     this.topicRepository = topicRepository;
+    this.coinTransactionRepository = coinTransactionRepository;
     this.localContext = localContext;
   }
 
@@ -155,7 +167,8 @@ public class DbService {
         context.getBean(AchievementRepository.class),
         context.getBean(UserAchievementRepository.class),
         context.getBean(AnsweredCorrectlyQuestionRepository.class),
-        context.getBean(TopicRepository.class)
+        context.getBean(TopicRepository.class),
+        context.getBean(CoinTransactionRepository.class)
     );
   }
 
@@ -242,7 +255,16 @@ public class DbService {
     userEntity.setGlobalPoints(0);
     userEntity.setGlobalPossiblePoints(0);
     userEntity.setCurrentGamePoints(0);
+    userEntity.setCoinBalance(DEFAULT_STARTING_COIN_BALANCE);
     userRepository.save(userEntity);
+    recordCoinTransaction(
+        userEntity,
+        null,
+        DEFAULT_STARTING_COIN_BALANCE,
+        DEFAULT_STARTING_COIN_BALANCE,
+        CoinTransactionType.INITIAL_GRANT,
+        "Initial account grant"
+    );
   }
 
   public void authenticate(String username, String password, String session) throws SQLException, DatabaseAccessException {
@@ -337,6 +359,35 @@ public class DbService {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     GameEntity currentGame = userEntity.getCurrentGame();
     return currentGame == null ? null : currentGame.getId();
+  }
+
+  public Integer getCoinBalance(String session) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    return intOrZero(userEntity.getCoinBalance());
+  }
+
+  public void changeCoinBalance(
+      String session,
+      int amountDelta,
+      CoinTransactionType transactionType,
+      String reason,
+      Integer gameId
+  ) throws SQLException, DatabaseAccessException {
+    if (amountDelta == 0) {
+      return;
+    }
+
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    int currentBalance = intOrZero(userEntity.getCoinBalance());
+    int updatedBalance = currentBalance + amountDelta;
+    if (updatedBalance < 0) {
+      throw new DatabaseAccessException("Insufficient coin balance");
+    }
+
+    GameEntity gameEntity = gameId == null ? null : getGameOrThrow(gameId);
+    userEntity.setCoinBalance(updatedBalance);
+    userRepository.save(userEntity);
+    recordCoinTransaction(userEntity, gameEntity, amountDelta, updatedBalance, transactionType, reason);
   }
 
   public void addGamePlayed(String session) throws SQLException, DatabaseAccessException {
@@ -477,16 +528,42 @@ public class DbService {
 
   public Integer createGame(String sessionOfAuthor, int levelDifficulty, int numberOfQuestions, int participantsNumber, int topicId)
       throws SQLException, DatabaseAccessException {
-    return createGame(sessionOfAuthor, levelDifficulty, numberOfQuestions, participantsNumber, topicId, true);
+    return createGame(
+        sessionOfAuthor,
+        levelDifficulty,
+        numberOfQuestions,
+        participantsNumber,
+        topicId,
+        true,
+        GameModeCatalog.defaultMode()
+    );
   }
 
   public Integer createGame(String sessionOfAuthor, int levelDifficulty, int numberOfQuestions, int participantsNumber, int topicId, boolean isPrivate)
       throws SQLException, DatabaseAccessException {
-    UserEntity author = getUserBySessionOrThrow(sessionOfAuthor);
+    return createGame(
+        sessionOfAuthor,
+        levelDifficulty,
+        numberOfQuestions,
+        participantsNumber,
+        topicId,
+        isPrivate,
+        GameModeCatalog.defaultMode()
+    );
+  }
 
-    if (!(levelDifficulty >= 1 && levelDifficulty <= 3) || participantsNumber < 4 || numberOfQuestions < 1) {
-      throw new DatabaseAccessException("Bad params");
-    }
+  public Integer createGame(
+      String sessionOfAuthor,
+      int levelDifficulty,
+      int numberOfQuestions,
+      int participantsNumber,
+      int topicId,
+      boolean isPrivate,
+      GameMode gameMode
+  ) throws SQLException, DatabaseAccessException {
+    UserEntity author = getUserBySessionOrThrow(sessionOfAuthor);
+    GameMode normalizedMode = GameModeCatalog.normalize(gameMode);
+    GameModeCatalog.validateCreateRequest(normalizedMode, levelDifficulty, numberOfQuestions, participantsNumber);
 
     TopicEntity topicEntity = getTopicOrThrow(topicId);
 
@@ -500,6 +577,7 @@ public class DbService {
     gameEntity.setParticipantsNumber(participantsNumber);
     gameEntity.setTopic(topicEntity);
     gameEntity.setQuestionsValidated(false);
+    gameEntity.setGameMode(normalizedMode);
 
     return gameRepository.save(gameEntity).getId();
   }
@@ -518,6 +596,11 @@ public class DbService {
     preset[3] = gameEntity.getParticipantsNumber();
     preset[4] = gameEntity.getTopic() == null ? 0 : gameEntity.getTopic().getId();
     return preset;
+  }
+
+  public GameMode getGameMode(int gameId) throws SQLException, DatabaseAccessException {
+    GameEntity gameEntity = getGameOrThrow(gameId);
+    return GameModeCatalog.normalize(gameEntity.getGameMode());
   }
 
   public void setStatus(int gameId, int status) throws SQLException, DatabaseAccessException {
@@ -594,6 +677,9 @@ public class DbService {
 
   public Boolean isGameReady(int gameId) throws DatabaseAccessException, SQLException {
     GameEntity gameEntity = getGameOrThrow(gameId);
+    if (!GameModeCatalog.usesStandardQuizFlow(gameEntity.getGameMode())) {
+      return true;
+    }
     long currentNumber = questionRepository.countByGame_Id(gameId);
     int neededNumber = intOrZero(gameEntity.getNumberOfQuestions());
     return neededNumber == currentNumber && Boolean.TRUE.equals(gameEntity.getQuestionsValidated());
@@ -615,6 +701,10 @@ public class DbService {
       throw new DatabaseAccessException();
     }
 
+    if (!GameModeCatalog.usesStandardQuizFlow(getGameMode(gameId))) {
+      throw new DatabaseAccessException("Current mode does not use the standard question feed");
+    }
+
     QuestionEntity questionEntity = questionRepository.findByGame_IdAndQuestionNumber(gameId, questionNumber)
         .orElseThrow(() -> new DatabaseAccessException("Question not exists"));
 
@@ -633,6 +723,10 @@ public class DbService {
   public Integer getRightAnswer(int gameId, int questionNumber) throws SQLException, DatabaseAccessException {
     if (!checkGameExists(gameId)) {
       throw new DatabaseAccessException();
+    }
+
+    if (!GameModeCatalog.usesStandardQuizFlow(getGameMode(gameId))) {
+      throw new DatabaseAccessException("Current mode does not use the standard answer validator");
     }
 
     Integer gameStatus = getStatus(gameId);
@@ -820,6 +914,7 @@ public class DbService {
       row.put(gameEntity.getTopic() == null ? 0 : gameEntity.getTopic().getId());
       row.put(getCurrentParticipantsNumber(gameId));
       row.put(gameEntity.getParticipantsNumber());
+      row.put(GameModeCatalog.normalize(gameEntity.getGameMode()).name());
       result.put(row);
     }
 
@@ -836,6 +931,7 @@ public class DbService {
       row.put(gameId);
       row.put(getCurrentParticipantsNumber(gameId));
       row.put(gameEntity.getParticipantsNumber());
+      row.put(GameModeCatalog.normalize(gameEntity.getGameMode()).name());
       result.put(row);
     }
 
@@ -960,6 +1056,7 @@ public class DbService {
     }
 
     userAchievementRepository.deleteAll();
+    coinTransactionRepository.deleteAll();
     answeredCorrectlyQuestionRepository.deleteAll();
     gameHistoryRepository.deleteAll();
     questionRepository.deleteAll();
@@ -972,7 +1069,27 @@ public class DbService {
     initialGame.setParticipantsNumber(1);
     initialGame.setPrivate(null);
     initialGame.setQuestionsValidated(false);
+    initialGame.setGameMode(GameModeCatalog.defaultMode());
     gameRepository.save(initialGame);
+  }
+
+  private void recordCoinTransaction(
+      UserEntity userEntity,
+      GameEntity gameEntity,
+      int amountDelta,
+      int balanceAfter,
+      CoinTransactionType transactionType,
+      String reason
+  ) {
+    CoinTransactionEntity transactionEntity = new CoinTransactionEntity();
+    transactionEntity.setUser(userEntity);
+    transactionEntity.setGame(gameEntity);
+    transactionEntity.setAmountDelta(amountDelta);
+    transactionEntity.setBalanceAfter(balanceAfter);
+    transactionEntity.setTransactionType(transactionType);
+    transactionEntity.setReason(reason);
+    transactionEntity.setCreatedAt(Timestamp.from(Instant.now()));
+    coinTransactionRepository.save(transactionEntity);
   }
 
   private record RepositoryBundle(
@@ -984,7 +1101,8 @@ public class DbService {
       AchievementRepository achievementRepository,
       UserAchievementRepository userAchievementRepository,
       AnsweredCorrectlyQuestionRepository answeredCorrectlyQuestionRepository,
-      TopicRepository topicRepository
+      TopicRepository topicRepository,
+      CoinTransactionRepository coinTransactionRepository
   ) {
   }
 }

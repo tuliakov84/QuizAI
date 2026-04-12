@@ -19,6 +19,7 @@ public class User {
   private Integer globalPoints;
   private Integer globalPossiblePoints;
   private Integer currentGamePoints;
+  private Integer coinBalance;
 
   public User() {
 
@@ -129,6 +130,14 @@ public class User {
   public void setCurrentGamePoints(Integer currentGamePoints) {
     this.currentGamePoints = currentGamePoints;
 
+  }
+
+  public Integer getCoinBalance() {
+    return coinBalance;
+  }
+
+  public void setCoinBalance(Integer coinBalance) {
+    this.coinBalance = coinBalance;
   }
 
   public Game getCurrentGame() {

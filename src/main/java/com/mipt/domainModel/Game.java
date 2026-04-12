@@ -1,5 +1,7 @@
 package com.mipt.domainModel;
 
+import com.mipt.gameModes.GameMode;
+
 import java.time.Instant;
 
 public class Game {
@@ -16,6 +18,7 @@ public class Game {
   private LevelDifficulty levelDifficulty;
   private Integer participantsNumber;
   private Integer currentParticipantsNumber;
+  private GameMode gameMode;
 
   public enum Status {
     WAITING,
@@ -162,5 +165,13 @@ public class Game {
 
   public void setCurrentParticipantsNumber(Integer currentParticipantsNumber) {
     this.currentParticipantsNumber = currentParticipantsNumber;
+  }
+
+  public GameMode getGameMode() {
+    return gameMode;
+  }
+
+  public void setGameMode(GameMode gameMode) {
+    this.gameMode = gameMode;
   }
 }

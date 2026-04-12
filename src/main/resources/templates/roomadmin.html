@@ -79,6 +79,7 @@
     let isQuizStarting = false; // Флаг, что квиз начинается
     let questionsReady = false; // Флаг готовности вопросов
     let isCheckingQuestions = false; // Флаг проверки вопросов (чтобы избежать множественных проверок)
+    let currentGameMode = 'CASUAL';
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
@@ -129,6 +130,10 @@
       updateLobby();
     }
 
+    function isStandardQuizMode() {
+      return currentGameMode === 'CASUAL';
+    }
+
     async function updateLobby() {
       try {
         // Обновляем данные лобби
@@ -168,6 +173,12 @@
     async function checkQuestionsReady() {
       if (isCheckingQuestions) return; // Избегаем множественных одновременных запросов
 
+      if (!isStandardQuizMode()) {
+        questionsReady = true;
+        updateQuestionsStatus();
+        return true;
+      }
+
       try {
         isCheckingQuestions = true;
         const session = AuthService.getsession();
@@ -189,6 +200,9 @@
         }
 
         const lobbyData = await response.json();
+        if (lobbyData.gameMode) {
+          currentGameMode = lobbyData.gameMode;
+        }
 
         // Проверяем наличие поля questionsReady в ответе
         if (lobbyData.questionsReady !== undefined) {
@@ -219,6 +233,14 @@
       const statusText = statusElement.querySelector('.status-text');
       const statusIcon = statusElement.querySelector('.status-icon');
 
+      if (!isStandardQuizMode()) {
+        statusElement.className = 'questions-status-value loading';
+        statusIcon.textContent = '🧩';
+        statusText.textContent = `Режим ${currentGameMode}: отдельный flow позже`;
+        statusElement.title = 'Режим уже выделен в архитектуре, но его отдельный игровой цикл будет подключен следующим шагом';
+        return;
+      }
+
       if (questionsReady) {
         statusElement.className = 'questions-status-value ready';
         statusIcon.textContent = '✅';
@@ -240,6 +262,18 @@
       let isReady = false;
       let message = '';
       let messageType = '';
+
+      if (!isStandardQuizMode()) {
+        message = `Режим ${currentGameMode} уже выделен в отдельную архитектуру. Следующим шагом для него будет подключен собственный игровой flow.`;
+        messageType = 'info';
+        disableStartButton(message);
+        if (messageElement) {
+          messageElement.textContent = message;
+          messageElement.className = `message ${messageType}`;
+          messageElement.style.display = 'block';
+        }
+        return;
+      }
 
       if (currentPlayers.length < 2) {
         message = 'Для начала квиза нужно минимум 2 игрока';
@@ -370,6 +404,9 @@
         }
 
         const lobbyData = await response.json();
+        if (lobbyData.gameMode) {
+          currentGameMode = lobbyData.gameMode;
+        }
 
         console.log('Данные лобби:', lobbyData);
 
@@ -456,9 +493,12 @@
     }
 
     // Обновление информации о комнате
-    function updateRoomInfo(roomData) {
-        // Обновляем ссылку-приглашение
-        const linkElement = document.getElementById('invite-link');
+	    function updateRoomInfo(roomData) {
+            if (roomData.gameMode) {
+                currentGameMode = roomData.gameMode;
+            }
+	        // Обновляем ссылку-приглашение
+	        const linkElement = document.getElementById('invite-link');
         const fullLink = `${window.location.origin}/room.html?gameId=${gameId}`;
         linkElement.textContent = fullLink;
 
@@ -559,6 +599,11 @@
     let isNavigatingToQuiz = false;
 
     async function startQuiz() {
+      if (!isStandardQuizMode()) {
+        alert(`Режим ${currentGameMode} уже сохранен в новой архитектуре, но его отдельный игровой экран еще не подключен.`);
+        return;
+      }
+
       // Проверяем все условия перед началом
       if (currentPlayers.length < 2) {
         alert('Для начала квиза нужно минимум 2 игрока');

@@ -66,6 +66,7 @@
     const MAX_RETRIES = 3;
     const BASE_INTERVAL = 500; // Базовый интервал 500мс
     let currentInterval = BASE_INTERVAL;
+    let currentGameMode = 'CASUAL';
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
@@ -295,6 +296,9 @@
 
         const roomData = await response.json();
         console.log('Полные данные комнаты:', roomData);
+        if (roomData.gameMode) {
+          currentGameMode = roomData.gameMode;
+        }
 
         // Получаем максимальное количество игроков
         if (roomData.participantsNumber) {
@@ -312,6 +316,10 @@
 
     // Обработка данных комнаты (игроки + статус)
     function processRoomData(lobbyData) {
+      if (lobbyData.gameMode) {
+        currentGameMode = lobbyData.gameMode;
+      }
+
       // ОТОБРАЖАЕМ список игроков (maxPlayers уже установлен из loadRoomFullData)
       displayPlayers(lobbyData);
 
@@ -359,6 +367,12 @@
       // Обновляем текст статуса
       const statusElement = document.getElementById('room-status');
       if (statusElement) {
+        if (currentGameMode !== 'CASUAL') {
+          statusElement.textContent = `Режим ${currentGameMode} уже выделен в новой архитектуре. Его отдельный игровой flow будет подключен следующим шагом.`;
+          statusElement.style.color = '#ffa500';
+          return;
+        }
+
         if (status === 'WAITING' || status === 'CREATED') {
           statusElement.textContent = 'КВИЗ СКОРО НАЧНЕТСЯ! ЖДЕМ СОЗДАТЕЛЯ КОМНАТЫ';
           statusElement.style.color = '#ffa500'; // Оранжевый

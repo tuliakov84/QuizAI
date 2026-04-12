@@ -1,10 +1,12 @@
 package com.mipt;
 
+import com.mipt.bank.CoinTransactionType;
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Achievement;
 import com.mipt.domainModel.Question;
 import com.mipt.domainModel.Topic;
+import com.mipt.gameModes.GameMode;
 import com.mipt.service.MlQuestionRequestProducerService;
 import com.mipt.service.QuestionLoadingService;
 import org.jetbrains.annotations.NotNull;
@@ -342,6 +344,37 @@ public class DbServiceTest {
     assertEquals(10, dbService.getGlobalPoints("SESSION"));
 
     assertEquals(0, dbService.getGlobalPoints("SESSION2"));
+  }
+
+  @Test
+  void testCoinBalanceAndModeAwareGameCreation() throws SQLException, DatabaseAccessException {
+    assertEquals(100, dbService.getCoinBalance("SESSION"));
+
+    dbService.changeCoinBalance(
+        "SESSION",
+        -15,
+        CoinTransactionType.GAME_ENTRY,
+        "Test ante",
+        null
+    );
+    assertEquals(85, dbService.getCoinBalance("SESSION"));
+
+    dbService.changeCoinBalance(
+        "SESSION",
+        25,
+        CoinTransactionType.GAME_PAYOUT,
+        "Test payout",
+        null
+    );
+    assertEquals(110, dbService.getCoinBalance("SESSION"));
+
+    assertThrows(
+        DatabaseAccessException.class,
+        () -> dbService.changeCoinBalance("SESSION", -1000, CoinTransactionType.BET_PLACED, "Too much", null)
+    );
+
+    Integer duelGameId = dbService.createGame("SESSION", 1, 1, 2, 1, false, GameMode.DUEL);
+    assertEquals(GameMode.DUEL, dbService.getGameMode(duelGameId));
   }
 
   @Test

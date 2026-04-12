@@ -43,6 +43,12 @@
 
         <div class="right">
             <div class="main_blockr">
+                <span>РЕЖИМ ИГРЫ</span>
+                <div id="game-mode-options" class="isprivate block_hor">
+                    <!-- Режимы будут загружены с бэкенда -->
+                </div>
+                <div id="selected-mode-description" class="message info"></div>
+
                 <span>ПРИВАТНОСТЬ КОМНАТЫ</span>
                 <div class="isprivate block_hor">
                     <a href="#" class="btnprivate privacy-btn" data-private="false">ОТКРЫТАЯ</a>
@@ -72,14 +78,147 @@
     let selectedTopic = null;
     let selectedDifficulty = 2; // По умолчанию средняя сложность
     let isPrivate = false; // По умолчанию открытая комната
+    let selectedGameMode = 'CASUAL';
+    let availableModes = [];
     let isCreatingRoom = false; // Флаг для отслеживания процесса создания
 
     document.addEventListener('DOMContentLoaded', function() {
       if (!AuthService.requireAuth()) return;
       checkCurrentGame();
       loadSelectedTopic();
-      setupEventListeners();
+      loadGameModes().finally(() => {
+        setupEventListeners();
+      });
     });
+
+    function getFallbackModes() {
+      return [
+        {
+          mode: 'CASUAL',
+          title: 'Казуал',
+          description: 'Стандартный AI Arena квиз с регулярными вопросами.',
+          minParticipants: 2,
+          maxParticipants: 12,
+          minQuestions: 1,
+          maxQuestions: 50,
+          usesStandardQuizFlow: true
+        },
+        {
+          mode: 'TRUE_FALSE',
+          title: 'Правда или ложь',
+          description: 'Квиз с ответами Правда/Ложь.',
+          minParticipants: 2,
+          maxParticipants: 12,
+          minQuestions: 1,
+          maxQuestions: 50,
+          usesStandardQuizFlow: false
+        },
+        {
+          mode: 'DUEL',
+          title: 'Дуэль',
+          description: 'Режим 1 на 1 со ставками и банком.',
+          minParticipants: 2,
+          maxParticipants: 2,
+          minQuestions: 1,
+          maxQuestions: 50,
+          usesStandardQuizFlow: false
+        },
+        {
+          mode: 'RANDOM',
+          title: 'Рандом',
+          description: 'Одиночная игра со скрытым коэффициентом.',
+          minParticipants: 1,
+          maxParticipants: 1,
+          minQuestions: 1,
+          maxQuestions: 50,
+          usesStandardQuizFlow: false
+        },
+        {
+          mode: 'SVOYAK',
+          title: 'Свояк',
+          description: 'Соревновательный режим для компании.',
+          minParticipants: 2,
+          maxParticipants: 12,
+          minQuestions: 1,
+          maxQuestions: 100,
+          usesStandardQuizFlow: false
+        }
+      ];
+    }
+
+    async function loadGameModes() {
+      try {
+        const response = await fetch('http://localhost:8080/api/game-mode/get-all');
+        if (!response.ok) {
+          throw new Error(`Ошибка HTTP: ${response.status}`);
+        }
+
+        availableModes = await response.json();
+      } catch (error) {
+        console.error('Ошибка загрузки режимов игры, используем fallback:', error);
+        availableModes = getFallbackModes();
+      }
+
+      renderGameModes();
+      applyModeConstraints();
+    }
+
+    function renderGameModes() {
+      const container = document.getElementById('game-mode-options');
+      container.innerHTML = '';
+
+      availableModes.forEach(mode => {
+        const modeBtn = document.createElement('a');
+        modeBtn.href = '#';
+        modeBtn.className = 'btnprivate mode-btn';
+        modeBtn.dataset.mode = mode.mode;
+        modeBtn.textContent = mode.title;
+        if (mode.mode === selectedGameMode) {
+          modeBtn.classList.add('active');
+        }
+
+        modeBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          if (isCreatingRoom) return;
+
+          document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+          this.classList.add('active');
+          selectedGameMode = mode.mode;
+          applyModeConstraints();
+        });
+
+        container.appendChild(modeBtn);
+      });
+    }
+
+    function getSelectedModeDefinition() {
+      return availableModes.find(mode => mode.mode === selectedGameMode) || getFallbackModes()[0];
+    }
+
+    function applyModeConstraints() {
+      const mode = getSelectedModeDefinition();
+      const participantsInput = document.getElementById('participants-count');
+      const questionsInput = document.getElementById('questions-count');
+      const descriptionElement = document.getElementById('selected-mode-description');
+
+      participantsInput.min = mode.minParticipants;
+      participantsInput.max = mode.maxParticipants;
+      if (!participantsInput.value || participantsInput.value < mode.minParticipants || participantsInput.value > mode.maxParticipants) {
+        participantsInput.value = mode.minParticipants;
+      }
+
+      questionsInput.min = mode.minQuestions;
+      questionsInput.max = mode.maxQuestions;
+      if (!questionsInput.value || questionsInput.value < mode.minQuestions || questionsInput.value > mode.maxQuestions) {
+        questionsInput.value = mode.minQuestions;
+      }
+
+      const standardFlowHint = mode.usesStandardQuizFlow
+        ? 'Текущий стандартный flow комнаты и вопросов уже поддерживается.'
+        : 'Режим уже хранится отдельно в архитектуре, но его отдельный gameplay flow будет подключён следующим шагом.';
+      descriptionElement.textContent =
+        `${mode.description} Игроки: ${mode.minParticipants}-${mode.maxParticipants}, вопросы: ${mode.minQuestions}-${mode.maxQuestions}. ${standardFlowHint}`;
+    }
 
     // Загрузка выбранной темы
     function loadSelectedTopic() {
@@ -229,15 +368,22 @@
 
       const participantsCount = document.getElementById('participants-count').value;
       const questionsCount = document.getElementById('questions-count').value;
+      const selectedMode = getSelectedModeDefinition();
 
       // Валидация
-      if (!participantsCount || participantsCount < 4 || participantsCount > 50) {
-        showMessage('Количество участников должно быть от 4 до 50', 'error');
+      if (!participantsCount || participantsCount < selectedMode.minParticipants || participantsCount > selectedMode.maxParticipants) {
+        showMessage(
+          `Количество участников для режима "${selectedMode.title}" должно быть от ${selectedMode.minParticipants} до ${selectedMode.maxParticipants}`,
+          'error'
+        );
         return;
       }
 
-      if (!questionsCount || questionsCount < 2 || questionsCount > 30) {
-        showMessage('Количество вопросов должно быть от 2 до 30', 'error');
+      if (!questionsCount || questionsCount < selectedMode.minQuestions || questionsCount > selectedMode.maxQuestions) {
+        showMessage(
+          `Количество вопросов для режима "${selectedMode.title}" должно быть от ${selectedMode.minQuestions} до ${selectedMode.maxQuestions}`,
+          'error'
+        );
         return;
       }
 
@@ -255,6 +401,7 @@
           },
           body: JSON.stringify({
             session: session,
+            gameMode: selectedGameMode,
             levelDifficulty: selectedDifficulty,
             numberOfQuestions: parseInt(questionsCount),
             participantsNumber: parseInt(participantsCount),

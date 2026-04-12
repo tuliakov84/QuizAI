@@ -43,6 +43,9 @@ public class UserEntity {
   @Column(name = "current_game_points")
   private Integer currentGamePoints;
 
+  @Column(name = "coin_balance")
+  private Integer coinBalance;
+
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "current_game_id")
   private GameEntity currentGame;
@@ -129,6 +132,14 @@ public class UserEntity {
 
   public void setCurrentGamePoints(Integer currentGamePoints) {
     this.currentGamePoints = currentGamePoints;
+  }
+
+  public Integer getCoinBalance() {
+    return coinBalance;
+  }
+
+  public void setCoinBalance(Integer coinBalance) {
+    this.coinBalance = coinBalance;
   }
 
   public GameEntity getCurrentGame() {

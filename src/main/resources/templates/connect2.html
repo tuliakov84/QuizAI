@@ -106,13 +106,14 @@
       const roomsData = await response.json();
       console.log('Получены комнаты:', roomsData);
 
-      // Обрабатываем новый формат данных: [[gameId, currentParticipantsNumber, participantsNumber], ...]
+      // Обрабатываем формат данных: [[gameId, currentParticipantsNumber, participantsNumber, gameMode], ...]
       const roomsWithDetails = roomsData.map(roomArray => {
-        const [gameId, currentParticipants, maxParticipants] = roomArray;
+        const [gameId, currentParticipants, maxParticipants, gameMode] = roomArray;
         return {
           gameId: gameId,
           currentParticipants: currentParticipants,
-          maxParticipants: maxParticipants
+          maxParticipants: maxParticipants,
+          gameMode: gameMode || 'CASUAL'
         };
       });
 
@@ -147,7 +148,7 @@
         roomElement.innerHTML = `
           <div class="text">
             <p>${room.gameId}</p>
-            <p>${room.currentParticipants}/${room.maxParticipants}</p>
+            <p>${room.currentParticipants}/${room.maxParticipants} · ${room.gameMode}</p>
           </div>
         `;
 
@@ -260,7 +261,8 @@
           const gameData = await response.json();
           sessionStorage.setItem('gameInfo', JSON.stringify({
             totalQuestions: gameData.numberOfQuestions,
-            levelDifficulty: gameData.levelDifficulty
+            levelDifficulty: gameData.levelDifficulty,
+            gameMode: gameData.gameMode || 'CASUAL'
           }));
           return {
             success: true,

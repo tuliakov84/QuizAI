@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.*;
+import com.mipt.gameModes.GameMode;
+import com.mipt.gameModes.GameModeCatalog;
 import com.mipt.initialization.AchievementsInit;
 import com.mipt.initialization.TopicsInit;
 import com.mipt.utils.BackendUtils;
@@ -68,6 +70,7 @@ public class ApiController {
         }
         user.setDescription(dbService.getDescription(session));
         user.setGlobalPoints(dbService.getGlobalPoints(session));
+        user.setCoinBalance(dbService.getCoinBalance(session));
         return new ResponseEntity<>(user, HttpStatus.OK);
       } catch (DatabaseAccessException e) {
         if (utils.isSessionCollision(e)) {
@@ -147,6 +150,7 @@ public class ApiController {
         user.setLastActivity(lastActivity.toInstant());
       }
       user.setGlobalPoints(dbService.getGlobalPoints(session));
+      user.setCoinBalance(dbService.getCoinBalance(session));
       user.setGamesPlayedNumber(dbService.getGamesPlayedNumber(session));
       return new ResponseEntity<>(user, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
@@ -301,6 +305,7 @@ public class ApiController {
         int topicId = preset[4];
         data.setTopicId(topicId);
         data.setIsPrivate(dbService.getPrivate(gameId));
+        data.setGameMode(dbService.getGameMode(gameId));
 
         return new ResponseEntity<>(data, HttpStatus.OK);
       } else {
@@ -351,6 +356,8 @@ public class ApiController {
   public ResponseEntity<Object> createGame(@RequestBody RoomJoinObject data) {
     try {
       String sessionOfAuthor = data.getSession();
+      GameMode gameMode = GameModeCatalog.normalize(data.getGameMode());
+      data.setGameMode(gameMode);
 
       int levelDifficulty;
       switch (data.getLevelDifficulty()) {
@@ -365,7 +372,7 @@ public class ApiController {
       int topicId = data.getTopicId();
       boolean isPrivate = data.getIsPrivate();
       int gameId = dbService.createGame(sessionOfAuthor, levelDifficulty,
-          numberOfQuestions, participantsNumber, topicId, isPrivate);
+          numberOfQuestions, participantsNumber, topicId, isPrivate, gameMode);
       data.setGameId(gameId);
       data.setTopicId(topicId);
       Integer[] preset = dbService.getPreset(gameId);
@@ -375,7 +382,9 @@ public class ApiController {
 
       // Здесь должен вызываться loadQuestions() для AI
       System.out.println("Sent request");
-      questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
+      if (GameModeCatalog.usesStandardQuizFlow(gameMode)) {
+        questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
+      }
 
       return joinRoom(data);
     } catch (DatabaseAccessException e) {
@@ -438,6 +447,7 @@ public class ApiController {
       List<String> usernames = List.of(dbService.getParticipantUsernames(gameId));
       lobby.setPlayersUsernames(usernames);
       lobby.setReady(dbService.isGameReady(gameId));
+      lobby.setGameMode(dbService.getGameMode(gameId));
       return new ResponseEntity<>(lobby, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to modify privateness option for game " + lobby.getGameId(), HttpStatus.NOT_FOUND);
@@ -453,6 +463,13 @@ public class ApiController {
   public ResponseEntity<Object> startGame(@RequestBody Game game) {
     try {
       int gameId = game.getGameId();
+      GameMode gameMode = dbService.getGameMode(gameId);
+      if (!GameModeCatalog.usesStandardQuizFlow(gameMode)) {
+        return new ResponseEntity<>(
+            "Game mode " + gameMode + " is stored and isolated, but its gameplay flow is not wired yet",
+            HttpStatus.CONFLICT
+        );
+      }
       if (!dbService.isGameReady(gameId)) {
         Integer[] preset = dbService.getPreset(gameId);
         int neededNumber = preset[2] == null ? 0 : preset[2];
@@ -478,6 +495,11 @@ public class ApiController {
       return new ResponseEntity<>("Failed to prepare personalized questions for game " + game.getGameId()
           + ": " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  @GetMapping("/game-mode/get-all")
+  public ResponseEntity<Object> getAllGameModes() {
+    return new ResponseEntity<>(GameModeCatalog.getAll(), HttpStatus.OK);
   }
 
   /**

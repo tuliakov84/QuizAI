@@ -1,5 +1,6 @@
 package com.mipt.dbAPI.jpa.entity;
 
+import com.mipt.gameModes.GameMode;
 import jakarta.persistence.*;
 
 import java.sql.Timestamp;
@@ -51,6 +52,10 @@ public class GameEntity {
    */
   @Column(name = "questions_validated")
   private Boolean questionsValidated;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "game_mode", nullable = false)
+  private GameMode gameMode;
 
   public Integer getId() {
     return id;
@@ -142,5 +147,13 @@ public class GameEntity {
 
   public void setQuestionsValidated(Boolean questionsValidated) {
     this.questionsValidated = questionsValidated;
+  }
+
+  public GameMode getGameMode() {
+    return gameMode;
+  }
+
+  public void setGameMode(GameMode gameMode) {
+    this.gameMode = gameMode;
   }
 }
