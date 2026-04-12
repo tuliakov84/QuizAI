@@ -32,6 +32,7 @@ import com.mipt.domainModel.Achievement;
 import com.mipt.domainModel.CurrentGameObject;
 import com.mipt.domainModel.Question;
 import com.mipt.domainModel.Topic;
+import com.mipt.utils.QuestionPayloadFinalNormalizer;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -729,10 +730,11 @@ public class DbService {
 
   private static void applyQuestionPayload(QuestionEntity questionEntity, JSONObject itemObject, int answerAmount)
       throws DatabaseAccessException {
-    questionEntity.setQuestionText(itemObject.getString("question_text"));
-    questionEntity.setRightAnswerNumber(itemObject.getInt("right_answer_number"));
+    JSONObject normalizedItemObject = QuestionPayloadFinalNormalizer.normalizeQuestion(itemObject);
+    questionEntity.setQuestionText(normalizedItemObject.getString("question_text"));
+    questionEntity.setRightAnswerNumber(normalizedItemObject.getInt("right_answer_number"));
 
-    JSONArray availableAnswers = itemObject.getJSONArray("available_answers");
+    JSONArray availableAnswers = normalizedItemObject.getJSONArray("available_answers");
     if (availableAnswers.length() < answerAmount) {
       throw new DatabaseAccessException("Not enough answers for question payload");
     }

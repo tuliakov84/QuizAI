@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sys
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -233,7 +234,7 @@ class QuestionPersonalizer:
         existing_quiz_questions: Sequence[QuestionPayload | str] | None = None,
     ) -> PersonalizationResult:
         prepared_existing = self._prepare_existing_questions(existing_quiz_questions or [])
-        prepared_candidates = self._prepare_candidates(
+        prepared_candidates, invalid_candidates = self._prepare_candidates(
             candidates,
             player_history_embeddings or {},
         )
@@ -241,7 +242,7 @@ class QuestionPersonalizer:
 
         selected_questions: list[QuestionPayload] = []
         selected_decisions: list[CandidateDecision] = []
-        rejected_candidates: list[CandidateDecision] = []
+        rejected_candidates: list[CandidateDecision] = list(invalid_candidates)
         backup_candidates: list[CandidateDecision] = []
         selected_references = list(prepared_existing)
 
@@ -349,12 +350,31 @@ class QuestionPersonalizer:
         self,
         candidates: Sequence[QuestionPayload | str],
         player_history_embeddings: PlayerHistoryEmbeddings,
-    ) -> list[_PreparedCandidate]:
+    ) -> tuple[list[_PreparedCandidate], list[CandidateDecision]]:
         cleaned_candidates: list[tuple[int, QuestionPayload, str]] = []
+        invalid_candidates: list[CandidateDecision] = []
         for candidate_index, raw_candidate in enumerate(candidates):
             payload = self._normalize_payload(raw_candidate)
             question_text = self._extract_question_text(payload)
             if not question_text:
+                continue
+            if self._contains_chinese_text(payload):
+                invalid_candidates.append(
+                    CandidateDecision(
+                        candidate_index=candidate_index,
+                        question_text=question_text,
+                        decision="rejected",
+                        score=0.0,
+                        mean_novelty=0.0,
+                        min_novelty=0.0,
+                        max_history_similarity=0.0,
+                        max_quiz_similarity=0.0,
+                        reason="contains_chinese_text",
+                        source_question_id=(
+                            int(payload.get("id")) if payload.get("id") is not None else None
+                        ),
+                    )
+                )
                 continue
             cleaned_candidates.append((candidate_index, payload, question_text))
 
@@ -385,7 +405,7 @@ class QuestionPersonalizer:
                     ),
                 )
             )
-        return prepared
+        return prepared, invalid_candidates
 
     def _score_against_history(
         self,
@@ -452,6 +472,15 @@ class QuestionPersonalizer:
         return " ".join(str(question_text).split())
 
     @staticmethod
+    def _contains_chinese_text(question: QuestionPayload) -> bool:
+        texts_to_check = [str(question.get("question_text", ""))]
+        for answer in question.get("available_answers", []):
+            if isinstance(answer, Mapping):
+                texts_to_check.append(str(answer.get("answer", "")))
+
+        return any(_contains_han_characters(text) for text in texts_to_check)
+
+    @staticmethod
     def _renumber_question(question: QuestionPayload, question_number: int) -> QuestionPayload:
         payload = deepcopy(question)
         payload["question_number"] = question_number
@@ -507,6 +536,13 @@ def cosine_similarity(first: Embedding, second: Embedding) -> float:
     if first_norm == 0.0 or second_norm == 0.0:
         return 0.0
     return dot_product / (first_norm * second_norm)
+
+
+_HAN_CHARACTER_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
+
+
+def _contains_han_characters(text: str) -> bool:
+    return bool(_HAN_CHARACTER_RE.search(text))
 
 
 def _load_candidates(path: Path) -> list[QuestionPayload]:

@@ -3,6 +3,7 @@ package com.mipt.service;
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.Topic;
+import com.mipt.utils.QuestionPayloadFinalNormalizer;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import com.mipt.domainModel.Game;
@@ -127,7 +128,19 @@ public class QuestionLoadingService {
       }
 
       for (int i = 0; i < selectedBatch.length(); i++) {
-        selectedQuestions.put(selectedBatch.getJSONObject(i));
+        JSONObject finalizedQuestion = QuestionPayloadFinalNormalizer.normalizeQuestion(selectedBatch.getJSONObject(i));
+        if (QuestionPayloadFinalNormalizer.containsChineseText(finalizedQuestion)) {
+          LOGGER.warn(
+              "Dropping question with Chinese text after personalization. gameId={}, attempt={}, questionNumber={}",
+              gameId,
+              attempt + 1,
+              finalizedQuestion.optInt("question_number", -1)
+          );
+          continue;
+        }
+
+        finalizedQuestion.put("question_number", selectedQuestions.length() + 1);
+        selectedQuestions.put(finalizedQuestion);
       }
     }
 
@@ -243,4 +256,3 @@ public class QuestionLoadingService {
   private record ProcessResult(String stdout, String stderr) {
   }
 }
-
