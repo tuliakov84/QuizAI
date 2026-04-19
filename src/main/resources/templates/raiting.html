@@ -19,22 +19,20 @@
 
     <main>
         <div class="raiting">
+            <div class="raiting-accent"></div>
             <div>
-            </div>
-            <div>
-          <span>
-            ВАШЕ МЕСТО В РЕЙТИНГЕ:
-          </span>
+                <span>
+                    ВАШЕ МЕСТО В РЕЙТИНГЕ:
+                </span>
                 <span id="user-rank">
-            Не в топе
-          </span>
+                    Не в топе
+                </span>
             </div>
         </div>
 
         <div class="players">
             <div class="players-header">ТОП ИГРОКОВ ПО РЕЙТИНГУ</div>
             <div class="player template">
-                <!-- Шаблон для игроков -->
                 <div class="player-info">
                     <span class="player-rank">1</span>
                     <div class="player-avatar"></div>
@@ -45,15 +43,28 @@
         </div>
     </main>
 </div>
+
+<div id="app-notification" class="app-notification hidden">
+    <div class="app-notification__content">
+        <div class="app-notification__icon">!</div>
+        <div class="app-notification__text" id="app-notification-text">Сообщение</div>
+        <button type="button" class="app-notification__close" id="app-notification-close">&times;</button>
+    </div>
+</div>
 </body>
 
 <script src="/js/auth.js"></script>
 <script src="/js/checkCurrentGame.js"></script>
 <script>
+    let notificationTimeout;
+
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
       checkCurrentGame();
       loadGlobalLeaderboard();
+
+      const closeBtn = document.getElementById('app-notification-close');
+      closeBtn.addEventListener('click', hideNotification);
     });
 
     async function loadGlobalLeaderboard() {
@@ -103,7 +114,6 @@
           throw new Error('Некорректный формат данных рейтинга');
         }
 
-        // Преобразуем данные
         const players = leaderboardData.map(item => ({
           id: item[0],
           username: item[1],
@@ -111,14 +121,12 @@
           possible: item[3] || 0
         }));
 
-        // Сортируем по очкам (по убыванию) - от большего к меньшему
         players.sort((a, b) => {
           if (b.points > a.points) return -1;
           if (b.points < a.points) return 1;
           return 0;
         });
 
-        // Отображаем в порядке по возрастанию (от 1-го места к последнему)
         displayLeaderboard(players, currentUsername);
 
       } catch (error) {
@@ -131,11 +139,9 @@
       const playersContainer = document.querySelector('.players');
       const template = document.querySelector('.player.template');
 
-      // Очищаем существующих игроков (кроме шаблона)
       const existingPlayers = playersContainer.querySelectorAll('.player:not(.template)');
       existingPlayers.forEach(player => player.remove());
 
-      // Удаляем сообщения об ошибке/пустом рейтинге
       const existingError = playersContainer.querySelector('.error-message');
       if (existingError) existingError.remove();
 
@@ -150,11 +156,9 @@
         return;
       }
 
-      // Находим текущего пользователя в рейтинге
       const currentUserIndex = players.findIndex(p => p.username === currentUsername);
       const currentUser = currentUserIndex !== -1 ? players[currentUserIndex] : null;
 
-      // Обновляем информацию о текущем пользователе
       updateUserStats(currentUser, players.length - currentUserIndex);
 
       players.forEach((player, index) => {
@@ -162,38 +166,26 @@
         playerElement.classList.remove('template');
         playerElement.style.display = 'block';
 
-        // Заполняем данные игрока
         const rankElement = playerElement.querySelector('.player-rank');
         const avatarElement = playerElement.querySelector('.player-avatar');
         const nameElement = playerElement.querySelector('.player-name');
         const pointsElement = playerElement.querySelector('.player-points');
 
-        // Устанавливаем место в рейтинге
         rankElement.textContent = players.length - index;
-
-        // Имя игрока
         nameElement.textContent = player.username;
-
-        // Аватар - первая буква имени
         avatarElement.textContent = player.username.charAt(0).toUpperCase();
-
-        // Очки
         pointsElement.textContent = `${player.points} очков`;
 
-        // Выделяем текущего пользователя
         if (currentUsername && player.username === currentUsername) {
           playerElement.classList.add('current-user');
         }
 
-        // Добавляем атрибуты
         playerElement.setAttribute('data-player-id', player.id);
         playerElement.setAttribute('data-rank', players.length - index);
 
-        // Вставляем после шаблона
         template.parentNode.insertBefore(playerElement, template.nextSibling);
       });
 
-      // Скрываем шаблон
       template.style.display = 'none';
     }
 
@@ -203,42 +195,29 @@
       if (user) {
         userRankElement.textContent = rank || 'Не в топе';
       } else {
-        const currentUser = AuthService.getUser();
         userRankElement.textContent = 'Не в топе';
       }
     }
 
     function showError(message) {
-      const existingError = document.querySelector('.error-message');
-      if (existingError) {
-        existingError.remove();
-      }
+      const notification = document.getElementById('app-notification');
+      const text = document.getElementById('app-notification-text');
 
-      const errorElement = document.createElement('div');
-      errorElement.className = 'error-message';
-      errorElement.textContent = message;
+      clearTimeout(notificationTimeout);
+      text.textContent = message;
+      notification.classList.remove('hidden');
 
-      const header = document.querySelector('header');
-      if (header && header.parentNode) {
-        header.parentNode.insertBefore(errorElement, header.nextSibling);
-      } else {
-        document.body.insertBefore(errorElement, document.body.firstChild);
-      }
-
-      setTimeout(() => {
-        if (errorElement.parentNode) {
-          errorElement.remove();
-        }
-      }, 5000);
+      notificationTimeout = setTimeout(() => {
+        hideNotification();
+      }, 4000);
     }
 
-    // Функция для обновления рейтинга
-    function refreshLeaderboard() {
-      const existingError = document.querySelector('.error-message');
-      if (existingError) {
-        existingError.remove();
-      }
+    function hideNotification() {
+      const notification = document.getElementById('app-notification');
+      notification.classList.add('hidden');
+    }
 
+    function refreshLeaderboard() {
       const noPlayersMessage = document.querySelector('.no-players-message');
       if (noPlayersMessage) {
         noPlayersMessage.remove();
@@ -256,7 +235,6 @@
       });
     }
 
-    // Автообновление рейтинга каждые 30 секунд
     setInterval(refreshLeaderboard, 10000);
 </script>
 </html>

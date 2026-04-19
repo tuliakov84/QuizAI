@@ -19,6 +19,8 @@
 
     <main>
         <div class="raiting" id="results-container">
+            <div class="results-badge">MATCH ANALYTICS</div>
+
             <div class="tablehead">
                 <span>МЕСТО</span>
                 <span>ИМЯ ПОЛЬЗОВАТЕЛЯ</span>
@@ -39,7 +41,6 @@
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
 
-      // Получаем gameId из URL параметров
       const urlParams = new URLSearchParams(window.location.search);
       gameId = urlParams.get('gameId');
 
@@ -48,16 +49,13 @@
         return;
       }
 
-      // Загружаем результаты
       loadResults();
 
-      // Обработчик для кнопки "Назад"
       document.getElementById('back-btn').addEventListener('click', function(e) {
         e.preventDefault();
         stopGameAndRedirect('main.html');
       });
 
-      // Обработчик для закрытия/перехода со страницы
       window.addEventListener('beforeunload', function() {
         if (!gameStopped) {
           stopGame();
@@ -71,7 +69,7 @@
     }
 
     async function stopGame() {
-      if (gameStopped) return; // Не останавливать игру повторно
+      if (gameStopped) return;
 
       try {
         const session = AuthService.getsession();
@@ -126,11 +124,9 @@
         const resultsText = await response.text();
         console.log('Ответ сервера:', resultsText);
 
-        // Парсим JSON строку в массив
         const resultsArray = JSON.parse(resultsText);
         console.log('Парсинг результатов:', resultsArray);
 
-        // Преобразуем массив массивов в массив объектов
         const results = resultsArray.map(item => ({
           username: item[0] || 'Неизвестный игрок',
           score: item[1] || 0
@@ -138,7 +134,6 @@
 
         console.log('Преобразованные результаты:', results);
 
-        // Отображаем результаты
         displayResults(results);
 
       } catch (error) {
@@ -150,9 +145,10 @@
     function displayResults(results) {
       const container = document.getElementById('results-container');
 
-      // Очищаем контейнер, оставляя только заголовок
+      const badge = container.querySelector('.results-badge');
       const tableHead = container.querySelector('.tablehead');
       container.innerHTML = '';
+      container.appendChild(badge);
       container.appendChild(tableHead);
 
       if (!results || results.length === 0) {
@@ -160,10 +156,8 @@
         return;
       }
 
-      // Сортируем результаты по убыванию счета
       const sortedResults = [...results].sort((a, b) => b.score - a.score);
 
-      // Создаем элементы для каждого игрока
       sortedResults.forEach((player, index) => {
         const playerElement = createPlayerElement(player, index + 1);
         container.appendChild(playerElement);
@@ -175,21 +169,19 @@
     function createPlayerElement(player, position) {
       const playerDiv = document.createElement('div');
       playerDiv.className = 'player';
+      playerDiv.setAttribute('data-rank', position);
 
       const textDiv = document.createElement('div');
       textDiv.className = 'text';
 
-      // Место
       const positionElement = document.createElement('p');
       positionElement.className = 'h13';
       positionElement.textContent = position;
 
-      // Имя пользователя
       const usernameElement = document.createElement('p');
-      usernameElement.className = 'h13';
+      usernameElement.className = 'h13 username-cell';
       usernameElement.textContent = player.username;
 
-      // Счет
       const scoreElement = document.createElement('p');
       scoreElement.className = 'h13';
       scoreElement.textContent = player.score;
@@ -204,8 +196,10 @@
 
     function displayError(message) {
       const container = document.getElementById('results-container');
+      const badge = container.querySelector('.results-badge');
       const tableHead = container.querySelector('.tablehead');
       container.innerHTML = '';
+      container.appendChild(badge);
       container.appendChild(tableHead);
 
       const errorElement = document.createElement('div');
@@ -213,22 +207,6 @@
       errorElement.textContent = message;
       container.appendChild(errorElement);
     }
-
-    // Добавляем CSS для сообщения об ошибке/отсутствии результатов
-    const style = document.createElement('style');
-    style.textContent = `
-        .no-results {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          height: 200px;
-          font-size: 1.5rem;
-          color: #666;
-          text-align: center;
-        }
-      `;
-    document.head.appendChild(style);
 </script>
 
 </html>

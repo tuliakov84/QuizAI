@@ -33,9 +33,11 @@
         </div>
 
         <div class="main_blockr">
+            <div class="panel-badge">ROOM CONTROL</div>
+
             <div class="room-info-section">
-                <div class="room-info-label">CCЫЛКА-ПРИГЛАШЕНИЕ:</div>
-                <div class="room-info-value">
+                <div class="room-info-label">ССЫЛКА-ПРИГЛАШЕНИЕ:</div>
+                <div class="room-info-value invite-row">
                     <span id="invite-link">Загрузка...</span>
                     <span class="copy-icon" title="Копировать">📋</span>
                 </div>
@@ -54,15 +56,15 @@
             </div>
 
             <div class="room-info-section">
-                <span>ИЗМЕНИТЬ ПРИВАТНОСТЬ КОМНАТЫ:</span>
+                <span class="section-title">ИЗМЕНИТЬ ПРИВАТНОСТЬ КОМНАТЫ:</span>
                 <div class="isprivate block_hor">
                     <a href="#" class="btnprivate privacy-btn" data-private="false">ОТКРЫТАЯ</a>
                     <a href="#" class="btnprivate privacy-btn" data-private="true">ЗАКРЫТАЯ</a>
                 </div>
 
-                <span>ТЕМА КВИЗА:</span>
+                <span class="section-title">ТЕМА КВИЗА:</span>
                 <div class="theme">
-                    <div id="quiz-theme" class="h11">Загрузка...</div>
+                    <div id="quiz-theme" class="h11 theme-title">Загрузка...</div>
                 </div>
             </div>
 
@@ -84,7 +86,6 @@
     let isCheckingQuestions = false;
     let isInternalNavigation = false;
 
-    // Получение текущей игры пользователя
     async function getCurrentGameFromServer() {
         const session = AuthService.getsession();
         if (!session) return { gameId: null, gameStartTime: null };
@@ -106,7 +107,6 @@
         }
     }
 
-    // Проверка, началась ли игра, и перенаправление, если нужно
     async function checkAndRedirectIfGameStarted() {
         const currentGame = await getCurrentGameFromServer();
         if (currentGame.gameId && currentGame.gameStartTime) {
@@ -120,7 +120,6 @@
         return false;
     }
 
-    // Обработчик при показе страницы (в т.ч. из bfcache)
     window.addEventListener('pageshow', function (event) {
         if (event.persisted) {
             console.log('Страница восстановлена из bfcache, перезагрузка...');
@@ -128,15 +127,12 @@
         }
     });
 
-    // Основная инициализация
     document.addEventListener('DOMContentLoaded', async function () {
         if (!AuthService.requireAuth()) return;
 
-        // 1. Проверяем, не началась ли уже игра
         const redirected = await checkAndRedirectIfGameStarted();
         if (redirected) return;
 
-        // 2. Получаем актуальную игру (если пользователь уже в лобби)
         const currentGame = await getCurrentGameFromServer();
 
         if (currentGame.gameId && !currentGame.gameStartTime) {
@@ -152,12 +148,10 @@
             }
         }
 
-        // 3. Инициализируем лобби
         await initializeRoom();
         setupEventListeners();
     });
 
-    // Инициализация лобби
     async function initializeRoom() {
         const roomData = await loadRoomData();
         if (!roomData) {
@@ -171,7 +165,6 @@
         await updateLobby();
     }
 
-    // Загрузка данных комнаты (проверка, что пользователь – создатель)
     async function loadRoomData() {
         const session = AuthService.getsession();
         try {
@@ -203,7 +196,6 @@
         }
     }
 
-    // Загрузка темы
     function loadTheme() {
         try {
             const themeElement = document.getElementById('quiz-theme');
@@ -220,7 +212,6 @@
         }
     }
 
-    // Обновление лобби
     async function updateLobby() {
         try {
             await loadPlayers();
@@ -231,7 +222,6 @@
         }
     }
 
-    // Загрузка списка игроков
     async function loadPlayers() {
         const session = AuthService.getsession();
         try {
@@ -265,7 +255,6 @@
         }
     }
 
-    // Проверка готовности вопросов
     async function checkQuestionsReady() {
         if (isCheckingQuestions) return;
         isCheckingQuestions = true;
@@ -293,7 +282,6 @@
         }
     }
 
-    // Обновление отображения статуса вопросов
     function updateQuestionsStatus() {
         const statusElement = document.getElementById('questions-status');
         const statusText = statusElement.querySelector('.status-text');
@@ -309,7 +297,6 @@
         }
     }
 
-    // Отображение игроков
     function displayPlayers(players) {
         const container = document.getElementById('players-container');
         const countElement = document.getElementById('players-count');
@@ -327,7 +314,6 @@
         countElement.textContent = `${players.length}/${maxPlayers}`;
     }
 
-    // Обновление состояния кнопки старта
     function updateStartButtonState() {
         const startBtn = document.getElementById('start-quiz-btn');
         const messageElement = document.getElementById('start-quiz-message');
@@ -336,6 +322,7 @@
             if (messageElement) {
                 messageElement.textContent = 'Для начала квиза нужно минимум 2 игрока';
                 messageElement.style.display = 'block';
+                messageElement.className = 'message warning';
             }
             return;
         }
@@ -344,13 +331,13 @@
             if (messageElement) {
                 messageElement.textContent = 'Вопросы еще не готовы. Пожалуйста, подождите...';
                 messageElement.style.display = 'block';
+                messageElement.className = 'message info';
             }
             return;
         }
         enableStartButton();
         if (messageElement) messageElement.style.display = 'none';
 
-        // Автоматический старт при заполнении комнаты
         if (currentPlayers.length >= maxPlayers && !isQuizStarting) {
             setTimeout(() => startQuiz(), 1000);
         }
@@ -372,7 +359,6 @@
         btn.title = reason;
     }
 
-    // Обновление информации о комнате (ссылка, приватность, максимум игроков)
     function updateRoomInfo(roomData) {
         const linkElement = document.getElementById('invite-link');
         const fullLink = `${window.location.origin}/room.html?gameId=${gameId}`;
@@ -399,7 +385,6 @@
         }
     }
 
-    // Изменение приватности
     async function changeRoomPrivacy(newPrivacy) {
         const session = AuthService.getsession();
         try {
@@ -427,7 +412,6 @@
         if (activeBtn) activeBtn.classList.add('active');
     }
 
-    // Начало квиза
     async function startQuiz() {
         if (isQuizStarting) return;
         if (currentPlayers.length < 2) {
@@ -456,7 +440,6 @@
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             if (refreshInterval) clearInterval(refreshInterval);
-            // После старта переходим на первый вопрос
             window.location.replace(`question.html?gameId=${gameId}&question=1`);
         } catch (error) {
             console.error('Ошибка начала квиза:', error);
@@ -467,7 +450,6 @@
         }
     }
 
-    // Выход и удаление игры
     async function stopGameAndExit() {
         isInternalNavigation = true;
         const session = AuthService.getsession();
@@ -497,7 +479,6 @@
         }
     }
 
-    // Обработчики событий
     function setupEventListeners() {
         document.querySelectorAll('.privacy-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -518,10 +499,8 @@
         });
     }
 
-    // Обработка закрытия страницы (beacon)
     window.addEventListener('beforeunload', function (e) {
         if (!isInternalNavigation && gameId) {
-            const session = AuthService.getsession();
             const url = 'http://localhost:8080/api/game/delete';
             const data = JSON.stringify({ gameId: gameId });
             if (navigator.sendBeacon) {

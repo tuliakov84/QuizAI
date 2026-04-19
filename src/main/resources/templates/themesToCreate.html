@@ -19,6 +19,7 @@
 
     <main>
         <div class="themes">
+            <div class="panel-badge">TOPIC MATRIX</div>
             <span>ДОСТУПНЫЕ ТЕМЫ</span>
             <div id="themes-container" class="themes-grid">
                 <!-- Темы будут загружены через JavaScript -->
@@ -39,7 +40,6 @@
         loadTopics();
     });
 
-    // Загрузка тем с сервера
     async function loadTopics() {
         try {
             showLoadingMessage('Загрузка тем...');
@@ -53,7 +53,6 @@
         }
     }
 
-    // Mock функция для получения тем
     async function fetchTopicsFromServer() {
         const response = await fetch('http://localhost:8080/api/topic/get-all', {
             method: 'POST',
@@ -62,22 +61,8 @@
             }
         });
         return await response.json();
-
-        // Временные mock данные
-<!--        return [-->
-<!--            { topicId: 1, name: 'ИСТОРИЯ', description: 'Вопросы по истории' },-->
-<!--            { topicId: 2, name: 'НАУКА', description: 'Научные вопросы' },-->
-<!--            { topicId: 3, name: 'СПОРТ', description: 'Спортивные вопросы' },-->
-<!--            { topicId: 4, name: 'КИНО', description: 'Вопросы о кино' },-->
-<!--            { topicId: 5, name: 'МУЗЫКА', description: 'Музыкальные вопросы' },-->
-<!--            { topicId: 6, name: 'ЛИТЕРАТУРА', description: 'Литературные вопросы' },-->
-<!--            { topicId: 7, name: 'ГЕОГРАФИЯ', description: 'Географические вопросы' },-->
-<!--            { topicId: 8, name: 'ТЕХНОЛОГИИ', description: 'Технологические вопросы' },-->
-<!--            { topicId: 9, name: 'ИСКУССТВО', description: 'Вопросы об искусстве' }-->
-<!--        ];-->
     }
 
-    // Отображение тем
     function displayTopics(topics) {
         const container = document.getElementById('themes-container');
         container.innerHTML = '';
@@ -87,6 +72,7 @@
             topicElement.className = 'theme-btn';
             topicElement.innerHTML = `
                 <div class="theme-content btn">
+                    <div class="theme-chip">AI TOPIC</div>
                     <h3>${topic.name}</h3>
                 </div>
             `;
@@ -96,12 +82,8 @@
         });
     }
 
-    // Выбор темы и переход к созданию квиза
     function selectTopic(topic) {
-        // Сохраняем выбранную тему в localStorage
         localStorage.setItem('selectedTopic', JSON.stringify(topic));
-
-        // Переходим на страницу создания квиза
         window.location.href = 'createroom.html';
     }
 
