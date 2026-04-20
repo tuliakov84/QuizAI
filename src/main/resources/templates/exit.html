@@ -17,50 +17,117 @@
         <button class="btn2">ВЫЙТИ</button>
     </div>
 </div>
-</body>
 
+<div id="logout-confirm-modal" class="modal hidden">
+    <div class="modal_overlay"></div>
+    <div class="modal_content">
+        <button class="modal_close" id="confirm-close-btn">&times;</button>
+        <div class="modal_icon">!</div>
+        <h2>ПОДТВЕРДИТЕ ВЫХОД</h2>
+        <p>Точно выйти из системы?</p>
+        <div class="modal_actions">
+            <button class="modal_btn modal_btn-secondary" id="cancel-logout-btn">ОСТАТЬСЯ</button>
+            <button class="modal_btn modal_btn-primary" id="confirm-logout-btn">ВЫЙТИ</button>
+        </div>
+    </div>
+</div>
+
+<div id="app-notification" class="app-notification hidden">
+    <div class="app-notification__content success">
+        <div class="app-notification__icon">✓</div>
+        <div class="app-notification__text" id="app-notification-text">Вы успешно вышли из системы</div>
+        <button type="button" class="app-notification__close" id="app-notification-close">&times;</button>
+    </div>
+</div>
+</body>
 
 <script src="js/auth.js"></script>
 <script src="/js/checkCurrentGame.js"></script>
 <script>
+    let logoutConfirmed = false;
+    let notificationTimeout;
+
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
       checkCurrentGame();
 
-      // Обработчик кнопки "ЕЩЁ ПО КВИЗУ!"
       document.querySelector('.btn1').addEventListener('click', function () {
-        // Возвращаемся на главную страницу
         window.location.href = 'main.html';
       });
 
-      // Обработчик кнопки "ВЫЙТИ"
       document.querySelector('.btn2').addEventListener('click', function () {
-        performLogout();
+        openLogoutModal();
+      });
+
+      document.getElementById('cancel-logout-btn').addEventListener('click', closeLogoutModal);
+      document.getElementById('confirm-close-btn').addEventListener('click', closeLogoutModal);
+      document.querySelector('.modal_overlay').addEventListener('click', closeLogoutModal);
+      document.getElementById('confirm-logout-btn').addEventListener('click', performLogoutConfirmed);
+      document.getElementById('app-notification-close').addEventListener('click', hideNotification);
+
+      document.addEventListener('keydown', function (e) {
+        const modal = document.getElementById('logout-confirm-modal');
+        if (!modal.classList.contains('hidden') && e.key === 'Escape') {
+          closeLogoutModal();
+        }
       });
     });
 
-    function performLogout() {
-      // Показываем подтверждение (дополнительная проверка)
-      if (!confirm('Точно выйти из системы?')) {
-        return;
-      }
+    function openLogoutModal() {
+      document.getElementById('logout-confirm-modal').classList.remove('hidden');
+      document.body.classList.add('modal-open');
+    }
 
-      logoutOnServer();
+    function closeLogoutModal() {
+      document.getElementById('logout-confirm-modal').classList.add('hidden');
+      document.body.classList.remove('modal-open');
+    }
 
-      // Удаляем данные авторизации из localStorage
+    async function performLogoutConfirmed() {
+      if (logoutConfirmed) return;
+      logoutConfirmed = true;
+
+      const confirmBtn = document.getElementById('confirm-logout-btn');
+      confirmBtn.textContent = 'ВЫХОД...';
+      confirmBtn.disabled = true;
+
+      closeLogoutModal();
+
+      await logoutOnServer();
+
       localStorage.removeItem('session');
       localStorage.removeItem('user');
       localStorage.removeItem('currentTopicId');
 
-      alert('Вы успешно вышли из системы');
+      showNotification('Вы успешно вышли из системы');
 
-      window.location.href = 'index.html';
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 1200);
     }
 
-    // Дополнительная функция для уведомления сервера о выходе для времени последней активности
+    function showNotification(message) {
+      const notification = document.getElementById('app-notification');
+      const text = document.getElementById('app-notification-text');
+
+      clearTimeout(notificationTimeout);
+
+      text.textContent = message;
+      notification.classList.remove('hidden');
+
+      notificationTimeout = setTimeout(() => {
+        hideNotification();
+      }, 2500);
+    }
+
+    function hideNotification() {
+      const notification = document.getElementById('app-notification');
+      notification.classList.add('hidden');
+    }
+
     async function logoutOnServer() {
       try {
-        const username = localStorage.getItem('username')
+        const username = localStorage.getItem('username');
         await fetch('http://localhost:8080/api/auth/logout', {
           method: 'POST',
           headers: {

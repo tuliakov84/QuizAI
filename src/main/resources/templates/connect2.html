@@ -33,12 +33,21 @@
     </main>
 </div>
 
+<div id="app-notification" class="app-notification hidden">
+    <div class="app-notification__content">
+        <div class="app-notification__icon">!</div>
+        <div class="app-notification__text" id="app-notification-text">Сообщение</div>
+        <button type="button" class="app-notification__close" id="app-notification-close">&times;</button>
+    </div>
+</div>
+
 <script src="/js/auth.js"></script>
 <script src="/js/checkCurrentGame.js"></script>
 <script>
     let selectedGameId = null;
     let availableRooms = [];
     let refreshInterval;
+    let notificationTimeout;
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
@@ -46,11 +55,9 @@
       loadOpenRooms();
       initializeEventHandlers();
 
-      // Запускаем автоматическое обновление каждые 10 секунд
       refreshInterval = setInterval(loadOpenRooms, 10000);
     });
 
-    // Очистка интервала при уходе со страницы
     window.addEventListener('beforeunload', function() {
       if (refreshInterval) {
         clearInterval(refreshInterval);
@@ -59,13 +66,14 @@
 
     function initializeEventHandlers() {
       const joinBtn = document.getElementById('join-btn');
+      const notificationClose = document.getElementById('app-notification-close');
+
       joinBtn.addEventListener('click', handleJoinRoom);
+      notificationClose.addEventListener('click', hideNotification);
     }
 
-    // Загрузка открытых комнат по выбранной теме
     async function loadOpenRooms() {
       try {
-        // Получаем выбранную тему из localStorage
         const selectedTopic = JSON.parse(localStorage.getItem('selectedTopic'));
         if (!selectedTopic) {
           showErrorMessage('Тема не выбрана');
@@ -74,7 +82,6 @@
 
         console.log('Загружаем комнаты для темы:', selectedTopic);
 
-        // Загружаем открытые комнаты
         availableRooms = await fetchOpenRooms(selectedTopic.topicId);
         displayRooms(availableRooms);
 
@@ -84,7 +91,6 @@
       }
     }
 
-    // Получение открытых комнат с сервера
     async function fetchOpenRooms(topicId) {
       const session = AuthService.getsession();
 
@@ -106,7 +112,6 @@
       const roomsData = await response.json();
       console.log('Получены комнаты:', roomsData);
 
-      // Обрабатываем новый формат данных: [[gameId, currentParticipantsNumber, participantsNumber], ...]
       const roomsWithDetails = roomsData.map(roomArray => {
         const [gameId, currentParticipants, maxParticipants] = roomArray;
         return {
@@ -116,15 +121,11 @@
         };
       });
 
-      // Фильтруем только незаполненные комнаты
       return roomsWithDetails.filter(room => room.currentParticipants < room.maxParticipants);
     }
 
-    // Отображение списка комнат
     function displayRooms(rooms) {
       const container = document.getElementById('rooms-container');
-
-      // Сохраняем выбранную комнату, если она есть
       const previouslySelected = selectedGameId;
 
       container.innerHTML = '';
@@ -153,16 +154,13 @@
 
         roomElement.addEventListener('click', (e) => {
           e.preventDefault();
-          selectRoom(room);
+          selectRoom(room, e.currentTarget);
         });
 
         container.appendChild(roomElement);
       });
 
-      // Восстанавливаем выбор, если комната все еще существует
       if (previouslySelected && rooms.some(room => room.gameId === previouslySelected)) {
-        const roomToSelect = rooms.find(room => room.gameId === previouslySelected);
-        // Находим элемент и принудительно применяем стиль selected
         const roomElements = container.querySelectorAll('.room-item');
         roomElements.forEach(element => {
           if (element.querySelector('p').textContent === previouslySelected.toString()) {
@@ -170,76 +168,63 @@
           }
         });
       } else {
-        // Сбрасываем выбор, если комната больше не существует
         selectedGameId = null;
         document.getElementById('selected-room-id').textContent = 'ВЫБЕРИТЕ КОМНАТУ';
         document.getElementById('join-btn').style.display = 'none';
       }
     }
 
-    // Выбор комнаты
-    function selectRoom(room) {
+    function selectRoom(room, clickedElement) {
       selectedGameId = room.gameId;
 
-      // Обновляем отображение выбранной комнаты
       document.getElementById('selected-room-id').textContent = `ID: ${room.gameId}`;
       document.getElementById('join-btn').style.display = 'block';
 
-      // Подсвечиваем выбранную комнату
       document.querySelectorAll('.room-item').forEach(item => {
         item.classList.remove('selected');
       });
-      event.currentTarget.classList.add('selected');
+
+      clickedElement.classList.add('selected');
     }
 
-    // Обработка присоединения к комнате
     async function handleJoinRoom() {
       if (!selectedGameId) {
         showErrorMessage('Выберите комнату для присоединения');
         return;
       }
 
-      // Показываем индикатор загрузки
       const joinBtn = document.getElementById('join-btn');
       joinBtn.textContent = 'ПОДКЛЮЧЕНИЕ...';
       joinBtn.style.pointerEvents = 'none';
 
       try {
-        // Пытаемся подключиться к комнате по ID
         const result = await joinRoomById(selectedGameId);
 
         if (result.success) {
-          // Сохраняем информацию о комнате
           localStorage.setItem('currentGameId', selectedGameId.toString());
 
-          // Сохраняем topicId
           if (result.game && result.game.topicId) {
             localStorage.setItem('currentTopicId', result.game.topicId.toString());
           }
 
-          // Останавливаем обновление перед переходом
           if (refreshInterval) {
             clearInterval(refreshInterval);
           }
 
-          // Перенаправляем в комнату участника
           window.location.href = `roommember.html?gameId=${selectedGameId}`;
         } else {
           showErrorMessage(result.message || 'Не удалось подключиться к комнате');
-          // Обновляем список комнат (возможно, комната уже заполнена)
           loadOpenRooms();
         }
       } catch (error) {
         console.error('Ошибка подключения к комнате:', error);
         showErrorMessage('Ошибка подключения к серверу');
       } finally {
-        // Восстанавливаем кнопку
         joinBtn.textContent = 'ПРИСОЕДИНИТЬСЯ';
         joinBtn.style.pointerEvents = 'auto';
       }
     }
 
-    // Функция присоединения к комнате (аналогичная connect1.html)
     async function joinRoomById(gameId) {
       const session = AuthService.getsession();
 
@@ -295,37 +280,27 @@
     }
 
     function showErrorMessage(message) {
-      // Удаляем существующие сообщения об ошибках
-      const existingError = document.querySelector('.error-message');
-      if (existingError) {
-        existingError.remove();
-      }
+      showNotification(message, 'error');
+    }
 
-      // Создаем элемент для отображения ошибки
-      const errorElement = document.createElement('div');
-      errorElement.className = 'error-message';
-      errorElement.textContent = message;
-      errorElement.style.cssText = `
-          background-color: #ffebee;
-          color: #c62828;
-          padding: 15px;
-          margin: 20px 0;
-          border-radius: 5px;
-          text-align: center;
-          border: 1px solid #ffcdd2;
-          font-weight: bold;
-      `;
+    function showNotification(message, type = 'error') {
+      const notification = document.getElementById('app-notification');
+      const text = document.getElementById('app-notification-text');
 
-      // Вставляем сообщение об ошибке после header
-      const header = document.querySelector('header');
-      header.parentNode.insertBefore(errorElement, header.nextSibling);
+      clearTimeout(notificationTimeout);
 
-      // Автоматически скрываем через 3 секунды
-      setTimeout(() => {
-        if (errorElement.parentNode) {
-          errorElement.remove();
-        }
+      notification.classList.remove('hidden', 'success', 'error');
+      notification.classList.add(type);
+      text.textContent = message;
+
+      notificationTimeout = setTimeout(() => {
+        hideNotification();
       }, 3000);
+    }
+
+    function hideNotification() {
+      const notification = document.getElementById('app-notification');
+      notification.classList.add('hidden');
     }
 </script>
 </body>

@@ -1,281 +1,308 @@
-* {
-  padding: 0;
-  margin: 0;
-  box-sizing: border-box;
-}
+<!DOCTYPE html>
+<html lang="ru">
 
-html, body {
-  height: 100%;
-  width: 100%;
-}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/styles/connect2_style.css">
+    <title>QUIZAI</title>
+</head>
 
-.btn_back {
-  margin: 15px;
-  display: block;
-  width: 150px;
-  padding: 22px 24px;
-  text-align: center;
-  text-decoration: none;
-  border-radius: 28px;
-  font-size: 20px;
-  background: linear-gradient(0deg, rgb(255, 76, 76), rgb(255, 151, 151));
-  border-style: solid;
-  border-width: 2px;
-  border-color: #291818;
-  color: #000000;
-}
+<body>
+<div class="main_cont">
+    <header>
+        <a href="themesToJoin.html" class="btn_back">НАЗАД</a>
+        <h1 class="h11">QUIZ AI ARENA</h1>
+    </header>
 
-.h11 {
-  font-size: clamp(1.5rem, 4vw, 3rem);
-  background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
+    <main>
+        <div class="main_blockl">
+            <div class="tablehead">
+                <p class="h12">ID КОМНАТЫ</p>
+                <p class="h12">УЧАСТНИКОВ</p>
+            </div>
+            <div id="rooms-container">
+                <!-- Комнаты будут загружены динамически -->
+            </div>
+        </div>
 
-.h12 {
-  font-size: 90%;
-  padding-top: 10px;
-  align-self: center;
-  text-align: center;
-  background: linear-gradient(0deg, rgb(27, 24, 54), rgb(92, 84, 163));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
+        <div class="main_blockr">
+            <span id="selected-room-id">ВЫБЕРИТЕ КОМНАТУ</span>
+            <a href="#" id="join-btn" class="btnd" style="display: none;">ПРИСОЕДИНИТЬСЯ</a>
+        </div>
+    </main>
+</div>
 
-.tablehead {
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
+<div id="app-notification" class="app-notification hidden">
+    <div class="app-notification__content">
+        <div class="app-notification__icon">!</div>
+        <div class="app-notification__text" id="app-notification-text">Сообщение</div>
+        <button type="button" class="app-notification__close" id="app-notification-close">&times;</button>
+    </div>
+</div>
 
-header {
-  display: flex;
-  width: 100%;
-  flex-wrap: wrap;
-  flex-direction: row;
-  align-items: center;
-}
+<script src="/js/auth.js"></script>
+<script src="/js/checkCurrentGame.js"></script>
+<script>
+    let selectedGameId = null;
+    let availableRooms = [];
+    let refreshInterval;
+    let notificationTimeout;
 
-.main_cont {
-  background: linear-gradient(0deg, rgb(255, 255, 255), rgb(138, 128, 217));
-  display: flex;
-  min-height: 100vh;
-  min-width: 100vw;
-  flex-direction: column;
-  flex-wrap: wrap;
-}
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!AuthService.requireAuth()) return;
+      checkCurrentGame();
+      loadOpenRooms();
+      initializeEventHandlers();
 
-main {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 20px;
-  align-items: start;
-  justify-content: center;
-  width: 100%;
-}
+      refreshInterval = setInterval(loadOpenRooms, 10000);
+    });
 
-.main_blockl {
-  margin-top: 40px;
-  margin-bottom: 140px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  border-style: solid;
-  border-color: #8279CF;
-  border-width: 10px;
-  background: white;
-  border-radius: 3em;
-  align-items: center;
-  justify-content: flex-start;
-  align-self: center;
-  height: auto;
-  flex: 1 1 400px;
-  min-width: 0;
-  width: 100%;
-  max-width: 500px;
-}
+    window.addEventListener('beforeunload', function() {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    });
 
-#rooms-container {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+    function initializeEventHandlers() {
+      const joinBtn = document.getElementById('join-btn');
+      const notificationClose = document.getElementById('app-notification-close');
 
-.btn {
-  display: block;
-  width: 100%;
-  padding: 20px 24px;
-  text-align: center;
-  text-decoration: none;
-  border-radius: 18px;
-  font-size: 20px;
-  background: linear-gradient(0deg, rgb(225, 224, 224), rgb(255, 255, 255));
-  border-style: solid;
-  border-width: 2px;
-  border-color: #7f7b7b;
-  color: #000;
-  margin-bottom: 12px;
-  box-sizing: border-box;
-}
+      joinBtn.addEventListener('click', handleJoinRoom);
+      notificationClose.addEventListener('click', hideNotification);
+    }
 
-.btn:last-child {
-  margin-bottom: 0;
-}
+    async function loadOpenRooms() {
+      try {
+        const selectedTopic = JSON.parse(localStorage.getItem('selectedTopic'));
+        if (!selectedTopic) {
+          showErrorMessage('Тема не выбрана');
+          return;
+        }
 
-.text {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  width: 100%;
-}
+        console.log('Загружаем комнаты для темы:', selectedTopic);
 
-.text p {
-  margin: 0;
-  flex: 1;
-  text-align: center;
-}
+        availableRooms = await fetchOpenRooms(selectedTopic.topicId);
+        displayRooms(availableRooms);
 
-.text p:first-child {
-  text-align: left;
-}
+      } catch (error) {
+        console.error('Ошибка загрузки комнат:', error);
+        showErrorMessage('Ошибка загрузки комнат');
+      }
+    }
 
-.text p:last-child {
-  text-align: right;
-}
+    async function fetchOpenRooms(topicId) {
+      const session = AuthService.getsession();
 
-.main_blockr {
-  margin-top: 40px;
-  margin-bottom: 140px;
-  display: flex;
-  flex-direction: column;
-  border-style: solid;
-  border-color: #8279CF;
-  border-width: 10px;
-  background: white;
-  border-radius: 3em;
-  align-items: center;
-  justify-content: space-between;
-  height: auto;
-  flex: 0 0 300px;
-  padding: 30px 20px;
-}
+      const response = await fetch('http://localhost:8080/api/game/get-open', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          topicId: topicId
+        })
+      });
 
-.main_blockr span {
-  font-size: clamp(1.5rem, 3vw, 2.5rem);
-  color: #4c4779;
-  text-align: center;
-  margin-bottom: 20px;
-}
+      if (!response.ok) {
+        throw new Error(`Ошибка HTTP: ${response.status}`);
+      }
 
-.block_hor {
-  display: flex;
-  flex-direction: row;
-  width: 95%;
-  justify-content: space-between;
-}
+      const roomsData = await response.json();
+      console.log('Получены комнаты:', roomsData);
 
-.input-group input {
-  background-color: #ECECEC;
-  margin: 10px;
-  width: 100%;
-  padding: 20px 16px;
-  border: 1px solid #000000;
-  border-radius: 25px;
-  font-size: 16px;
-  box-sizing: border-box;
-  outline: none;
-}
+      const roomsWithDetails = roomsData.map(roomArray => {
+        const [gameId, currentParticipants, maxParticipants] = roomArray;
+        return {
+          gameId: gameId,
+          currentParticipants: currentParticipants,
+          maxParticipants: maxParticipants
+        };
+      });
 
-.input-group input:hover {
-  background-color: #ffffff;
-}
+      return roomsWithDetails.filter(room => room.currentParticipants < room.maxParticipants);
+    }
 
-.input-group input:focus {
-  border-color: #583bff;
-  background-color: #ffffff;
-}
+    function displayRooms(rooms) {
+      const container = document.getElementById('rooms-container');
+      const previouslySelected = selectedGameId;
 
-.btnd {
-  display: block;
-  width: 100%;
-  padding: 20px 24px;
-  text-align: center;
-  text-decoration: none;
-  border-radius: 30px;
-  font-size: 22px;
-  background: linear-gradient(0deg, rgb(255, 76, 76), rgb(255, 151, 151));
-  border-style: solid;
-  border-width: 2px;
-  border-color: #291818;
-  color: #000000;
-  margin: 0;
-}
+      container.innerHTML = '';
 
-.btnr {
-  margin: 10px;
-  display: block;
-  width: 20%;
-  padding: 18px 24px;
-  text-align: center;
-  text-decoration: none;
-  border-radius: 25px;
-  font-size: 20px;
-  background: linear-gradient(0deg, rgb(255, 76, 76), rgb(255, 151, 151));
-  border-style: solid;
-  border-width: 2px;
-  border-color: #291818;
-  color: #000000;
-}
+      if (rooms.length === 0) {
+        container.innerHTML = '<div class="no-rooms">Нет открытых комнат для выбранной темы</div>';
+        document.getElementById('selected-room-id').textContent = 'ВЫБЕРИТЕ КОМНАТУ';
+        document.getElementById('join-btn').style.display = 'none';
+        selectedGameId = null;
+        return;
+      }
 
-.room-item.selected {
-    background-color: #e3f2fd;
-    border: 2px solid #2196f3;
-}
+      rooms.forEach(room => {
+        const roomElement = document.createElement('a');
+        roomElement.href = '#';
+        roomElement.className = 'btn room-item';
+        if (room.gameId === previouslySelected) {
+          roomElement.classList.add('selected');
+        }
+        roomElement.innerHTML = `
+          <div class="text">
+            <p>${room.gameId}</p>
+            <p>${room.currentParticipants}/${room.maxParticipants}</p>
+          </div>
+        `;
 
-.no-rooms {
-    text-align: center;
-    padding: 20px;
-    color: #666;
-    font-style: italic;
-    width: 100%;
-}
+        roomElement.addEventListener('click', (e) => {
+          e.preventDefault();
+          selectRoom(room, e.currentTarget);
+        });
 
-.loading-message {
-    text-align: center;
-    padding: 20px;
-    color: #666;
-    width: 100%;
-}
+        container.appendChild(roomElement);
+      });
 
-@media screen and (width<786px) {
-  .main_blockl {
-    flex: 1 1 300px;
-    margin: 20px 10px;
-  }
+      if (previouslySelected && rooms.some(room => room.gameId === previouslySelected)) {
+        const roomElements = container.querySelectorAll('.room-item');
+        roomElements.forEach(element => {
+          if (element.querySelector('p').textContent === previouslySelected.toString()) {
+            element.classList.add('selected');
+          }
+        });
+      } else {
+        selectedGameId = null;
+        document.getElementById('selected-room-id').textContent = 'ВЫБЕРИТЕ КОМНАТУ';
+        document.getElementById('join-btn').style.display = 'none';
+      }
+    }
 
-  .btn_back {
-    width: 80%;
-    align-self: center;
-  }
+    function selectRoom(room, clickedElement) {
+      selectedGameId = room.gameId;
 
-  header {
-    align-items: center;
-    justify-content: center;
-  }
+      document.getElementById('selected-room-id').textContent = `ID: ${room.gameId}`;
+      document.getElementById('join-btn').style.display = 'block';
 
-  .main_blockr {
-    flex: 0 0 250px;
-    margin: 20px 10px;
-  }
+      document.querySelectorAll('.room-item').forEach(item => {
+        item.classList.remove('selected');
+      });
 
-  .btn {
-    padding: 18px 16px;
-    font-size: 18px;
-  }
-}
+      clickedElement.classList.add('selected');
+    }
+
+    async function handleJoinRoom() {
+      if (!selectedGameId) {
+        showErrorMessage('Выберите комнату для присоединения');
+        return;
+      }
+
+      const joinBtn = document.getElementById('join-btn');
+      joinBtn.textContent = 'ПОДКЛЮЧЕНИЕ...';
+      joinBtn.style.pointerEvents = 'none';
+
+      try {
+        const result = await joinRoomById(selectedGameId);
+
+        if (result.success) {
+          localStorage.setItem('currentGameId', selectedGameId.toString());
+
+          if (result.game && result.game.topicId) {
+            localStorage.setItem('currentTopicId', result.game.topicId.toString());
+          }
+
+          if (refreshInterval) {
+            clearInterval(refreshInterval);
+          }
+
+          window.location.href = `roommember.html?gameId=${selectedGameId}`;
+        } else {
+          showErrorMessage(result.message || 'Не удалось подключиться к комнате');
+          loadOpenRooms();
+        }
+      } catch (error) {
+        console.error('Ошибка подключения к комнате:', error);
+        showErrorMessage('Ошибка подключения к серверу');
+      } finally {
+        joinBtn.textContent = 'ПРИСОЕДИНИТЬСЯ';
+        joinBtn.style.pointerEvents = 'auto';
+      }
+    }
+
+    async function joinRoomById(gameId) {
+      const session = AuthService.getsession();
+
+      try {
+        const response = await fetch(`http://localhost:8080/api/game/join`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            gameId: parseInt(gameId),
+            session: session
+          })
+        });
+
+        if (response.ok) {
+          const gameData = await response.json();
+          sessionStorage.setItem('gameInfo', JSON.stringify({
+            totalQuestions: gameData.numberOfQuestions,
+            levelDifficulty: gameData.levelDifficulty
+          }));
+          return {
+            success: true,
+            game: gameData
+          };
+        } else if (response.status === 404) {
+          return {
+            success: false,
+            message: 'Квиз с таким ID не найден или количество участников максимально'
+          };
+        } else if (response.status === 409) {
+          return {
+            success: false,
+            message: 'Квиз уже начат или завершен'
+          };
+        } else {
+          const errorText = await response.text();
+          return {
+            success: false,
+            message: 'Ошибка подключения к квизу: ' + (errorText || response.status)
+          };
+        }
+      } catch (error) {
+        console.error('Ошибка при подключении к квизу:', error);
+        throw error;
+      }
+    }
+
+    function showLoadingMessage(text) {
+      const container = document.getElementById('rooms-container');
+      container.innerHTML = `<div class="loading-message">${text}</div>`;
+    }
+
+    function showErrorMessage(message) {
+      showNotification(message, 'error');
+    }
+
+    function showNotification(message, type = 'error') {
+      const notification = document.getElementById('app-notification');
+      const text = document.getElementById('app-notification-text');
+
+      clearTimeout(notificationTimeout);
+
+      notification.classList.remove('hidden', 'success', 'error');
+      notification.classList.add(type);
+      text.textContent = message;
+
+      notificationTimeout = setTimeout(() => {
+        hideNotification();
+      }, 3000);
+    }
+
+    function hideNotification() {
+      const notification = document.getElementById('app-notification');
+      notification.classList.add('hidden');
+    }
+</script>
+</body>
+
+</html>
