@@ -50,7 +50,7 @@ OTP_MAIL_FROM=your-login@example.com
 Для разработки интерфейса и игровой логики можно отключить реальную генерацию вопросов. В этом режиме вопросы берутся из `src/main/resources/ml-answer-example.json`, Ollama не вызывается и компьютер не нагружается генерацией.
 
 ```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=mock
+mvn spring-boot:run -Dspring-boot.run.profiles=mock-questions
 ```
 
 Или настройте в application.properties:
@@ -59,7 +59,23 @@ mvn spring-boot:run -Dspring-boot.run.profiles=mock
 app.question-generation.mock-enabled=true
 ```
 
-### 2Б. Полноценный режим с генерацией вопросов нейросетью
+### 2Б. Запуск без email/OTP регистрации
+
+Если на этапе разработки не нужна отправка писем, включите профиль `otp-off`:
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=otp-off
+```
+
+Профили можно комбинировать:
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=mock-questions,otp-off
+```
+
+В `otp-off` почта при регистрации игнорируется: аккаунт создается по username/password без отправки OTP, а вход по email отключается.
+
+### 2В. Полноценный режим с генерацией вопросов нейросетью
 
 Если нужен режим с генерацией вопросов:
 
@@ -104,6 +120,7 @@ http://localhost:11434/api/chat
 | `app.mail.host` | `smtp.yandex.ru` | SMTP-сервер для OTP-писем |
 | `app.mail.username` | пусто | SMTP-логин, обычно задается через `application-local.properties` |
 | `app.mail.password` | пусто | SMTP-пароль, задается только локально |
+| `app.auth.email-enabled` | `true` | Включает вход по email, email/OTP регистрацию и сброс пароля; профиль `otp-off` ставит `false` |
 | `app.otp.ttl-seconds` | `300` | Время жизни OTP-кода |
 | `app.otp.resend-cooldown-seconds` | `60` | Пауза перед повторной отправкой OTP |
 | `app.llm.url` | `http://localhost:11434/api/chat` | URL Ollama API |

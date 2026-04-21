@@ -25,7 +25,7 @@ public class AuthOtpController {
   }
 
   @PostMapping("/register/request-otp")
-  public ResponseEntity<OtpResponse> requestRegistrationOtp(@Valid @RequestBody RegistrationStartRequest request) {
+  public ResponseEntity<OtpResponse> requestRegistrationOtp(@RequestBody RegistrationStartRequest request) {
     return ResponseEntity.ok(authOtpFlowService.startRegistration(request));
   }
 

@@ -41,6 +41,7 @@ import com.mipt.utils.QuestionPayloadFinalNormalizer;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.data.domain.Sort;
@@ -66,6 +67,8 @@ public class DbService {
 
   private static final String DELETE_ALL_KEYWORD = "DELETE_ALL_RECORDS_IN_DATABASE";
   private static final int DEFAULT_STARTING_COIN_BALANCE = 100;
+  @Value("${app.auth.email-enabled:true}")
+  private boolean emailAuthEnabled = true;
 
   private final UserRepository userRepository;
   private final GameRepository gameRepository;
@@ -256,7 +259,7 @@ public class DbService {
     if (checkUserExists(username)) {
       throw new DatabaseAccessException("User already exists");
     }
-    if (email != null && !email.isBlank() && checkEmailExists(email)) {
+    if (emailAuthEnabled && email != null && !email.isBlank() && checkEmailExists(email)) {
       throw new DatabaseAccessException("Email already exists");
     }
 
@@ -269,14 +272,15 @@ public class DbService {
     if (checkUserExists(username)) {
       throw new DatabaseAccessException("User already exists");
     }
-    if (email != null && !email.isBlank() && checkEmailExists(email)) {
+    String emailToStore = emailAuthEnabled ? email : null;
+    if (emailToStore != null && !emailToStore.isBlank() && checkEmailExists(emailToStore)) {
       throw new DatabaseAccessException("Email already exists");
     }
 
     UserEntity userEntity = new UserEntity();
     userEntity.setUsername(username);
     userEntity.setPassword(passwordHash);
-    userEntity.setEmail(normalizeEmail(email));
+    userEntity.setEmail(normalizeEmail(emailToStore));
     userEntity.setPicId(0);
     userEntity.setDescription("");
     userEntity.setGamesPlayedNumber(0);
@@ -296,7 +300,10 @@ public class DbService {
   }
 
   public void authenticate(String username, String password, String session) throws SQLException, DatabaseAccessException {
-    UserEntity userEntity = userRepository.findByUsernameOrEmail(username).orElseThrow(DatabaseAccessException::new);
+    UserEntity userEntity = (emailAuthEnabled
+        ? userRepository.findByUsernameOrEmail(username)
+        : userRepository.findByUsername(username)
+    ).orElseThrow(DatabaseAccessException::new);
 
     BCrypt.Result result = BCrypt.verifyer().verify(password.toCharArray(), userEntity.getPassword());
     if (!result.verified) {

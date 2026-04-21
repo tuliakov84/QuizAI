@@ -124,6 +124,13 @@
             return;
           }
 
+          if (data.status === 'REGISTRATION_COMPLETED') {
+            sessionStorage.removeItem('pendingRegistrationEmail');
+            alert('Регистрация завершена. Теперь можно войти в аккаунт.');
+            window.location.href = 'index.html';
+            return;
+          }
+
           sessionStorage.setItem('pendingRegistrationEmail', email);
           codeBlock.style.display = 'block';
           confirmBlock.style.display = 'block';

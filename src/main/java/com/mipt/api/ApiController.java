@@ -13,6 +13,7 @@ import com.mipt.utils.BackendUtils;
 import com.mipt.utils.ValidationUtils;
 import com.mipt.service.QuestionLoadingService;
 import org.json.JSONArray;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -36,6 +37,8 @@ public class ApiController {
   private final DbService dbService;
   private final QuestionLoadingService questionLoadingService;
   private final AvatarStorageService avatarStorageService;
+  @Value("${app.auth.email-enabled:true}")
+  private boolean emailAuthEnabled = true;
 
   /**
    * Wires the controller with the database layer and ensures that the topics
@@ -99,10 +102,31 @@ public class ApiController {
    */
   @PostMapping("/auth/register")
   public ResponseEntity<Object> register(@RequestBody User user) {
+    if (!emailAuthEnabled) {
+      return registerWithoutEmailOtp(user);
+    }
     return new ResponseEntity<>(
         "Direct registration is disabled. Use the OTP-based registration flow.",
         HttpStatus.BAD_REQUEST
     );
+  }
+
+  private ResponseEntity<Object> registerWithoutEmailOtp(User user) {
+    if (!ValidationUtils.usernameValidation(user.getUsername())) {
+      return new ResponseEntity<>("Username validation error. Bad username", HttpStatus.BAD_REQUEST);
+    }
+    if (!ValidationUtils.passwordValidation(user.getPassword())) {
+      return new ResponseEntity<>("Password validation error. Bad password", HttpStatus.BAD_REQUEST);
+    }
+
+    try {
+      dbService.register(user.getUsername(), user.getPassword());
+      return auth(user);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to register account '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.BAD_REQUEST);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while registering account '" + user.getUsername() + "'", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   /**

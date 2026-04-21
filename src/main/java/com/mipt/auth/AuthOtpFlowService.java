@@ -14,6 +14,7 @@ import com.mipt.otp.OtpSendRequest;
 import com.mipt.otp.OtpService;
 import com.mipt.otp.OtpVerifyRequest;
 import com.mipt.utils.ValidationUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,8 @@ public class AuthOtpFlowService {
   private final OtpContextStore otpContextStore;
   private final OtpProperties otpProperties;
   private final ObjectMapper objectMapper;
+  @Value("${app.auth.email-enabled:true}")
+  private boolean emailAuthEnabled = true;
 
   public AuthOtpFlowService(
       DbService dbService,
@@ -44,9 +47,30 @@ public class AuthOtpFlowService {
   }
 
   public OtpResponse startRegistration(RegistrationStartRequest request) {
-    String username = request.username().trim();
-    String email = normalizeEmail(request.email());
+    if (request == null) {
+      throw new OtpException(HttpStatus.BAD_REQUEST, "Invalid registration request");
+    }
+    String username = request.username() == null ? "" : request.username().trim();
+    String email = emailAuthEnabled ? normalizeEmail(request.email()) : null;
     validateRegistration(username, request.password(), email);
+
+    if (!emailAuthEnabled) {
+      try {
+        dbService.register(username, request.password());
+        return new OtpResponse(
+            "REGISTRATION_COMPLETED",
+            "Registration completed without email OTP. You can now log in.",
+            null,
+            OtpPurpose.REGISTRATION,
+            null,
+            null
+        );
+      } catch (SQLException e) {
+        throw new OtpException(HttpStatus.INTERNAL_SERVER_ERROR, "Database error while completing registration");
+      } catch (DatabaseAccessException e) {
+        throw new OtpException(HttpStatus.BAD_REQUEST, e.getMessage());
+      }
+    }
 
     PendingRegistration pendingRegistration = new PendingRegistration(
         username,
@@ -90,6 +114,9 @@ public class AuthOtpFlowService {
   }
 
   public OtpResponse startPasswordReset(PasswordResetStartRequest request) {
+    if (!emailAuthEnabled) {
+      throw new OtpException(HttpStatus.BAD_REQUEST, "Email authentication is disabled");
+    }
     String email = normalizeEmail(request.email());
     validatePasswordReset(request.password(), email);
 
@@ -136,7 +163,7 @@ public class AuthOtpFlowService {
     if (!ValidationUtils.passwordValidation(password)) {
       throw new OtpException(HttpStatus.BAD_REQUEST, "Password validation error. Bad password");
     }
-    if (!ValidationUtils.emailValidation(email)) {
+    if (emailAuthEnabled && !ValidationUtils.emailValidation(email)) {
       throw new OtpException(HttpStatus.BAD_REQUEST, "Email validation error. Bad email");
     }
 
@@ -144,7 +171,7 @@ public class AuthOtpFlowService {
       if (dbService.checkUserExists(username)) {
         throw new OtpException(HttpStatus.BAD_REQUEST, "User already exists");
       }
-      if (dbService.checkEmailExists(email)) {
+      if (emailAuthEnabled && dbService.checkEmailExists(email)) {
         throw new OtpException(HttpStatus.BAD_REQUEST, "Email already exists");
       }
     } catch (SQLException e) {
@@ -198,6 +225,9 @@ public class AuthOtpFlowService {
   }
 
   private String normalizeEmail(String email) {
+    if (email == null) {
+      return "";
+    }
     return email.trim().toLowerCase(Locale.ROOT);
   }
 }
