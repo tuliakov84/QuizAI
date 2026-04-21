@@ -1,10 +1,10 @@
-[file name]: lobby-avatar.js
 class LobbyAvatar {
   // Отображение аватара пользователя в лобби
-  static displayAvatar(element, picId) {
-    if (!element || !picId) return;
+  static displayAvatar(element, player) {
+    if (!element || !player) return;
 
-    const avatarUrl = AuthService.getAvatarUrl(picId);
+    const avatarUrl = player.avatarUrl || AuthService.getAvatarUrl(player.picId, player.customAvatarPath);
+    if (!avatarUrl) return;
     element.style.backgroundImage = `url('${avatarUrl}')`;
     element.style.backgroundSize = 'cover';
     element.style.backgroundPosition = 'center';
@@ -18,7 +18,7 @@ class LobbyAvatar {
     avatarDiv.className = 'player-avatar';
 
     if (picId) {
-      this.displayAvatar(avatarDiv, picId);
+      this.displayAvatar(avatarDiv, { picId });
     } else {
       avatarDiv.textContent = username.charAt(0).toUpperCase();
       avatarDiv.style.backgroundColor = '#4a90e2';

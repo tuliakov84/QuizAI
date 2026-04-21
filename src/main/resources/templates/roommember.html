@@ -29,27 +29,32 @@
         </div>
 
         <div class="right">
-            <div class="h13">
-                ВЫ В КОМНАТЕ КВИЗА! ЖДЁМ ЕГО НАЧАЛА!
+            <div class="hero-card">
+                <div class="panel-badge">WAITING LOBBY</div>
+                <div class="h13 hero-text">
+                    ВЫ В КОМНАТЕ КВИЗА! ЖДЁМ ЕГО НАЧАЛА!
+                </div>
             </div>
 
-            <div class="h12 h121">
+            <div class="info-label">
                 ССЫЛКА-ПРИГЛАШЕНИЕ:
             </div>
             <div id="invite-link" class="link">Загрузка...</div>
 
-            <div class="h12 h121">
+            <div class="info-label">
                 ID-КВИЗА:
             </div>
             <div id="invite-id" class="link">Загрузка...</div>
 
             <div class="main_blockr">
-                <span>ТЕМА КВИЗА:</span>
+                <span class="section-title">ТЕМА КВИЗА:</span>
                 <div class="theme">
-                    <div id="quiz-theme" class="h11">Загрузка...</div>
+                    <div id="quiz-theme" class="h11 theme-title">Загрузка...</div>
                 </div>
 
-                <span id="room-status">КВИЗ СКОРО НАЧНЕТСЯ! ЖДЕМ СОЗДАТЕЛЯ КОМНАТЫ</span>
+                <span id="room-status" class="room-status">
+                    КВИЗ СКОРО НАЧНЕТСЯ! ЖДЕМ СОЗДАТЕЛЯ КОМНАТЫ
+                </span>
             </div>
         </div>
     </main>
@@ -64,17 +69,15 @@
     let isNavigating = false;
     let retryCount = 0;
     const MAX_RETRIES = 3;
-    const BASE_INTERVAL = 500; // Базовый интервал 500мс
+    const BASE_INTERVAL = 500;
     let currentInterval = BASE_INTERVAL;
     let currentGameMode = 'CASUAL';
 
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
 
-      // Получаем gameId из localStorage (сохранен при подключении)
       gameId = localStorage.getItem('currentGameId');
 
-      // Проверяем наличие gameId в localStorage
       if (!gameId) {
         console.error('Game ID не найден в localStorage');
         alert('Ошибка: Вы не подключены к квизу. Пожалуйста, подключитесь сначала.');
@@ -82,11 +85,10 @@
         return;
       }
 
-      // Дополнительная проверка - gameId должен быть числом
       if (!/^\d+$/.test(gameId)) {
         console.error('Некорректный Game ID в localStorage:', gameId);
         alert('Ошибка: Некорректный ID квиза. Пожалуйста, подключитесь заново.');
-        localStorage.removeItem('currentGameId'); // Очищаем некорректный ID
+        localStorage.removeItem('currentGameId');
         window.location.href = 'connect1.html';
         return;
       }
@@ -96,10 +98,11 @@
     });
 
     function initializeRoom() {
-      // Загружаем полные данные комнаты
       loadRoomFullData().then(roomData => {
         if (roomData) {
-          // Обновляем maxPlayers из полных данных
+          if (roomData.gameMode) {
+            currentGameMode = roomData.gameMode;
+          }
           if (typeof roomData.participantsNumber === 'number') {
             maxPlayers = roomData.participantsNumber;
             localStorage.setItem('roomData', JSON.stringify(roomData));
@@ -107,17 +110,11 @@
           }
         }
 
-        // Запускаем периодическое обновление
         startFastPolling();
-
-        // Загружаем тему из localStorage
         loadThemeFromLocalStorage();
-
-        // Обновляем ID квиза на странице
         updateGameIdDisplay();
       }).catch(error => {
         console.error('Ошибка инициализации комнаты:', error);
-        // Все равно запускаем опрос, но с дефолтными значениями
         startFastPolling();
         loadThemeFromLocalStorage();
         updateGameIdDisplay();
@@ -125,48 +122,38 @@
     }
 
     function setupEventListeners() {
-      // Обработчик для кнопки "Назад"
       document.querySelector('.btn_back').addEventListener('click', function (e) {
         e.preventDefault();
         confirmExit();
       });
     }
 
-    // Запуск быстрого опроса сервера
     function startFastPolling() {
-      // Останавливаем предыдущий интервал, если он есть
       if (refreshInterval) {
         clearInterval(refreshInterval);
       }
 
-      // Запускаем быстрый опрос с интервалом 500мс
       refreshInterval = setInterval(loadRoomData, currentInterval);
       console.log(`Запущено быстрое обновление с интервалом ${currentInterval}мс`);
     }
 
-    // Адаптивное изменение интервала опроса
     function adjustPollingInterval(success) {
       if (success) {
-        // При успешном запросе сбрасываем счетчик ошибок и интервал
         retryCount = 0;
         currentInterval = BASE_INTERVAL;
       } else {
-        // При ошибке увеличиваем интервал с экспоненциальной задержкой
         retryCount++;
-        currentInterval = Math.min(BASE_INTERVAL * Math.pow(2, retryCount), 5000); // Макс 5 секунд
+        currentInterval = Math.min(BASE_INTERVAL * Math.pow(2, retryCount), 5000);
       }
 
-      // Перезапускаем опрос с новым интервалом
       startFastPolling();
     }
 
-    // Обновление отображения ID квиза на странице
     function updateGameIdDisplay() {
       const IDElement = document.getElementById('invite-id');
       if (IDElement && gameId) {
         IDElement.textContent = gameId;
 
-        // Копирование ID по клику
         IDElement.style.cursor = 'pointer';
         IDElement.title = 'Кликните для копирования';
         IDElement.addEventListener('click', function () {
@@ -177,7 +164,6 @@
       }
     }
 
-    // Загрузка темы из localStorage
     function loadThemeFromLocalStorage() {
       try {
         const themeElement = document.getElementById('quiz-theme');
@@ -197,7 +183,6 @@
       }
     }
 
-    // Загрузка данных комнаты (игроки + статус)
     async function loadRoomData() {
       try {
         const session = AuthService.getsession();
@@ -221,7 +206,6 @@
           const errorText = await response.text();
           console.error('Ошибка сервера:', response.status, errorText);
 
-          // Если комната не найдена или доступ запрещен, перенаправляем обратно
           if (response.status === 404 || response.status === 403) {
             alert('Квиз не найден или у вас нет доступа. Пожалуйста, подключитесь заново.');
             localStorage.removeItem('currentGameId');
@@ -233,7 +217,6 @@
           throw new Error(`Ошибка HTTP: ${response.status} - ${errorText}`);
         }
 
-        // Проверяем, что ответ не пустой
         const responseText = await response.text();
         console.log('Ответ сервера:', responseText);
 
@@ -246,17 +229,13 @@
         const lobbyData = JSON.parse(responseText);
         console.log('Парсинг JSON успешен:', lobbyData);
 
-        // Обрабатываем данные комнаты
         processRoomData(lobbyData);
-
-        // Успешный запрос - сбрасываем интервал
         adjustPollingInterval(true);
 
       } catch (error) {
         console.error('Ошибка загрузки данных комнаты:', error);
         adjustPollingInterval(false);
 
-        // Если ошибка связана с отсутствием комнаты, перенаправляем
         if (error.message.includes('404') || error.message.includes('403')) {
           localStorage.removeItem('currentGameId');
           localStorage.removeItem('currentGame');
@@ -269,7 +248,6 @@
       }
     }
 
-    // Загрузка полных данных комнаты через /api/game/join
     async function loadRoomFullData() {
       try {
         const session = AuthService.getsession();
@@ -296,11 +274,10 @@
 
         const roomData = await response.json();
         console.log('Полные данные комнаты:', roomData);
+
         if (roomData.gameMode) {
           currentGameMode = roomData.gameMode;
         }
-
-        // Получаем максимальное количество игроков
         if (typeof roomData.participantsNumber === 'number') {
           maxPlayers = roomData.participantsNumber;
           console.log('Максимальное количество игроков:', maxPlayers);
@@ -314,114 +291,124 @@
       }
     }
 
-    // Обработка данных комнаты (игроки + статус)
     function processRoomData(lobbyData) {
       if (lobbyData.gameMode) {
         currentGameMode = lobbyData.gameMode;
       }
-
-      // ОТОБРАЖАЕМ список игроков (maxPlayers уже установлен из loadRoomFullData)
+      if (typeof lobbyData.participantsNumber === 'number') {
+        maxPlayers = lobbyData.participantsNumber;
+      }
       displayPlayers(lobbyData);
-
-      // Проверяем статус комнаты
       checkRoomStatus(lobbyData);
-
-      // Обновляем информацию о комнате
       updateRoomInfo(lobbyData);
     }
 
-    // Отображение списка игроков
     function displayPlayers(lobbyData) {
       const container = document.getElementById('players-container');
       const countElement = document.getElementById('players-count');
 
       container.innerHTML = '';
 
-      if (typeof lobbyData.participantsNumber === 'number') {
-        maxPlayers = lobbyData.participantsNumber;
-      }
-
-      const resolvedPlayerCount = typeof lobbyData.currentParticipantsNumber === 'number'
+      const players = Array.isArray(lobbyData.players)
+        ? lobbyData.players
+        : (Array.isArray(lobbyData.playersUsernames)
+            ? lobbyData.playersUsernames.map(username => ({ username }))
+            : []);
+      const playerCount = typeof lobbyData.currentParticipantsNumber === 'number'
         ? lobbyData.currentParticipantsNumber
-        : (Array.isArray(lobbyData.playersUsernames) ? lobbyData.playersUsernames.length : 0);
-      const resolvedMaxPlayers = maxPlayers > 0 ? maxPlayers : resolvedPlayerCount;
+        : players.length;
+      const resolvedMaxPlayers = maxPlayers > 0 ? maxPlayers : playerCount;
 
-      // Проверяем наличие playersUsernames
-      if (!lobbyData.playersUsernames || lobbyData.playersUsernames.length === 0) {
+      if (players.length === 0) {
         container.innerHTML = '<div class="no-players">Нет участников</div>';
         countElement.textContent = `0/${resolvedMaxPlayers}`;
         return;
       }
 
-      // Отображаем игроков
-      lobbyData.playersUsernames.forEach((username, index) => {
+      players.forEach((player) => {
         const playerElement = document.createElement('div');
         playerElement.className = 'player';
-        playerElement.textContent = username;
+        playerElement.appendChild(createPlayerAvatar(player));
+        const nameElement = document.createElement('span');
+        nameElement.textContent = player.username;
+        playerElement.appendChild(nameElement);
         container.appendChild(playerElement);
       });
 
-      // Обновляем счетчик игроков с учетом maxPlayers
-      countElement.textContent = `${resolvedPlayerCount}/${resolvedMaxPlayers}`;
+      countElement.textContent = `${playerCount}/${resolvedMaxPlayers}`;
 
-      console.log(`Обновлен список игроков: ${resolvedPlayerCount}/${resolvedMaxPlayers} участников`);
+      console.log(`Обновлен список игроков: ${playerCount}/${resolvedMaxPlayers} участников`);
     }
 
-    // Проверка статуса комнаты
+    function createPlayerAvatar(player) {
+      const avatar = document.createElement('span');
+      avatar.className = 'player-avatar';
+      avatar.textContent = (player.username || '?').charAt(0).toUpperCase();
+      avatar.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        margin-right: 12px;
+        border-radius: 50%;
+        flex: 0 0 38px;
+        background: linear-gradient(135deg, #8279CF, #4c4779);
+        color: #fff;
+        font-weight: 800;
+        background-size: cover;
+        background-position: center;
+      `;
+      if (player.avatarUrl) {
+        avatar.textContent = '';
+        avatar.style.backgroundImage = `url('${player.avatarUrl}')`;
+      }
+      return avatar;
+    }
+
     function checkRoomStatus(lobbyData) {
       const status = lobbyData.status;
       console.log('Статус комнаты:', status);
 
-      // Обновляем текст статуса
       const statusElement = document.getElementById('room-status');
       if (statusElement) {
         if (currentGameMode !== 'CASUAL') {
-          statusElement.textContent = `Режим ${currentGameMode} уже выделен в новой архитектуре. Его отдельный игровой flow будет подключен следующим шагом.`;
-          statusElement.style.color = '#ffa500';
+          statusElement.textContent = `Режим ${currentGameMode} сохранен, отдельный игровой flow будет подключен позже.`;
+          statusElement.className = 'room-status waiting';
           return;
         }
-
         if (status === 'WAITING' || status === 'CREATED') {
           statusElement.textContent = 'КВИЗ СКОРО НАЧНЕТСЯ! ЖДЕМ СОЗДАТЕЛЯ КОМНАТЫ';
-          statusElement.style.color = '#ffa500'; // Оранжевый
+          statusElement.className = 'room-status waiting';
         } else if (status === 'IN_PROGRESS' || status === 'STARTED') {
           statusElement.textContent = 'КВИЗ НАЧАЛСЯ! ПЕРЕХОДИМ К ВОПРОСАМ...';
-          statusElement.style.color = '#4CAF50'; // Зеленый
-
-          // Немедленный переход при начале квиза
+          statusElement.className = 'room-status started';
           redirectToQuiz();
         } else if (status === 'ENDED') {
           statusElement.textContent = 'КВИЗ ЗАВЕРШЕН';
-          statusElement.style.color = '#f44336'; // Красный
+          statusElement.className = 'room-status ended';
         }
       }
     }
 
-    // Немедленный переход на страницу с вопросами
     function redirectToQuiz() {
-      if (isNavigating) return; // Предотвращаем множественные переходы
+      if (isNavigating) return;
 
       isNavigating = true;
 
-      // Останавливаем обновление данных комнаты
       if (refreshInterval) {
         clearInterval(refreshInterval);
       }
 
       console.log('Квиз начался! Переходим к вопросам...');
-
-      // Немедленный переход без задержки
       window.location.href = `question.html?gameId=${gameId}`;
     }
 
-    // Обновление информации о комнате
     function updateRoomInfo(lobbyData) {
-      // Обновляем ссылку-приглашение
       const linkElement = document.getElementById('invite-link');
       if (linkElement && linkElement.textContent === 'Загрузка...') {
         linkElement.textContent = `${window.location.origin}/connect1.html`;
 
-        // Копирование ссылки по клику
         linkElement.style.cursor = 'pointer';
         linkElement.title = 'Кликните для копирования';
         linkElement.addEventListener('click', function () {
@@ -432,7 +419,6 @@
       }
     }
 
-    // Функция подтверждения выхода
     function confirmExit() {
       const confirmed = confirm('Вы уверены, что хотите выйти из комнаты?');
 
@@ -441,7 +427,6 @@
       }
     }
 
-    // Функция выхода из комнаты
     async function leaveRoom() {
       try {
         const session = AuthService.getsession();
@@ -469,33 +454,27 @@
 
       } catch (error) {
         console.error('Ошибка выхода из комнаты:', error);
-        // Показываем сообщение, но все равно продолжаем выход
         alert('Произошла ошибка при выходе из комнаты: ' + error.message);
       } finally {
-        // Останавливаем обновление данных комнаты
         if (refreshInterval) {
           clearInterval(refreshInterval);
         }
 
-        // Очищаем данные о текущей игре
         localStorage.removeItem('currentGameId');
         localStorage.removeItem('currentGame');
         localStorage.removeItem('selectedTopic');
         localStorage.removeItem('currentTopicId');
 
-        // Перенаправляем на страницу подключения
         window.location.href = 'connect1.html';
       }
     }
 
-    // Очистка интервалов при размонтировании
     window.addEventListener('beforeunload', function () {
       if (refreshInterval) {
         clearInterval(refreshInterval);
       }
     });
 
-    // Останавливаем обновление данных комнаты при любом уходе со страницы
     window.addEventListener('unload', function () {
       if (refreshInterval) {
         clearInterval(refreshInterval);

@@ -25,11 +25,16 @@
 
 <script src="/js/auth.js"></script>
 <script src="/js/checkCurrentGame.js"></script>
+<script src="/js/achievements.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         if (!AuthService.requireAuth()) return;
         checkCurrentGame();
         loadData();
+        session = localStorage.getItem('session');
+        if (session) {
+            checkAndAttachAchievements(session);
+        }
     });
 
     async function loadData() {

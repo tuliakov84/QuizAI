@@ -51,5 +51,11 @@ rebel.xml
 src/main/resources/global-leaderboards.json
 /src/main/python/service/.venv/
 /.env
+/.env.*
+!/.env.example
+/application-local.properties
+!/application-local.properties.example
+/uploads/
+/secrets/
 __pycache__/
 *.pyc

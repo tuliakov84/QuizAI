@@ -13,4 +13,6 @@ public interface QuestionRepository extends JpaRepository<QuestionEntity, Intege
   Optional<QuestionEntity> findByGame_IdAndQuestionNumber(Integer gameId, int questionNumber);
 
   List<QuestionEntity> findByGame_IdAndIdIn(Integer gameId, List<Integer> ids);
+
+  List<QuestionEntity> findByGame_IdOrderByQuestionNumberAscIdAsc(Integer gameId);
 }

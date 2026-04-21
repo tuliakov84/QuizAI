@@ -69,6 +69,8 @@ public class ApiController {
         dbService.authenticate(user.getUsername(), user.getPassword(), session);
         user.setSession(session);
         user.setUserId(dbService.getUserId(session));
+        user.setUsername(dbService.getUsername(session));
+        user.setEmail(dbService.getEmail(session));
         Integer currentGameId = dbService.getCurrentGame(session);
         if (currentGameId != null) {
           Game currentGame = new Game();
@@ -97,22 +99,10 @@ public class ApiController {
    */
   @PostMapping("/auth/register")
   public ResponseEntity<Object> register(@RequestBody User user) {
-    try {
-      String username = user.getUsername();
-      String password = user.getPassword();
-      if (!ValidationUtils.passwordValidation(password)) {
-        return new ResponseEntity<>("Password validation error. Bad password", HttpStatus.BAD_REQUEST);
-      }
-      if (!ValidationUtils.usernameValidation(username)) {
-        return new ResponseEntity<>("Username validation error. Bad username", HttpStatus.BAD_REQUEST);
-      }
-      dbService.register(username, password);
-      return auth(user);
-    } catch (DatabaseAccessException e) {
-      return new ResponseEntity<>("Failed to register user '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
-    } catch (SQLException e) {
-      return new ResponseEntity<>("Database error occurred while registering user '" + user.getUsername() + "'", HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+    return new ResponseEntity<>(
+        "Direct registration is disabled. Use the OTP-based registration flow.",
+        HttpStatus.BAD_REQUEST
+    );
   }
 
   /**
@@ -154,6 +144,7 @@ public class ApiController {
       user.setAvatarUrl(resolveAvatarUrl(user.getCustomAvatarPath(), user.getPicId()));
       user.setDescription(dbService.getDescription(session));
       user.setUsername(dbService.getUsername(session));
+      user.setEmail(dbService.getEmail(session));
       Timestamp lastActivity = dbService.getLastActivity(session);
       if (lastActivity != null) {
         user.setLastActivity(lastActivity.toInstant());
@@ -284,6 +275,23 @@ public class ApiController {
       return new ResponseEntity<>("Failed to get information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
     }
   }
+
+  /**
+   * Returns all questions (including right answers) for a specific game from
+   * the requesting user's game history.
+   */
+  @PostMapping("/users/get-history-questions")
+  public ResponseEntity<Object> getHistoryQuestions(@RequestBody RoomJoinObject data) {
+    try {
+      Question[] questions = dbService.getQuizHistoryQuestions(data.getSession(), data.getGameId());
+      return new ResponseEntity<>(questions, HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting history questions for game " + data.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get history questions for game " + data.getGameId() + ": " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
 
   /**
    * Returns an array of answered correctly questions
@@ -508,7 +516,7 @@ public class ApiController {
       return customAvatarPath;
     }
     if (picId != null && picId > 0) {
-      return "/assets.avatars/avatar" + picId + ".png";
+      return "/asserts/asserts/avatar" + picId + ".png";
     }
     return null;
   }

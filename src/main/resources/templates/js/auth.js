@@ -27,44 +27,67 @@ class AuthService {
   }
 
   // Получение URL аватара
-  static getAvatarUrl(picId) {
-    if (!picId || picId <= 0 || picId > 8) {
-      // Возвращаем дефолтный аватар или пустую строку
+  static getAvatarUrl(picId, customAvatarPath = null) {
+    if (customAvatarPath && customAvatarPath.trim()) {
+      return customAvatarPath.trim();
+    }
+
+    const normalizedPicId = Number(picId);
+    if (!Number.isInteger(normalizedPicId) || normalizedPicId <= 0 || normalizedPicId > 8) {
       return '';
     }
-    return `/assets.avatars/avatar${picId}.png`;
+    return `/asserts/asserts/avatar${normalizedPicId}.png`;
   }
 
   // Отображение аватара на элементе
-  static displayAvatar(elementId, picId) {
+  static displayAvatar(elementId, picId, avatarUrl = null, username = null) {
     const element = document.getElementById(elementId);
     if (!element) return;
 
-    const avatarUrl = this.getAvatarUrl(picId);
+    this.displayAvatarElement(element, { picId, avatarUrl, username });
+  }
+
+  static displayAvatarElement(element, userData = {}) {
+    if (!element) return false;
+
+    const avatarUrl = userData.avatarUrl || this.getAvatarUrl(userData.picId, userData.customAvatarPath);
     if (avatarUrl) {
-      console.log('Setting avatar URL:', avatarUrl); // Для отладки
       element.style.backgroundImage = `url('${avatarUrl}')`;
       element.style.backgroundSize = 'cover';
       element.style.backgroundPosition = 'center';
       element.style.backgroundColor = 'transparent';
+      element.style.background = `center / cover no-repeat url('${avatarUrl}')`;
       element.classList.add('has-avatar');
-
-      // Очищаем текст, если он был
       element.textContent = '';
-    } else {
-      // Если нет аватара, показываем первую букву имени
-      const user = this.getUser();
-      if (user && user.username) {
-        element.textContent = user.username.charAt(0).toUpperCase();
-        element.style.backgroundColor = '#4a90e2';
-        element.style.display = 'flex';
-        element.style.alignItems = 'center';
-        element.style.justifyContent = 'center';
-        element.style.color = 'white';
-        element.style.fontWeight = 'bold';
-        element.style.backgroundImage = 'none'; // Убираем фон
-      }
+      element.innerHTML = '';
+      return true;
     }
+
+    const fallbackUser = this.getUser();
+    const username = userData.username || fallbackUser?.username || '?';
+    this.displayAvatarFallback(element, username);
+    return false;
+  }
+
+  static displayAvatarFallback(element, username) {
+    if (!element) return;
+
+    element.classList.remove('has-avatar');
+    element.innerHTML = '';
+    element.textContent = '';
+    element.style.backgroundImage = 'none';
+    element.style.background =
+      'radial-gradient(circle at 30% 30%, rgba(99, 230, 255, 0.28), transparent 35%), linear-gradient(135deg, #192446 0%, #3d3483 50%, #111b37 100%)';
+    element.style.display = 'flex';
+    element.style.alignItems = 'center';
+    element.style.justifyContent = 'center';
+    element.style.color = 'white';
+    element.style.fontWeight = 'bold';
+
+    const letterElement = document.createElement('span');
+    letterElement.textContent = (username || '?').charAt(0).toUpperCase();
+    letterElement.className = 'avatar-letter';
+    element.appendChild(letterElement);
   }
 
   // Загрузка профиля пользователя
@@ -120,9 +143,7 @@ class AuthService {
     }
 
     // Аватар
-    if (userData.picId) {
-      this.displayAvatar('user-avatar', userData.picId);
-    }
+    this.displayAvatar('user-avatar', userData.picId, userData.avatarUrl || userData.customAvatarPath, userData.username);
   }
 
   // Обновление аватара
@@ -145,6 +166,8 @@ class AuthService {
         const user = this.getUser();
         if (user) {
           user.picId = picId;
+          user.customAvatarPath = null;
+          user.avatarUrl = this.getAvatarUrl(picId);
           localStorage.setItem('user', JSON.stringify(user));
         }
         return true;
@@ -156,17 +179,53 @@ class AuthService {
     }
   }
 
+  static async uploadCustomAvatar(file) {
+    const session = this.getsession();
+    if (!session) {
+      throw new Error('Сессия не найдена');
+    }
+    if (!file) {
+      throw new Error('Файл аватарки не выбран');
+    }
+
+    const formData = new FormData();
+    formData.append('session', session);
+    formData.append('avatar', file);
+
+    const response = await fetch('http://localhost:8080/api/users/upload/avatar', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Ошибка загрузки аватарки: ${response.status}`);
+    }
+
+    const avatarData = await response.json();
+    const currentUser = this.getUser() || {};
+    const updatedUser = {
+      ...currentUser,
+      ...avatarData,
+      picId: 0,
+      customAvatarPath: avatarData.customAvatarPath || avatarData.avatarUrl,
+      avatarUrl: avatarData.avatarUrl || avatarData.customAvatarPath
+    };
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    return updatedUser;
+  }
+
   // Получение списка доступных аватаров
   static getAvailableAvatars() {
     return [
-      { id: 1, name: 'Аватар 1', url: '/templates/assets.avatars/avatar1.png' },
-      { id: 2, name: 'Аватар 2', url: '/templates/assets.avatars/avatar2.png' },
-      { id: 3, name: 'Аватар 3', url: '/templates/assets.avatars/avatar3.png' },
-      { id: 4, name: 'Аватар 4', url: '/templates/assets.avatars/avatar4.png' },
-      { id: 5, name: 'Аватар 5', url: '/templates/assets.avatars/avatar5.png' },
-      { id: 6, name: 'Аватар 6', url: '/templates/assets.avatars/avatar6.png' },
-      { id: 7, name: 'Аватар 7', url: '/templates/assets.avatars/avatar7.png' },
-      { id: 8, name: 'Аватар 8', url: '/templates/assets.avatars/avatar8.png' }
+      { id: 1, name: 'Аватар 1', url: this.getAvatarUrl(1) },
+      { id: 2, name: 'Аватар 2', url: this.getAvatarUrl(2) },
+      { id: 3, name: 'Аватар 3', url: this.getAvatarUrl(3) },
+      { id: 4, name: 'Аватар 4', url: this.getAvatarUrl(4) },
+      { id: 5, name: 'Аватар 5', url: this.getAvatarUrl(5) },
+      { id: 6, name: 'Аватар 6', url: this.getAvatarUrl(6) },
+      { id: 7, name: 'Аватар 7', url: this.getAvatarUrl(7) },
+      { id: 8, name: 'Аватар 8', url: this.getAvatarUrl(8) }
     ];
   }
 

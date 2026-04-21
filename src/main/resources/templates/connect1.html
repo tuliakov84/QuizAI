@@ -30,12 +30,21 @@
         </div>
     </main>
 </div>
-</body>
 
+<div id="app-notification" class="app-notification hidden">
+    <div class="app-notification__content">
+        <div class="app-notification__icon">!</div>
+        <div class="app-notification__text" id="app-notification-text">Сообщение</div>
+        <button type="button" class="app-notification__close" id="app-notification-close">&times;</button>
+    </div>
+</div>
+</body>
 
 <script src="/js/auth.js"></script>
 <script src="/js/checkCurrentGame.js"></script>
 <script>
+    let notificationTimeout;
+
     document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
       checkCurrentGame();
@@ -46,15 +55,17 @@
     function initializeEventHandlers() {
       const joinBtn = document.getElementById('join-btn');
       const gameIdInput = document.getElementById('game-id-input');
+      const notificationClose = document.getElementById('app-notification-close');
 
       joinBtn.addEventListener('click', handleJoinRoom);
 
-      // Добавляем обработчик нажатия Enter в поле ввода
       gameIdInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
           handleJoinRoom();
         }
       });
+
+      notificationClose.addEventListener('click', hideNotification);
     }
 
     async function handleJoinRoom() {
@@ -65,34 +76,27 @@
         return;
       }
 
-      // Проверяем, что ID состоит только из цифр
       if (!/^\d+$/.test(gameId)) {
         showError('ID квиза должен содержать только цифры');
         return;
       }
 
-      // Показываем индикатор загрузки
       const joinBtn = document.getElementById('join-btn');
       joinBtn.textContent = 'ПОДКЛЮЧЕНИЕ...';
       joinBtn.style.pointerEvents = 'none';
 
       try {
-        // Пытаемся подключиться к комнате по ID
         const result = await joinRoomById(gameId);
 
         if (result.success) {
-          // Сохраняем информацию о комнате
           localStorage.setItem('currentGameId', gameId);
 
-          // Сохраняем topicId и получаем название темы
           if (result.game && result.game.topicId) {
             localStorage.setItem('currentTopicId', result.game.topicId.toString());
             console.log('TopicId сохранен:', result.game.topicId);
 
-            // Получаем название темы
             const topicResult = await getTopicName(result.game.topicId);
             if (topicResult.success) {
-              // Сохраняем полную информацию о теме
               const topicData = {
                 id: result.game.topicId,
                 name: topicResult.topicName
@@ -102,7 +106,6 @@
             }
           }
 
-          // Перенаправляем в комнату участника
           window.location.href = `roommember.html?gameId=${gameId}`;
         } else {
           showError(result.message || 'Не удалось подключиться к комнате');
@@ -111,7 +114,6 @@
         console.error('Ошибка подключения к комнате:', error);
         showError('Ошибка подключения к серверу');
       } finally {
-        // Восстанавливаем кнопку
         joinBtn.textContent = 'ВОЙТИ';
         joinBtn.style.pointerEvents = 'auto';
       }
@@ -209,37 +211,27 @@
     }
 
     function showError(message) {
-      // Удаляем существующие сообщения об ошибках
-      const existingError = document.querySelector('.error-message');
-      if (existingError) {
-        existingError.remove();
-      }
+      showNotification(message, 'error');
+    }
 
-      // Создаем элемент для отображения ошибки
-      const errorElement = document.createElement('div');
-      errorElement.className = 'error-message';
-      errorElement.textContent = message;
-      errorElement.style.cssText = `
-          background-color: #ffebee;
-          color: #c62828;
-          padding: 15px;
-          margin: 20px 0;
-          border-radius: 5px;
-          text-align: center;
-          border: 1px solid #ffcdd2;
-          font-weight: bold;
-      `;
+    function showNotification(message, type = 'error') {
+      const notification = document.getElementById('app-notification');
+      const text = document.getElementById('app-notification-text');
 
-      // Вставляем сообщение об ошибке после блока с полем ввода
-      const mainBlock = document.querySelector('.main_block');
-      mainBlock.parentNode.insertBefore(errorElement, mainBlock);
+      clearTimeout(notificationTimeout);
 
-      // Автоматически скрываем через 3 секунды
-      setTimeout(() => {
-        if (errorElement.parentNode) {
-          errorElement.remove();
-        }
+      notification.classList.remove('hidden', 'success', 'error');
+      notification.classList.add(type);
+      text.textContent = message;
+
+      notificationTimeout = setTimeout(() => {
+        hideNotification();
       }, 3000);
+    }
+
+    function hideNotification() {
+      const notification = document.getElementById('app-notification');
+      notification.classList.add('hidden');
     }
 </script>
 

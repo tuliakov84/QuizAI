@@ -54,6 +54,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -240,15 +241,42 @@ public class DbService {
     return userRepository.existsByUsername(username);
   }
 
+  public boolean checkEmailExists(String email) throws SQLException {
+    if (email == null || email.isBlank()) {
+      return false;
+    }
+    return userRepository.existsByEmail(normalizeEmail(email));
+  }
+
   public void register(String username, String password) throws SQLException, DatabaseAccessException {
+    register(username, password, null);
+  }
+
+  public void register(String username, String password, String email) throws SQLException, DatabaseAccessException {
     if (checkUserExists(username)) {
       throw new DatabaseAccessException("User already exists");
     }
+    if (email != null && !email.isBlank() && checkEmailExists(email)) {
+      throw new DatabaseAccessException("Email already exists");
+    }
 
     String hashedPassword = BCrypt.withDefaults().hashToString(12, password.toCharArray());
+    registerHashedPassword(username, hashedPassword, email);
+  }
+
+  public void registerHashedPassword(String username, String passwordHash, String email)
+      throws SQLException, DatabaseAccessException {
+    if (checkUserExists(username)) {
+      throw new DatabaseAccessException("User already exists");
+    }
+    if (email != null && !email.isBlank() && checkEmailExists(email)) {
+      throw new DatabaseAccessException("Email already exists");
+    }
+
     UserEntity userEntity = new UserEntity();
     userEntity.setUsername(username);
-    userEntity.setPassword(hashedPassword);
+    userEntity.setPassword(passwordHash);
+    userEntity.setEmail(normalizeEmail(email));
     userEntity.setPicId(0);
     userEntity.setDescription("");
     userEntity.setGamesPlayedNumber(0);
@@ -268,7 +296,7 @@ public class DbService {
   }
 
   public void authenticate(String username, String password, String session) throws SQLException, DatabaseAccessException {
-    UserEntity userEntity = userRepository.findByUsername(username).orElseThrow(DatabaseAccessException::new);
+    UserEntity userEntity = userRepository.findByUsernameOrEmail(username).orElseThrow(DatabaseAccessException::new);
 
     BCrypt.Result result = BCrypt.verifyer().verify(password.toCharArray(), userEntity.getPassword());
     if (!result.verified) {
@@ -287,6 +315,12 @@ public class DbService {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     String hashedPassword = BCrypt.withDefaults().hashToString(12, newPassword.toCharArray());
     userEntity.setPassword(hashedPassword);
+    userRepository.save(userEntity);
+  }
+
+  public void changePasswordHashByEmail(String email, String passwordHash) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = userRepository.findByEmail(normalizeEmail(email)).orElseThrow(DatabaseAccessException::new);
+    userEntity.setPassword(passwordHash);
     userRepository.save(userEntity);
   }
 
@@ -323,6 +357,20 @@ public class DbService {
   public String getUsername(String session) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     return userEntity.getUsername();
+  }
+
+  public String getEmail(String session) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    return userEntity.getEmail();
+  }
+
+  public String getEmailByUsername(String username) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = userRepository.findByUsername(username).orElseThrow(DatabaseAccessException::new);
+    return userEntity.getEmail();
+  }
+
+  public boolean userExistsByEmail(String email) throws SQLException {
+    return checkEmailExists(email);
   }
 
   public void changeDescription(String session, String description) throws SQLException, DatabaseAccessException {
@@ -464,6 +512,45 @@ public class DbService {
     return questions.toArray(new Question[0]);
   }
 
+
+  public Question[] getQuizHistoryQuestions(String session, int gameId) throws SQLException, DatabaseAccessException {
+    getUserBySessionOrThrow(session);
+    getGameOrThrow(gameId);
+
+    Integer[] gamesPlayed = getGamesPlayed(session);
+    boolean gameFoundInHistory = false;
+    for (Integer playedGameId : gamesPlayed) {
+      if (playedGameId != null && playedGameId == gameId) {
+        gameFoundInHistory = true;
+        break;
+      }
+    }
+
+    if (!gameFoundInHistory) {
+      throw new DatabaseAccessException("Game is not in user history");
+    }
+
+    List<QuestionEntity> questionEntities = questionRepository.findByGame_IdOrderByQuestionNumberAscIdAsc(gameId);
+    List<Question> questions = new ArrayList<>();
+
+    for (QuestionEntity questionEntity : questionEntities) {
+      Question question = new Question();
+      question.setQuestionId(questionEntity.getId());
+      question.setGameId(gameId);
+      question.setQuestionNumber(questionEntity.getQuestionNumber());
+      question.setQuestionText(questionEntity.getQuestionText());
+      question.setAnswer1(questionEntity.getAnswer1());
+      question.setAnswer2(questionEntity.getAnswer2());
+      question.setAnswer3(questionEntity.getAnswer3());
+      question.setAnswer4(questionEntity.getAnswer4());
+      question.setRightAnswerNumber(questionEntity.getRightAnswerNumber());
+      questions.add(question);
+    }
+
+    return questions.toArray(new Question[0]);
+  }
+
+
   public CurrentGameObject getCurrentGameObjectBySession(String session) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     GameEntity gameEntity = userEntity.getCurrentGame();
@@ -534,6 +621,13 @@ public class DbService {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     userEntity.setSession(null);
     userRepository.save(userEntity);
+  }
+
+  private String normalizeEmail(String email) {
+    if (email == null || email.isBlank()) {
+      return null;
+    }
+    return email.trim().toLowerCase(Locale.ROOT);
   }
 
   //
@@ -670,8 +764,14 @@ public class DbService {
 
     List<UserEntity> participants = userRepository.findByCurrentGame_Id(gameId);
     for (UserEntity userEntity : participants) {
+      userEntity.setGamesPlayedNumber(intOrZero(userEntity.getGamesPlayedNumber()) + 1);
       userEntity.setCurrentGame(null);
       userEntity.setCurrentGamePoints(0);
+
+      GameHistoryEntity gameHistoryEntity = new GameHistoryEntity();
+      gameHistoryEntity.setGame(gameEntity);
+      gameHistoryEntity.setUser(userEntity);
+      gameHistoryRepository.save(gameHistoryEntity);
     }
     userRepository.saveAll(participants);
   }
@@ -754,33 +854,55 @@ public class DbService {
   }
 
   public List<Integer> loadQuestions(int gameId, JSONArray jsonArr) throws SQLException, DatabaseAccessException {
+    System.err.println("[DEBUG] loadQuestions started. gameId=" + gameId + ", arrayLength=" + jsonArr.length());
     GameEntity gameEntity = getGameOrThrow(gameId);
     final int answerAmount = 4;
     List<Integer> questionIds = new ArrayList<>();
     Set<Integer> payloadQuestionNumbers = new HashSet<>();
 
     for (int i = 0; i < jsonArr.length(); i++) {
-      JSONObject itemObject = jsonArr.getJSONObject(i);
-      int questionNumber = itemObject.getInt("question_number");
-      if (!payloadQuestionNumbers.add(questionNumber)) {
-        throw new DatabaseAccessException("Duplicate question_number in payload: " + questionNumber);
+      try {
+        JSONObject itemObject = jsonArr.optJSONObject(i);
+        if (itemObject == null) {
+          throw new DatabaseAccessException("Question at index " + i + " is not a JSON object");
+        }
+        System.err.println("[DEBUG] Processing question " + i + ": " + itemObject.toString());
+
+        if (!itemObject.has("question_number")) {
+          throw new DatabaseAccessException("Missing question_number at index " + i);
+        }
+        int questionNumber = itemObject.getInt("question_number");
+        if (!payloadQuestionNumbers.add(questionNumber)) {
+          throw new DatabaseAccessException("Duplicate question_number in payload: " + questionNumber);
+        }
+
+        QuestionEntity questionEntity = questionRepository
+            .findByGame_IdAndQuestionNumber(gameId, questionNumber)
+            .orElseGet(() -> {
+              System.err.println("[DEBUG] Creating new question entity for number: " + questionNumber);
+              QuestionEntity created = new QuestionEntity();
+              created.setGame(gameEntity);
+              created.setQuestionNumber(questionNumber);
+              return created;
+            });
+
+        System.err.println("[DEBUG] Applying payload to question entity...");
+        applyQuestionPayload(questionEntity, itemObject, answerAmount);
+        System.err.println("[DEBUG] Saving question to repository...");
+        questionRepository.save(questionEntity);
+        System.err.println("[DEBUG] Question saved with id: " + questionEntity.getId());
+        questionIds.add(questionEntity.getId());
+      } catch (DatabaseAccessException e) {
+        throw e;
+      } catch (Exception e) {
+        System.err.println("[ERROR] Exception processing question at index " + i + ": " + e.getMessage());
+        throw new DatabaseAccessException("Failed to process question at index " + i + ": " + e.getMessage(), e);
       }
-
-      QuestionEntity questionEntity = questionRepository
-          .findByGame_IdAndQuestionNumber(gameId, questionNumber)
-          .orElseGet(() -> {
-            QuestionEntity created = new QuestionEntity();
-            created.setGame(gameEntity);
-            created.setQuestionNumber(questionNumber);
-            return created;
-          });
-
-      applyQuestionPayload(questionEntity, itemObject, answerAmount);
-      questionRepository.save(questionEntity);
-      questionIds.add(questionEntity.getId());
     }
 
+    System.err.println("[DEBUG] Setting questions_validated=true for gameId=" + gameId);
     setQuestionsValidated(gameId, true);
+    System.err.println("[DEBUG] loadQuestions completed successfully. Persisted " + questionIds.size() + " questions");
     return questionIds;
   }
 
@@ -802,16 +924,24 @@ public class DbService {
     }
 
     for (int i = 0; i < questionIdsToReplace.size(); i++) {
-      int questionId = questionIdsToReplace.get(i);
-      JSONObject itemObject = generatedQuestions.getJSONObject(i);
-      QuestionEntity target = questionsById.get(questionId);
-      if (target == null) {
-        throw new DatabaseAccessException("Question id " + questionId + " does not belong to game " + gameId);
+      try {
+        int questionId = questionIdsToReplace.get(i);
+        JSONObject itemObject = generatedQuestions.optJSONObject(i);
+        if (itemObject == null) {
+          throw new DatabaseAccessException("Question at index " + i + " is not a JSON object");
+        }
+        QuestionEntity target = questionsById.get(questionId);
+        if (target == null) {
+          throw new DatabaseAccessException("Question id " + questionId + " does not belong to game " + gameId);
+        }
+
+        applyQuestionPayload(target, itemObject, 4);
+        questionRepository.save(target);
+      } catch (DatabaseAccessException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new DatabaseAccessException("Failed to replace question at index " + i + ": " + e.getMessage(), e);
       }
-
-      applyQuestionPayload(target, itemObject, 4);
-
-      questionRepository.save(target);
     }
   }
 
@@ -834,6 +964,26 @@ public class DbService {
       result.add(numbersById.get(questionId));
     }
     return result;
+  }
+
+  public List<String> getQuestionTextsByGameIdExceptNumbers(int gameId, List<Integer> excludedQuestionNumbers)
+      throws SQLException, DatabaseAccessException {
+    getGameOrThrow(gameId);
+    Set<Integer> excluded = excludedQuestionNumbers == null
+        ? Set.of()
+        : new HashSet<>(excludedQuestionNumbers);
+
+    List<String> texts = new ArrayList<>();
+    for (QuestionEntity questionEntity : questionRepository.findByGame_IdOrderByQuestionNumberAscIdAsc(gameId)) {
+      if (excluded.contains(questionEntity.getQuestionNumber())) {
+        continue;
+      }
+      String text = questionEntity.getQuestionText();
+      if (text != null && !text.isBlank()) {
+        texts.add(text.trim());
+      }
+    }
+    return texts;
   }
 
   private static void applyQuestionPayload(QuestionEntity questionEntity, JSONObject itemObject, int answerAmount)

@@ -19,6 +19,7 @@
 
     <main>
         <div class="themes">
+            <div class="panel-badge">TOPIC MATRIX</div>
             <span>ДОСТУПНЫЕ ТЕМЫ</span>
             <div id="themes-container" class="themes-grid">
                 <!-- Темы будут загружены через JavaScript -->
@@ -38,7 +39,6 @@
         loadTopics();
     });
 
-    // Загрузка тем с сервера
     async function loadTopics() {
         try {
             showLoadingMessage('Загрузка тем...');
@@ -52,7 +52,6 @@
         }
     }
 
-    // Функция для получения тем с сервера
     async function fetchTopicsFromServer() {
         const session = AuthService.getsession();
 
@@ -71,7 +70,6 @@
         return await response.json();
     }
 
-    // Отображение тем
     function displayTopics(topics) {
         const container = document.getElementById('themes-container');
         container.innerHTML = '';
@@ -81,6 +79,7 @@
             topicElement.className = 'theme-btn';
             topicElement.innerHTML = `
                 <div class="theme-content btn">
+                    <div class="theme-chip">AI TOPIC</div>
                     <h3>${topic.name}</h3>
                     ${topic.description ? `<p>${topic.description}</p>` : ''}
                 </div>
@@ -91,13 +90,9 @@
         });
     }
 
-    // Выбор темы и переход к поиску открытых квизов
     function selectTopic(topic) {
-        // Сохраняем выбранную тему в localStorage
         localStorage.setItem('selectedTopic', JSON.stringify(topic));
         console.log('Выбрана тема:', topic.name, 'ID:', topic.topicId);
-
-        // Переходим на страницу со списком открытых квизов
         window.location.href = 'connect2.html';
     }
 
@@ -111,6 +106,6 @@
         container.innerHTML = `<div class="error-message">${text}</div>`;
     }
 </script>
-</body>>
+</body>
 
 </html>

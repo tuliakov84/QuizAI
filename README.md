@@ -23,6 +23,28 @@ docker compose up -d
 - Kafka UI на `http://localhost:8081`
 - Python validation worker для семантической проверки вопросов
 
+### 1.1. Локальные секреты и переопределения
+
+Приложение автоматически подключает файл `application-local.properties` из корня проекта:
+
+```properties
+spring.config.import=optional:file:./application-local.properties
+```
+
+Этот файл не коммитится в Git и нужен для локальных паролей, SMTP/OTP и личных настроек LLM. Быстрый вариант:
+
+```bash
+cp application-local.properties.example application-local.properties
+```
+
+После этого заполните минимум почтовые настройки для OTP-регистрации:
+
+```properties
+OTP_MAIL_USERNAME=your-login@example.com
+OTP_MAIL_PASSWORD=your-app-password
+OTP_MAIL_FROM=your-login@example.com
+```
+
 ### 2А. Запуск бэкенда без генерации нейросетью
 
 Для разработки интерфейса и игровой логики можно отключить реальную генерацию вопросов. В этом режиме вопросы берутся из `src/main/resources/ml-answer-example.json`, Ollama не вызывается и компьютер не нагружается генерацией.
@@ -77,6 +99,17 @@ http://localhost:11434/api/chat
 | `app.avatar.storage-dir` | `uploads/avatars` | Папка для пользовательских аватарок |
 | `spring.servlet.multipart.max-file-size` | `5MB` | Максимальный размер одного загружаемого файла |
 | `spring.servlet.multipart.max-request-size` | `5MB` | Максимальный размер multipart-запроса |
+| `app.redis.host` | `localhost` | Redis для хранения OTP-кодов |
+| `app.redis.port` | `6379` | Порт Redis |
+| `app.mail.host` | `smtp.yandex.ru` | SMTP-сервер для OTP-писем |
+| `app.mail.username` | пусто | SMTP-логин, обычно задается через `application-local.properties` |
+| `app.mail.password` | пусто | SMTP-пароль, задается только локально |
+| `app.otp.ttl-seconds` | `300` | Время жизни OTP-кода |
+| `app.otp.resend-cooldown-seconds` | `60` | Пауза перед повторной отправкой OTP |
+| `app.llm.url` | `http://localhost:11434/api/chat` | URL Ollama API |
+| `app.llm.model` | `qwen2.5` | Модель Ollama для генерации вопросов |
+| `app.llm.request-timeout-seconds` | `120` | Таймаут запроса к LLM |
+| `app.llm.max-retries-per-question` | `3` | Максимум повторов генерации одного вопроса |
 
 ## Приложение
 
