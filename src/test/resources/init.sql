@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
     password TEXT,
     current_game_id INT,
     pic_id INT,
+    custom_avatar_path VARCHAR(512),
     description TEXT,
     last_activity TIME,
     games_played_number INT,
