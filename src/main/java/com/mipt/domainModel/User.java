@@ -13,6 +13,8 @@ public class User {
   private String username;
   private String password;
   private Integer picId;
+  private String customAvatarPath;
+  private String avatarUrl;
   private String description;
   private Instant lastActivity;
   private Integer gamesPlayedNumber;
@@ -86,6 +88,22 @@ public class User {
   public void setDescription(String description) {
     this.description = description;
 
+  }
+
+  public String getCustomAvatarPath() {
+    return customAvatarPath;
+  }
+
+  public void setCustomAvatarPath(String customAvatarPath) {
+    this.customAvatarPath = customAvatarPath;
+  }
+
+  public String getAvatarUrl() {
+    return avatarUrl;
+  }
+
+  public void setAvatarUrl(String avatarUrl) {
+    this.avatarUrl = avatarUrl;
   }
 
   public Instant getLastActivity() {

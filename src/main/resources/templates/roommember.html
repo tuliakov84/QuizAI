@@ -60,7 +60,7 @@
 <script>
     let gameId = null;
     let refreshInterval = null;
-    let maxPlayers = 10;
+    let maxPlayers = 0;
     let isNavigating = false;
     let retryCount = 0;
     const MAX_RETRIES = 3;
@@ -100,7 +100,7 @@
       loadRoomFullData().then(roomData => {
         if (roomData) {
           // Обновляем maxPlayers из полных данных
-          if (roomData.participantsNumber) {
+          if (typeof roomData.participantsNumber === 'number') {
             maxPlayers = roomData.participantsNumber;
             localStorage.setItem('roomData', JSON.stringify(roomData));
             console.log('Максимальное количество игроков установлено:', maxPlayers);
@@ -301,7 +301,7 @@
         }
 
         // Получаем максимальное количество игроков
-        if (roomData.participantsNumber) {
+        if (typeof roomData.participantsNumber === 'number') {
           maxPlayers = roomData.participantsNumber;
           console.log('Максимальное количество игроков:', maxPlayers);
         }
@@ -337,10 +337,19 @@
 
       container.innerHTML = '';
 
+      if (typeof lobbyData.participantsNumber === 'number') {
+        maxPlayers = lobbyData.participantsNumber;
+      }
+
+      const resolvedPlayerCount = typeof lobbyData.currentParticipantsNumber === 'number'
+        ? lobbyData.currentParticipantsNumber
+        : (Array.isArray(lobbyData.playersUsernames) ? lobbyData.playersUsernames.length : 0);
+      const resolvedMaxPlayers = maxPlayers > 0 ? maxPlayers : resolvedPlayerCount;
+
       // Проверяем наличие playersUsernames
       if (!lobbyData.playersUsernames || lobbyData.playersUsernames.length === 0) {
         container.innerHTML = '<div class="no-players">Нет участников</div>';
-        countElement.textContent = '0/' + maxPlayers;
+        countElement.textContent = `0/${resolvedMaxPlayers}`;
         return;
       }
 
@@ -353,10 +362,9 @@
       });
 
       // Обновляем счетчик игроков с учетом maxPlayers
-      const playerCount = lobbyData.playersUsernames.length;
-      countElement.textContent = `${playerCount}/${maxPlayers}`;
+      countElement.textContent = `${resolvedPlayerCount}/${resolvedMaxPlayers}`;
 
-      console.log(`Обновлен список игроков: ${playerCount}/${maxPlayers} участников`);
+      console.log(`Обновлен список игроков: ${resolvedPlayerCount}/${resolvedMaxPlayers} участников`);
     }
 
     // Проверка статуса комнаты

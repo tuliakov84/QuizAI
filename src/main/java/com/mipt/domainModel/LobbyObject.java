@@ -8,7 +8,10 @@ public class LobbyObject {
   private Integer gameId;
   private Status status;
   private List<String> playersUsernames;
+  private List<LobbyPlayer> players;
   private Boolean questionReady;
+  private Integer participantsNumber;
+  private Integer currentParticipantsNumber;
   private GameMode gameMode;
 
   public Boolean getReady() {
@@ -17,6 +20,14 @@ public class LobbyObject {
 
   public void setReady(Boolean readyVal) {
     questionReady = readyVal;
+  }
+
+  public Boolean getQuestionsReady() {
+    return questionReady;
+  }
+
+  public void setQuestionsReady(Boolean questionsReady) {
+    this.questionReady = questionsReady;
   }
 
   private enum Status {
@@ -40,6 +51,30 @@ public class LobbyObject {
 
   public void setPlayersUsernames(List<String> playersUsernames) {
     this.playersUsernames = playersUsernames;
+  }
+
+  public List<LobbyPlayer> getPlayers() {
+    return players;
+  }
+
+  public void setPlayers(List<LobbyPlayer> players) {
+    this.players = players;
+  }
+
+  public Integer getParticipantsNumber() {
+    return participantsNumber;
+  }
+
+  public void setParticipantsNumber(Integer participantsNumber) {
+    this.participantsNumber = participantsNumber;
+  }
+
+  public Integer getCurrentParticipantsNumber() {
+    return currentParticipantsNumber;
+  }
+
+  public void setCurrentParticipantsNumber(Integer currentParticipantsNumber) {
+    this.currentParticipantsNumber = currentParticipantsNumber;
   }
 
   public void setStatus(Integer status) {

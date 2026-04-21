@@ -1,6 +1,5 @@
 package com.mipt.api;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
 import com.mipt.domainModel.*;
@@ -8,6 +7,8 @@ import com.mipt.gameModes.GameMode;
 import com.mipt.gameModes.GameModeCatalog;
 import com.mipt.initialization.AchievementsInit;
 import com.mipt.initialization.TopicsInit;
+import com.mipt.dbAPI.jpa.entity.UserEntity;
+import com.mipt.service.AvatarStorageService;
 import com.mipt.utils.BackendUtils;
 import com.mipt.utils.ValidationUtils;
 import com.mipt.service.QuestionLoadingService;
@@ -15,10 +16,10 @@ import org.json.JSONArray;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -34,14 +35,20 @@ public class ApiController {
   private final BackendUtils utils;
   private final DbService dbService;
   private final QuestionLoadingService questionLoadingService;
+  private final AvatarStorageService avatarStorageService;
 
   /**
    * Wires the controller with the database layer and ensures that the topics
    * table is populated before serving requests.
    */
-  public ApiController(DbService dbService, QuestionLoadingService questionLoadingService) {
+  public ApiController(
+      DbService dbService,
+      QuestionLoadingService questionLoadingService,
+      AvatarStorageService avatarStorageService
+  ) {
     this.dbService = dbService;
     this.questionLoadingService = questionLoadingService;
+    this.avatarStorageService = avatarStorageService;
     this.utils = new BackendUtils();
 
     TopicsInit topicsInit = new TopicsInit(dbService);
@@ -143,6 +150,8 @@ public class ApiController {
       Integer[] gamesPlayed = dbService.getGamesPlayed(session);
       user.setGamesPlayed(gamesPlayed);
       user.setPicId(dbService.getProfilePic(session));
+      user.setCustomAvatarPath(dbService.getCustomAvatarPath(session));
+      user.setAvatarUrl(resolveAvatarUrl(user.getCustomAvatarPath(), user.getPicId()));
       user.setDescription(dbService.getDescription(session));
       user.setUsername(dbService.getUsername(session));
       Timestamp lastActivity = dbService.getLastActivity(session);
@@ -178,6 +187,30 @@ public class ApiController {
       return new ResponseEntity<>("Database error occurred while configuring account " + user.getUsername() + "': " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to configure information about user " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
+  @PostMapping("/users/upload/avatar")
+  public ResponseEntity<Object> uploadAvatar(
+      @RequestParam("session") String session,
+      @RequestParam("avatar") MultipartFile avatar
+  ) {
+    try {
+      String avatarUrl = avatarStorageService.storeAvatar(session, avatar);
+      User response = new User();
+      response.setSession(session);
+      response.setPicId(0);
+      response.setCustomAvatarPath(avatarUrl);
+      response.setAvatarUrl(avatarUrl);
+      return new ResponseEntity<>(response, HttpStatus.OK);
+    } catch (IllegalArgumentException e) {
+      return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+    } catch (IOException e) {
+      return new ResponseEntity<>("Failed to store avatar", HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while uploading avatar", HttpStatus.INTERNAL_SERVER_ERROR);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to upload avatar: " + e.getMessage(), HttpStatus.NOT_FOUND);
     }
   }
 
@@ -443,10 +476,24 @@ public class ApiController {
   public ResponseEntity<Object> getLobby(@RequestBody LobbyObject lobby) {
     try {
       int gameId = lobby.getGameId();
+      Integer[] preset = dbService.getPreset(gameId);
       lobby.setStatus(dbService.getStatus(gameId));
-      List<String> usernames = List.of(dbService.getParticipantUsernames(gameId));
+      List<UserEntity> participants = dbService.getParticipants(gameId);
+      List<String> usernames = participants.stream().map(UserEntity::getUsername).toList();
+      List<LobbyPlayer> players = new ArrayList<>();
+      for (UserEntity participant : participants) {
+        LobbyPlayer player = new LobbyPlayer();
+        player.setUsername(participant.getUsername());
+        player.setPicId(participant.getPicId());
+        player.setAvatarUrl(resolveAvatarUrl(participant.getCustomAvatarPath(), participant.getPicId()));
+        players.add(player);
+      }
       lobby.setPlayersUsernames(usernames);
+      lobby.setPlayers(players);
+      lobby.setCurrentParticipantsNumber(usernames.size());
+      lobby.setParticipantsNumber(preset[3]);
       lobby.setReady(dbService.isGameReady(gameId));
+      lobby.setQuestionsReady(lobby.getReady());
       lobby.setGameMode(dbService.getGameMode(gameId));
       return new ResponseEntity<>(lobby, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
@@ -454,6 +501,16 @@ public class ApiController {
     } catch (SQLException e) {
       return new ResponseEntity<>("Database error occurred while modifying privateness option for game " + lobby.getGameId(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  private static String resolveAvatarUrl(String customAvatarPath, Integer picId) {
+    if (customAvatarPath != null && !customAvatarPath.isBlank()) {
+      return customAvatarPath;
+    }
+    if (picId != null && picId > 0) {
+      return "/assets.avatars/avatar" + picId + ".png";
+    }
+    return null;
   }
 
   /**
@@ -683,7 +740,7 @@ public class ApiController {
 
   /**
    * Returns the per-game leaderboard as a JSON string for compatibility with
-   * the web client.
+   * the current web client.
    */
   @PostMapping("/leaderboard/get/by-game")
   public ResponseEntity<Object> getLeaderboardsByGame(@RequestBody Game game) {
@@ -699,21 +756,14 @@ public class ApiController {
   }
 
   /**
-   * Serves the static global leaderboard file bundled with the application.
+   * Resolves the global leaderboard on demand from the current DB state.
    */
   @PostMapping("/leaderboard/get/global")
   public ResponseEntity<Object> getGlobalLeaderboards() {
-    try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("global-leaderboards.json")) {
-      if (inputStream == null) {
-        throw new FileNotFoundException("File global-leaderboards.json not found in classpath");
-      }
-
-      String jsonContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-      new ObjectMapper().readValue(jsonContent, Object.class);
-
-      return new ResponseEntity<>(jsonContent, HttpStatus.OK);
-    } catch (Exception e) {
-      System.out.println("Error reading global-leaderboards.json: " + e.getMessage());
+    try {
+      JSONArray res = dbService.getGlobalLeaderboards();
+      return new ResponseEntity<>(res.toString(), HttpStatus.OK);
+    } catch (SQLException e) {
       return new ResponseEntity<>("Error reading global leaderboards", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }

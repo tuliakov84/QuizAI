@@ -12,6 +12,9 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+
 @Service
 @ConditionalOnExpression(
     "'${app.service.role:backend}' == 'generator' || '${app.service.role:backend}' == 'both'"
@@ -24,6 +27,10 @@ public class QuestionGenerationRequestConsumerService {
   private final KafkaTemplate<String, String> kafkaTemplate;
   @Value("${app.kafka.topic.question-generation-results}")
   private String generationResultsTopic;
+  @Value("${app.question-generation.mock-enabled:false}")
+  private boolean mockGenerationEnabled;
+  @Value("${app.question-generation.mock-resource:ml-answer-example.json}")
+  private String mockQuestionsResource;
 
   public QuestionGenerationRequestConsumerService(DbService dbService, KafkaTemplate<String, String> kafkaTemplate) {
     this.dbService = dbService;
@@ -52,10 +59,19 @@ public class QuestionGenerationRequestConsumerService {
       }
 
       String topicName = dbService.getTopicById(topicId).getName();
-      String generatorPayload = buildGeneratorPayload(topicName, numberOfQuestions, levelDifficulty);
-      LOGGER.info("Step A3: calling QuestionGenerator. gameId={}, topicName={}, payloadCount={}", gameId, topicName, numberOfQuestions);
-      JSONArray generatedQuestions = new JSONArray(QuestionGenerator.generate(generatorPayload).join());
-      LOGGER.info("Step A4: QuestionGenerator returned {} questions for gameId={}", generatedQuestions.length(), gameId);
+      JSONArray generatedQuestions;
+      if (mockGenerationEnabled) {
+        LOGGER.info(
+            "Step A3: mock question generation enabled. gameId={}, topicName={}, payloadCount={}, resource={}",
+            gameId, topicName, numberOfQuestions, mockQuestionsResource
+        );
+        generatedQuestions = loadMockQuestions(numberOfQuestions);
+      } else {
+        String generatorPayload = buildGeneratorPayload(topicName, numberOfQuestions, levelDifficulty);
+        LOGGER.info("Step A3: calling QuestionGenerator. gameId={}, topicName={}, payloadCount={}", gameId, topicName, numberOfQuestions);
+        generatedQuestions = new JSONArray(QuestionGenerator.generate(generatorPayload).join());
+      }
+      LOGGER.info("Step A4: generator returned {} questions for gameId={}", generatedQuestions.length(), gameId);
       if (questionNumbersToRegenerate != null && !questionNumbersToRegenerate.isEmpty()) {
         alignQuestionNumbers(generatedQuestions, questionNumbersToRegenerate);
         LOGGER.info("Step A5: aligned regenerated question numbers for gameId={}", gameId);
@@ -82,6 +98,30 @@ public class QuestionGenerationRequestConsumerService {
   private static String buildGeneratorPayload(String topicName, int numberOfQuestions, int levelDifficulty) {
     return "[{\"topic\":\"" + topicName + "\",\"numberOfQuestions\":" + numberOfQuestions
         + ",\"difficult\":" + levelDifficulty + "}]";
+  }
+
+  private JSONArray loadMockQuestions(int numberOfQuestions) throws Exception {
+    InputStream inputStream = QuestionGenerationRequestConsumerService.class.getClassLoader()
+        .getResourceAsStream(mockQuestionsResource);
+    if (inputStream == null) {
+      throw new IllegalStateException("Mock questions resource not found: " + mockQuestionsResource);
+    }
+
+    JSONArray sourceQuestions = new JSONArray(new String(inputStream.readAllBytes(), StandardCharsets.UTF_8));
+    if (sourceQuestions.isEmpty()) {
+      throw new IllegalStateException("Mock questions resource is empty: " + mockQuestionsResource);
+    }
+
+    JSONArray result = new JSONArray();
+    for (int i = 0; i < numberOfQuestions; i++) {
+      JSONObject question = new JSONObject(sourceQuestions.getJSONObject(i % sourceQuestions.length()).toString());
+      question.put("question_number", i + 1);
+      if (i >= sourceQuestions.length()) {
+        question.put("question_text", question.getString("question_text") + " #" + (i + 1));
+      }
+      result.put(question);
+    }
+    return result;
   }
 
   private static void alignQuestionNumbers(JSONArray questions, JSONArray targetQuestionNumbers) {

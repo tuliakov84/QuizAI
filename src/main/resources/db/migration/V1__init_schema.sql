@@ -1,0 +1,105 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS topics (
+    id SERIAL PRIMARY KEY,
+    name TEXT
+);
+
+CREATE TABLE IF NOT EXISTS achievements (
+    id SERIAL PRIMARY KEY,
+    name TEXT,
+    profile_pic_needed BOOLEAN,
+    description_needed BOOLEAN,
+    games_number_needed INT,
+    global_points_needed INT,
+    global_rating_place_needed INT,
+    current_game_points_needed INT,
+    current_game_rating_needed INT,
+    current_game_level_difficulty_needed INT
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    session TEXT,
+    username TEXT,
+    password TEXT,
+    current_game_id INT,
+    pic_id INT,
+    description TEXT,
+    last_activity TIMESTAMP,
+    games_played_number INT,
+    global_points INT,
+    global_possible_points INT,
+    current_game_points INT,
+    coin_balance INT NOT NULL DEFAULT 100
+);
+
+CREATE TABLE IF NOT EXISTS games (
+    id SERIAL PRIMARY KEY,
+    status SMALLINT,
+    author_id INT REFERENCES users (id) ON DELETE SET NULL,
+    created_at TIMESTAMP,
+    game_start_time TIMESTAMP,
+    game_end_time TIMESTAMP,
+    is_private BOOLEAN,
+    level_difficulty SMALLINT,
+    number_of_questions INT,
+    participants_number SMALLINT,
+    topic_id INT REFERENCES topics (id) ON DELETE SET NULL,
+    questions_validated BOOLEAN NOT NULL DEFAULT FALSE,
+    game_mode VARCHAR(32) NOT NULL DEFAULT 'CASUAL'
+);
+
+ALTER TABLE users
+    ADD CONSTRAINT fk_users_current_game
+    FOREIGN KEY (current_game_id) REFERENCES games (id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS games_history (
+    id SERIAL PRIMARY KEY,
+    game_id INT REFERENCES games (id) ON DELETE CASCADE,
+    user_id INT REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_achievements (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users (id) ON DELETE CASCADE,
+    achievement_id INT REFERENCES achievements (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS questions (
+    id SERIAL PRIMARY KEY,
+    game_id INT REFERENCES games (id) ON DELETE CASCADE,
+    question_number INT,
+    question_text TEXT,
+    embedding VECTOR(384),
+    right_answer_number SMALLINT CHECK (right_answer_number >= 1 AND right_answer_number <= 4),
+    answer1 TEXT,
+    answer2 TEXT,
+    answer3 TEXT,
+    answer4 TEXT
+);
+
+CREATE TABLE IF NOT EXISTS answered_correctly_questions (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users (id) ON DELETE CASCADE,
+    question_id INT REFERENCES questions (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS coin_transactions (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users (id) ON DELETE CASCADE,
+    game_id INT REFERENCES games (id) ON DELETE SET NULL,
+    transaction_type VARCHAR(64) NOT NULL,
+    amount_delta INT NOT NULL,
+    balance_after INT NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS topics_idx ON topics USING HASH (name);
+CREATE INDEX IF NOT EXISTS users_idx ON users USING HASH (session);
+CREATE INDEX IF NOT EXISTS users_username_idx ON users USING HASH (username);
+CREATE INDEX IF NOT EXISTS games_status_idx ON games (status);
+CREATE INDEX IF NOT EXISTS games_topic_idx ON games (topic_id);
+CREATE INDEX IF NOT EXISTS answered_correctly_questions_idx ON answered_correctly_questions (user_id);
+CREATE INDEX IF NOT EXISTS coin_transactions_user_idx ON coin_transactions (user_id);

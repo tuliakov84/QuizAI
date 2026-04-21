@@ -7,6 +7,7 @@ import com.mipt.domainModel.Achievement;
 import com.mipt.domainModel.AnswerObject;
 import com.mipt.domainModel.Question;
 import com.mipt.domainModel.Topic;
+import com.mipt.service.AvatarStorageService;
 import com.mipt.service.QuestionLoadingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,15 +37,20 @@ class ApiControllerTest {
   private DbService dbService;
   private MockMvc mockMvc;
 
+  private static String malformedJson() {
+    return "{";
+  }
+
   @BeforeEach
   void setUp() throws Exception {
     dbService = mock(DbService.class);
     QuestionLoadingService questionLoadingService = mock(QuestionLoadingService.class);
+    AvatarStorageService avatarStorageService = mock(AvatarStorageService.class);
 
     when(dbService.getAllTopics()).thenReturn(new Topic[0]);
     when(dbService.getAllAchievements()).thenReturn(new Achievement[0]);
 
-    ApiController controller = new ApiController(dbService, questionLoadingService);
+    ApiController controller = new ApiController(dbService, questionLoadingService, avatarStorageService);
     mockMvc = MockMvcBuilders.standaloneSetup(controller)
         .setMessageConverters(new MappingJackson2HttpMessageConverter())
         .build();
@@ -98,7 +104,7 @@ class ApiControllerTest {
   void verifyAnswer_returnsBadRequestForMalformedJson() throws Exception {
     mockMvc.perform(post("/api/game/verify-answer")
             .contentType(MediaType.APPLICATION_JSON)
-            .content("{"))
+            .content(malformedJson()))
         .andExpect(status().isBadRequest())
         .andExpect(content().string("\"Malformed request body\""));
 
@@ -143,5 +149,3 @@ class ApiControllerTest {
         .andExpect(content().string(org.hamcrest.Matchers.containsString("DUEL")));
   }
 }
-
-

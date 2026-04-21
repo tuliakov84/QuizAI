@@ -73,7 +73,7 @@
 <script>
     let gameId = null;
     let refreshInterval = null;
-    let maxPlayers = 10; // Максимальное количество игроков
+    let maxPlayers = 0; // Максимальное количество игроков
     let isPrivate = false; // Текущая приватность комнаты
     let currentPlayers = []; // Текущий список игроков
     let isQuizStarting = false; // Флаг, что квиз начинается
@@ -279,6 +279,10 @@
         message = 'Для начала квиза нужно минимум 2 игрока';
         messageType = 'warning';
         isReady = false;
+      } else if (!questionsReady) {
+        message = 'Вопросы еще генерируются. Квиз станет доступен сразу после подготовки.';
+        messageType = 'info';
+        isReady = false;
       } else {
         isReady = true;
       }
@@ -290,7 +294,7 @@
         }
 
         // Автоматический старт при заполнении комнаты (только если вопросы готовы)
-        if (currentPlayers.length >= maxPlayers && !isQuizStarting) {
+        if (maxPlayers > 0 && currentPlayers.length >= maxPlayers && questionsReady && !isQuizStarting) {
           console.log('Комната заполнена и вопросы готовы - начинаем квиз автоматически...');
           // Небольшая задержка для лучшего UX
           setTimeout(() => startQuiz(), 1000);
@@ -410,6 +414,10 @@
 
         console.log('Данные лобби:', lobbyData);
 
+        if (typeof lobbyData.participantsNumber === 'number') {
+          maxPlayers = lobbyData.participantsNumber;
+        }
+
         if (!lobbyData.playersUsernames) {
           console.warn('Поле playersUsernames отсутствует в ответе');
           currentPlayers = [];
@@ -429,9 +437,8 @@
           updateQuestionsStatus();
         }
 
-        // Получаем статус ready из ответа (если есть)
-        if (lobbyData.ready !== undefined && !questionsReady) {
-          // Если нет отдельного флага questionsReady, используем общий ready
+        // Совместимость со старым полем ready
+        if (lobbyData.ready !== undefined && lobbyData.questionsReady === undefined) {
           questionsReady = lobbyData.ready;
           updateQuestionsStatus();
         }
@@ -453,9 +460,11 @@
 
       container.innerHTML = '';
 
+      const resolvedMaxPlayers = maxPlayers > 0 ? maxPlayers : players.length;
+
       if (players.length === 0) {
         container.innerHTML = '<div class="no-players">Нет участников</div>';
-        countElement.textContent = '0/' + maxPlayers;
+        countElement.textContent = `0/${resolvedMaxPlayers}`;
         return;
       }
 
@@ -467,7 +476,7 @@
       });
 
       // Обновляем счетчик игроков
-      countElement.textContent = `${players.length}/${maxPlayers}`;
+      countElement.textContent = `${players.length}/${resolvedMaxPlayers}`;
     }
 
     // Включение кнопки начала квиза
@@ -525,7 +534,7 @@
         }
 
         // Получаем максимальное количество игроков из данных комнаты (если есть)
-        if (roomData.participantsNumber) {
+        if (typeof roomData.participantsNumber === 'number') {
             maxPlayers = roomData.participantsNumber;
             // Сразу обновляем счетчик
             document.getElementById('players-count').textContent = `0/${maxPlayers}`;

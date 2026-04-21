@@ -25,6 +25,9 @@ public class UserEntity {
   @Column(name = "pic_id")
   private Integer picId;
 
+  @Column(name = "custom_avatar_path")
+  private String customAvatarPath;
+
   @Column(name = "description")
   private String description;
 
@@ -84,6 +87,14 @@ public class UserEntity {
 
   public void setPicId(Integer picId) {
     this.picId = picId;
+  }
+
+  public String getCustomAvatarPath() {
+    return customAvatarPath;
+  }
+
+  public void setCustomAvatarPath(String customAvatarPath) {
+    this.customAvatarPath = customAvatarPath;
   }
 
   public String getDescription() {

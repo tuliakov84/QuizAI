@@ -293,12 +293,26 @@ public class DbService {
   public void changeProfilePic(String session, int picId) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     userEntity.setPicId(picId);
+    userEntity.setCustomAvatarPath(null);
     userRepository.save(userEntity);
   }
 
   public int getProfilePic(String session) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     return intOrZero(userEntity.getPicId());
+  }
+
+  public void changeCustomAvatarPath(String session, String customAvatarPath)
+      throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    userEntity.setCustomAvatarPath(customAvatarPath);
+    userEntity.setPicId(0);
+    userRepository.save(userEntity);
+  }
+
+  public String getCustomAvatarPath(String session) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    return userEntity.getCustomAvatarPath();
   }
 
   public String getUsername(int userId) throws SQLException, DatabaseAccessException {
@@ -858,6 +872,13 @@ public class DbService {
       usernames.add(participant.getUsername());
     }
     return usernames.toArray(new String[0]);
+  }
+
+  public List<UserEntity> getParticipants(int gameId) throws SQLException, DatabaseAccessException {
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException();
+    }
+    return userRepository.findByCurrentGame_IdOrderByIdAsc(gameId);
   }
 
   public JSONArray getGameLeaderboards(int gameId) throws SQLException, DatabaseAccessException {
