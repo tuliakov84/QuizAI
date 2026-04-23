@@ -138,6 +138,7 @@ public class ApiController {
         user.setLastActivity(lastActivity.toInstant());
       }
       user.setGlobalPoints(dbService.getGlobalPoints(session));
+      user.setGlobalPossiblePoints(dbService.getGlobalPossiblePoints(session));
       user.setGamesPlayedNumber(dbService.getGamesPlayedNumber(session));
       return new ResponseEntity<>(user, HttpStatus.OK);
     } catch (DatabaseAccessException e) {

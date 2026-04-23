@@ -1,308 +1,473 @@
-<!DOCTYPE html>
-<html lang="ru">
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/styles/connect2_style.css">
-    <title>QUIZAI</title>
-</head>
+:root {
+  --bg-main: #060816;
+  --bg-secondary: #0b1023;
+  --panel: rgba(14, 20, 43, 0.76);
+  --panel-border: rgba(111, 224, 255, 0.18);
+  --text-main: #eef6ff;
+  --text-soft: #9fb3d9;
+  --cyan: #63e6ff;
+  --blue: #5b8cff;
+  --violet: #9b6dff;
+  --pink: #ff4fd8;
+  --input-bg: rgba(8, 14, 32, 0.9);
+  --input-border: rgba(99, 230, 255, 0.18);
+  --input-focus: rgba(99, 230, 255, 0.48);
+  --success: #59f3b0;
+}
 
-<body>
-<div class="main_cont">
-    <header>
-        <a href="themesToJoin.html" class="btn_back">НАЗАД</a>
-        <h1 class="h11">QUIZ AI ARENA</h1>
-    </header>
+html,
+body {
+  height: 100%;
+  width: 100%;
+  font-family: "Segoe UI", "Inter", "Arial", sans-serif;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(91, 140, 255, 0.22), transparent 28%),
+    radial-gradient(circle at 80% 25%, rgba(155, 109, 255, 0.18), transparent 24%),
+    radial-gradient(circle at 50% 85%, rgba(99, 230, 255, 0.14), transparent 30%),
+    linear-gradient(135deg, #050814 0%, #0a1022 50%, #070b18 100%);
+  color: var(--text-main);
+  overflow-x: hidden;
+}
 
-    <main>
-        <div class="main_blockl">
-            <div class="tablehead">
-                <p class="h12">ID КОМНАТЫ</p>
-                <p class="h12">УЧАСТНИКОВ</p>
-            </div>
-            <div id="rooms-container">
-                <!-- Комнаты будут загружены динамически -->
-            </div>
-        </div>
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(circle at center, black 50%, transparent 100%);
+  pointer-events: none;
+  opacity: 0.45;
+}
 
-        <div class="main_blockr">
-            <span id="selected-room-id">ВЫБЕРИТЕ КОМНАТУ</span>
-            <a href="#" id="join-btn" class="btnd" style="display: none;">ПРИСОЕДИНИТЬСЯ</a>
-        </div>
-    </main>
-</div>
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at center, transparent 60%, rgba(0, 0, 0, 0.35) 100%);
+}
 
-<div id="app-notification" class="app-notification hidden">
-    <div class="app-notification__content">
-        <div class="app-notification__icon">!</div>
-        <div class="app-notification__text" id="app-notification-text">Сообщение</div>
-        <button type="button" class="app-notification__close" id="app-notification-close">&times;</button>
-    </div>
-</div>
+.main_cont {
+  display: flex;
+  min-height: 100vh;
+  min-width: 100vw;
+  flex-direction: column;
+  flex-wrap: wrap;
+  padding: 28px 20px 40px;
+  gap: 18px;
+}
 
-<script src="/js/auth.js"></script>
-<script src="/js/checkCurrentGame.js"></script>
-<script>
-    let selectedGameId = null;
-    let availableRooms = [];
-    let refreshInterval;
-    let notificationTimeout;
+header {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
 
-    document.addEventListener('DOMContentLoaded', function () {
-      if (!AuthService.requireAuth()) return;
-      checkCurrentGame();
-      loadOpenRooms();
-      initializeEventHandlers();
+.btn_back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  padding: 14px 22px;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 18px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff6fb;
+  background: linear-gradient(135deg, rgba(126, 42, 255, 0.95), rgba(255, 79, 216, 0.88));
+  border: 1px solid rgba(255, 140, 228, 0.34);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.35),
+    0 0 22px rgba(255, 92, 138, 0.16);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
 
-      refreshInterval = setInterval(loadOpenRooms, 10000);
-    });
+.btn_back:hover {
+  transform: translateY(-3px) scale(1.01);
+  border-color: rgba(255, 140, 228, 0.6);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.42),
+    0 0 32px rgba(255, 92, 138, 0.24);
+}
 
-    window.addEventListener('beforeunload', function() {
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
-      }
-    });
+.h11 {
+  font-size: clamp(1.7rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: transparent;
+  background: linear-gradient(90deg, #dff8ff 0%, #75e8ff 45%, #7a7cff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: 0 0 28px rgba(99, 230, 255, 0.28);
+}
 
-    function initializeEventHandlers() {
-      const joinBtn = document.getElementById('join-btn');
-      const notificationClose = document.getElementById('app-notification-close');
+.h12 {
+  font-size: 0.95rem;
+  align-self: center;
+  text-align: center;
+  color: var(--text-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 
-      joinBtn.addEventListener('click', handleJoinRoom);
-      notificationClose.addEventListener('click', hideNotification);
-    }
+.tablehead {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
 
-    async function loadOpenRooms() {
-      try {
-        const selectedTopic = JSON.parse(localStorage.getItem('selectedTopic'));
-        if (!selectedTopic) {
-          showErrorMessage('Тема не выбрана');
-          return;
-        }
+.tablehead .h12:first-child {
+  text-align: left;
+}
 
-        console.log('Загружаем комнаты для темы:', selectedTopic);
+.tablehead .h12:last-child {
+  text-align: right;
+}
 
-        availableRooms = await fetchOpenRooms(selectedTopic.topicId);
-        displayRooms(availableRooms);
+main {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+}
 
-      } catch (error) {
-        console.error('Ошибка загрузки комнат:', error);
-        showErrorMessage('Ошибка загрузки комнат');
-      }
-    }
+.main_blockl,
+.main_blockr {
+  position: relative;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 30px;
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--panel-border);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.03) inset,
+    0 24px 60px rgba(0, 0, 0, 0.45),
+    0 0 40px rgba(91, 140, 255, 0.12);
+  overflow: hidden;
+}
 
-    async function fetchOpenRooms(topicId) {
-      const session = AuthService.getsession();
+.main_blockl::before,
+.main_blockr::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(99,230,255,0.45), rgba(155,109,255,0.18), rgba(255,79,216,0.35));
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
 
-      const response = await fetch('http://localhost:8080/api/game/get-open', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          topicId: topicId
-        })
-      });
+.main_blockl::after,
+.main_blockr::after {
+  content: "";
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  top: -90px;
+  right: -70px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99,230,255,0.18), transparent 70%);
+  filter: blur(10px);
+  pointer-events: none;
+}
 
-      if (!response.ok) {
-        throw new Error(`Ошибка HTTP: ${response.status}`);
-      }
+.main_blockl {
+  padding: 22px 20px;
+  align-items: center;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex: 1 1 520px;
+  min-width: 0;
+  width: 100%;
+  max-width: 760px;
+}
 
-      const roomsData = await response.json();
-      console.log('Получены комнаты:', roomsData);
+#rooms-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
 
-      const roomsWithDetails = roomsData.map(roomArray => {
-        const [gameId, currentParticipants, maxParticipants] = roomArray;
-        return {
-          gameId: gameId,
-          currentParticipants: currentParticipants,
-          maxParticipants: maxParticipants
-        };
-      });
+.btn {
+  display: block;
+  width: 100%;
+  padding: 18px 20px;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 18px;
+  font-size: 1rem;
+  background: linear-gradient(135deg, rgba(20, 31, 63, 0.92), rgba(14, 62, 92, 0.85));
+  border: 1px solid rgba(99, 230, 255, 0.26);
+  color: var(--text-main);
+  margin-bottom: 12px;
+  box-sizing: border-box;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.35),
+    0 0 18px rgba(99, 230, 255, 0.12);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease,
+    background 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
 
-      return roomsWithDetails.filter(room => room.currentParticipants < room.maxParticipants);
-    }
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.14), transparent);
+  transition: transform 0.55s ease;
+}
 
-    function displayRooms(rooms) {
-      const container = document.getElementById('rooms-container');
-      const previouslySelected = selectedGameId;
+.btn:hover::before {
+  transform: translateX(100%);
+}
 
-      container.innerHTML = '';
+.btn:hover {
+  transform: translateY(-3px);
+  border-color: rgba(99, 230, 255, 0.55);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.42),
+    0 0 28px rgba(99, 230, 255, 0.2);
+}
 
-      if (rooms.length === 0) {
-        container.innerHTML = '<div class="no-rooms">Нет открытых комнат для выбранной темы</div>';
-        document.getElementById('selected-room-id').textContent = 'ВЫБЕРИТЕ КОМНАТУ';
-        document.getElementById('join-btn').style.display = 'none';
-        selectedGameId = null;
-        return;
-      }
+.btn:last-child {
+  margin-bottom: 0;
+}
 
-      rooms.forEach(room => {
-        const roomElement = document.createElement('a');
-        roomElement.href = '#';
-        roomElement.className = 'btn room-item';
-        if (room.gameId === previouslySelected) {
-          roomElement.classList.add('selected');
-        }
-        roomElement.innerHTML = `
-          <div class="text">
-            <p>${room.gameId}</p>
-            <p>${room.currentParticipants}/${room.maxParticipants}</p>
-          </div>
-        `;
+.text {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
 
-        roomElement.addEventListener('click', (e) => {
-          e.preventDefault();
-          selectRoom(room, e.currentTarget);
-        });
+.text p {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
 
-        container.appendChild(roomElement);
-      });
+.text p:first-child {
+  text-align: left;
+}
 
-      if (previouslySelected && rooms.some(room => room.gameId === previouslySelected)) {
-        const roomElements = container.querySelectorAll('.room-item');
-        roomElements.forEach(element => {
-          if (element.querySelector('p').textContent === previouslySelected.toString()) {
-            element.classList.add('selected');
-          }
-        });
-      } else {
-        selectedGameId = null;
-        document.getElementById('selected-room-id').textContent = 'ВЫБЕРИТЕ КОМНАТУ';
-        document.getElementById('join-btn').style.display = 'none';
-      }
-    }
+.text p:last-child {
+  text-align: right;
+}
 
-    function selectRoom(room, clickedElement) {
-      selectedGameId = room.gameId;
+.main_blockr {
+  flex: 0 0 320px;
+  padding: 28px 20px;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  align-self: stretch;
+}
 
-      document.getElementById('selected-room-id').textContent = `ID: ${room.gameId}`;
-      document.getElementById('join-btn').style.display = 'block';
+.main_blockr span {
+  font-size: clamp(1.2rem, 2.4vw, 2rem);
+  color: var(--text-main);
+  text-align: center;
+  margin-bottom: 0;
+  position: relative;
+  z-index: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 
-      document.querySelectorAll('.room-item').forEach(item => {
-        item.classList.remove('selected');
-      });
+.block_hor {
+  display: flex;
+  flex-direction: row;
+  width: 95%;
+  justify-content: space-between;
+}
 
-      clickedElement.classList.add('selected');
-    }
+.input-group input {
+  background: var(--input-bg);
+  margin: 10px;
+  width: 100%;
+  padding: 20px 16px;
+  border: 1px solid var(--input-border);
+  border-radius: 25px;
+  font-size: 16px;
+  color: var(--text-main);
+  box-sizing: border-box;
+  outline: none;
+}
 
-    async function handleJoinRoom() {
-      if (!selectedGameId) {
-        showErrorMessage('Выберите комнату для присоединения');
-        return;
-      }
+.input-group input:hover {
+  background: rgba(10, 18, 38, 0.95);
+}
 
-      const joinBtn = document.getElementById('join-btn');
-      joinBtn.textContent = 'ПОДКЛЮЧЕНИЕ...';
-      joinBtn.style.pointerEvents = 'none';
+.input-group input:focus {
+  border-color: var(--input-focus);
+  background: rgba(10, 18, 38, 0.98);
+}
 
-      try {
-        const result = await joinRoomById(selectedGameId);
+.btnd,
+.btnr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
 
-        if (result.success) {
-          localStorage.setItem('currentGameId', selectedGameId.toString());
+.btnd {
+  width: 100%;
+  padding: 18px 20px;
+  border-radius: 20px;
+  font-size: 1rem;
+  background: linear-gradient(135deg, rgba(126, 42, 255, 0.95), rgba(255, 79, 216, 0.88));
+  border: 1px solid rgba(255, 140, 228, 0.34);
+  color: #fff6fb;
+  margin: 0;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.35),
+    0 0 22px rgba(255, 92, 138, 0.16);
+  position: relative;
+  z-index: 1;
+}
 
-          if (result.game && result.game.topicId) {
-            localStorage.setItem('currentTopicId', result.game.topicId.toString());
-          }
+.btnd:hover {
+  transform: translateY(-3px) scale(1.01);
+  border-color: rgba(255, 140, 228, 0.6);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.42),
+    0 0 32px rgba(255, 92, 138, 0.24);
+}
 
-          if (refreshInterval) {
-            clearInterval(refreshInterval);
-          }
+.btnr {
+  margin: 10px;
+  display: block;
+  width: 20%;
+  padding: 18px 24px;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 25px;
+  font-size: 20px;
+  background: linear-gradient(0deg, rgb(255, 76, 76), rgb(255, 151, 151));
+  border-style: solid;
+  border-width: 2px;
+  border-color: #291818;
+  color: #000000;
+}
 
-          window.location.href = `roommember.html?gameId=${selectedGameId}`;
-        } else {
-          showErrorMessage(result.message || 'Не удалось подключиться к комнате');
-          loadOpenRooms();
-        }
-      } catch (error) {
-        console.error('Ошибка подключения к комнате:', error);
-        showErrorMessage('Ошибка подключения к серверу');
-      } finally {
-        joinBtn.textContent = 'ПРИСОЕДИНИТЬСЯ';
-        joinBtn.style.pointerEvents = 'auto';
-      }
-    }
+.room-item.selected {
+  background: linear-gradient(135deg, rgba(26, 53, 88, 0.96), rgba(25, 90, 115, 0.92));
+  border: 1px solid rgba(89, 243, 176, 0.5);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.42),
+    0 0 28px rgba(89, 243, 176, 0.18);
+}
 
-    async function joinRoomById(gameId) {
-      const session = AuthService.getsession();
+.no-rooms,
+.loading-message {
+  text-align: center;
+  padding: 22px 16px;
+  color: var(--text-soft);
+  font-style: italic;
+  width: 100%;
+  background: rgba(10, 18, 38, 0.74);
+  border: 1px solid rgba(99, 230, 255, 0.12);
+  border-radius: 18px;
+}
 
-      try {
-        const response = await fetch(`http://localhost:8080/api/game/join`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            gameId: parseInt(gameId),
-            session: session
-          })
-        });
+@media screen and (max-width: 786px) {
+  .main_cont {
+    padding: 18px 12px 24px;
+  }
 
-        if (response.ok) {
-          const gameData = await response.json();
-          sessionStorage.setItem('gameInfo', JSON.stringify({
-            totalQuestions: gameData.numberOfQuestions,
-            levelDifficulty: gameData.levelDifficulty
-          }));
-          return {
-            success: true,
-            game: gameData
-          };
-        } else if (response.status === 404) {
-          return {
-            success: false,
-            message: 'Квиз с таким ID не найден или количество участников максимально'
-          };
-        } else if (response.status === 409) {
-          return {
-            success: false,
-            message: 'Квиз уже начат или завершен'
-          };
-        } else {
-          const errorText = await response.text();
-          return {
-            success: false,
-            message: 'Ошибка подключения к квизу: ' + (errorText || response.status)
-          };
-        }
-      } catch (error) {
-        console.error('Ошибка при подключении к квизу:', error);
-        throw error;
-      }
-    }
+  .main_blockl {
+    flex: 1 1 300px;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    padding: 18px 12px;
+    border-radius: 24px;
+  }
 
-    function showLoadingMessage(text) {
-      const container = document.getElementById('rooms-container');
-      container.innerHTML = `<div class="loading-message">${text}</div>`;
-    }
+  .btn_back {
+    width: 100%;
+    max-width: 320px;
+    align-self: center;
+  }
 
-    function showErrorMessage(message) {
-      showNotification(message, 'error');
-    }
+  header {
+    align-items: center;
+    justify-content: center;
+  }
 
-    function showNotification(message, type = 'error') {
-      const notification = document.getElementById('app-notification');
-      const text = document.getElementById('app-notification-text');
+  .main_blockr {
+    flex: 1 1 100%;
+    width: 100%;
+    margin: 0;
+    border-radius: 24px;
+  }
 
-      clearTimeout(notificationTimeout);
+  .btn {
+    padding: 16px 14px;
+    font-size: 0.95rem;
+  }
 
-      notification.classList.remove('hidden', 'success', 'error');
-      notification.classList.add(type);
-      text.textContent = message;
+  .tablehead {
+    margin-bottom: 10px;
+  }
 
-      notificationTimeout = setTimeout(() => {
-        hideNotification();
-      }, 3000);
-    }
-
-    function hideNotification() {
-      const notification = document.getElementById('app-notification');
-      notification.classList.add('hidden');
-    }
-</script>
-</body>
-
-</html>
+  .h12 {
+    font-size: 0.82rem;
+  }
+}

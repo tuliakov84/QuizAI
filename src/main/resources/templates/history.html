@@ -1,35 +1,201 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="/styles/history_style.css">
-  <title>QUIZAI - История квизов</title>
+  <title>QUIZAI</title>
 </head>
+
 <body>
 <div class="main_cont">
   <header>
     <a href="profile.html" class="btn_back">НАЗАД</a>
-    <h1 class="h11">ИСТОРИЯ КВИЗОВ</h1>
+    <h1 class="h11">QUIZ AI ARENA</h1>
   </header>
 
+  <p class="h12">ИСТОРИЯ ВАШИХ КВИЗОВ</p>
+
+
   <main>
-    <div class="games" id="games-container">
-      <div class="loading loading-pulse">Загрузка истории...</div>
+    <div class="games">
+      <div class="tablehead">
+        <p class="h12">ТЕМА</p>
+        <p class="h12">РЕЗУЛЬТАТ</p>
+        <p class="h12">ОТВЕТЫ</p>
+      </div>
+      <div class="game">
+        <div class="text">
+          <p class="h13">ТЕМА</p>
+          <p class="h13">РЕЗУЛЬТАТ</p>
+          <a href="#.html" class="btn">ОТВЕТЫ</a>
+        </div>
+      </div>
+      <div class="game">
+        <div class="text">
+          <p class="h13">ТЕМА</p>
+          <p class="h13">РЕЗУЛЬТАТ</p>
+          <a href="#.html" class="btn">ОТВЕТЫ</a>
+        </div>
+      </div>
+      <div class="game">
+        <div class="text">
+          <p class="h13">ТЕМА</p>
+          <p class="h13">РЕЗУЛЬТАТ</p>
+          <a href="#.html" class="btn">ОТВЕТЫ</a>
+        </div>
+      </div>
+      <div class="game">
+        <div class="text">
+          <p class="h13">ТЕМА</p>
+          <p class="h13">РЕЗУЛЬТАТ</p>
+          <a href="#.html" class="btn">ОТВЕТЫ</a>
+        </div>
+      </div>
+      <div class="game">
+        <div class="text">
+          <p class="h13">ТЕМА</p>
+          <p class="h13">РЕЗУЛЬТАТ</p>
+          <a href="#.html" class="btn">ОТВЕТЫ</a>
+        </div>
+      </div>
     </div>
   </main>
 </div>
-
-<!-- Модальное окно для вопросов и ответов -->
-<div id="questionsModal" class="modal">
-  <div class="modal-content">
-    <span class="close">&times;</span>
-    <h2>Вопросы и правильные ответы</h2>
-    <div id="modal-questions-container"></div>
-  </div>
-</div>
+</body>
 
 <script src="/js/auth.js"></script>
-<script src="/js/history.js"></script>
-</body>
-</html>
+<script src="/js/checkCurrentGame.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', async function () {
+    if (!AuthService.requireAuth()) return;
+    await checkCurrentGame();
+
+    await loadQuizHistory();
+  });
+
+  async function loadQuizHistory() {
+    const session = AuthService.getsession();
+    if (!session) {
+      console.error('Сессия не найдена');
+      showError('Сессия не найдена. Пожалуйста, войдите заново.');
+      return;
+    }
+
+    try {
+      const topicsResponse = await fetch('http://localhost:8080/api/topic/get-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+
+      if (!topicsResponse.ok) {
+        throw new Error(`Ошибка загрузки тем: ${topicsResponse.status}`);
+      }
+
+      const topics = await topicsResponse.json();
+      const topicMap = {};
+      topics.forEach(topic => {
+        // ✅ Исправлено: topic.name вместо topic.topicName
+        topicMap[topic.topicId] = topic.name || `Тема ${topic.topicId}`;
+      });
+
+      const gamesResponse = await fetch('http://localhost:8080/api/users/get-games', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session: session })
+      });
+
+      if (!gamesResponse.ok) {
+        throw new Error(`Ошибка загрузки игр: ${gamesResponse.status}`);
+      }
+
+      const games = await gamesResponse.json();
+      console.log('Темы:', topics);
+      console.log('Игры:', games);
+      displayQuizHistory(games, topicMap);
+
+    } catch (error) {
+      console.error('Ошибка загрузки истории:', error);
+      showError('Не удалось загрузить историю квизов. Попробуйте позже.');
+    }
+  }
+
+  function displayQuizHistory(games, topicMap) {
+    const gamesContainer = document.querySelector('.games');
+    const template = document.querySelector('.game');
+
+    const existingGames = gamesContainer.querySelectorAll('.game');
+    for (let i = 1; i < existingGames.length; i++) {
+      existingGames[i].remove();
+    }
+
+    if (!games || games.length === 0) {
+      const noGamesMessage = document.createElement('div');
+      noGamesMessage.className = 'no-games-message';
+      noGamesMessage.textContent = 'У вас пока нет завершённых квизов';
+      noGamesMessage.style.cssText = `
+        text-align: center;
+        padding: 20px;
+        color: #666;
+        background: #f9f9f9;
+        border-radius: 8px;
+        margin-top: 20px;
+      `;
+      gamesContainer.appendChild(noGamesMessage);
+      template.style.display = 'none';
+      return;
+    }
+
+    games.forEach(game => {
+      const gameElement = template.cloneNode(true);
+      gameElement.style.display = '';
+
+      const topicName = topicMap[game.topicId] || `Тема ${game.topicId}`;
+      console.log('topicMap:', topicMap);
+
+      const themeElement = gameElement.querySelector('.h13:first-child');
+      const resultElement = gameElement.querySelector('.h13:nth-child(2)');
+      const answersButton = gameElement.querySelector('.btn');
+
+      if (themeElement) themeElement.textContent = topicName;
+      if (resultElement) resultElement.textContent = `${game.numberOfQuestions} вопросов`;
+
+      if (answersButton) {
+        answersButton.href = `answers.html?gameId=${game.gameId}`;
+        answersButton.textContent = 'ОТВЕТЫ';
+      }
+
+      gamesContainer.insertBefore(gameElement, template.nextSibling);
+    });
+
+    template.style.display = 'none';
+  }
+
+  function showError(message) {
+    const errorElement = document.createElement('div');
+    errorElement.className = 'error-message';
+    errorElement.textContent = message;
+    errorElement.style.cssText = `
+      background-color: #ffebee;
+      color: #c62828;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 5px;
+      text-align: center;
+      border: 1px solid #ffcdd2;
+    `;
+    const header = document.querySelector('header');
+    header.parentNode.insertBefore(errorElement, header.nextSibling);
+    setTimeout(() => errorElement.remove(), 5000);
+  }
+
+  window.refreshHistory = async function() {
+    const errorMsg = document.querySelector('.error-message');
+    if (errorMsg) errorMsg.remove();
+    const noGamesMsg = document.querySelector('.no-games-message');
+    if (noGamesMsg) noGamesMsg.remove();
+    await loadQuizHistory();
+  };
+</script>
