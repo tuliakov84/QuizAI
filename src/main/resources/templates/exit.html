@@ -127,15 +127,19 @@
 
     async function logoutOnServer() {
       try {
-        const username = localStorage.getItem('username');
+        const session = AuthService.getsession();
+        const user = AuthService.getUser();
+        if (!session) return;
+
         await fetch('http://localhost:8080/api/auth/logout', {
           method: 'POST',
           headers: {
-            'Authorization': 'Bearer ' + localStorage.getItem('session'),
+            'Authorization': 'Bearer ' + session,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            username: username,
+            session: session,
+            username: user?.username || ''
           })
         });
       } catch (error) {

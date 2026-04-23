@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS users (
     global_points INT,
     global_possible_points INT,
     current_game_points INT,
-    coin_balance INT NOT NULL DEFAULT 100
+    coin_balance INT NOT NULL DEFAULT 100,
+    premium_until TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS games (

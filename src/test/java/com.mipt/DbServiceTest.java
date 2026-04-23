@@ -387,6 +387,31 @@ public class DbServiceTest {
 
     Integer duelGameId = dbService.createGame("SESSION", 1, 1, 2, 1, false, GameMode.DUEL);
     assertEquals(GameMode.DUEL, dbService.getGameMode(duelGameId));
+
+    Integer casualGameId = dbService.createGame("SESSION", 1, 30, 2, 1, false, GameMode.CASUAL);
+    for (int i = 0; i < 30; i++) {
+      assertEquals(10, dbService.addCasualQuizReward("SESSION", casualGameId));
+    }
+    assertEquals(410, dbService.getCoinBalance("SESSION"));
+    assertEquals(0, dbService.addCasualQuizReward("SESSION", casualGameId));
+    assertEquals(410, dbService.getCoinBalance("SESSION"));
+  }
+
+  @Test
+  void testExpireExpiredPremiumBenefitsClearsExpiredPremiumUntil() throws SQLException, DatabaseAccessException {
+    Timestamp expiredAt = Timestamp.from(Instant.now().minusSeconds(5));
+
+    dbService.purchasePremium("SESSION", 1);
+    assertNotNull(dbService.getPremiumUntil("SESSION"));
+    dbService.changeCustomAvatarPath("SESSION", "uploads/avatars/test-avatar.webp");
+
+    dbService.changePremiumUntil("SESSION", expiredAt);
+
+    dbService.expireExpiredPremiumBenefits();
+
+    assertNull(dbService.getPremiumUntil("SESSION"));
+    assertNull(dbService.getCustomAvatarPath("SESSION"));
+    assertFalse(dbService.isPremiumActive("SESSION"));
   }
 
   @Test

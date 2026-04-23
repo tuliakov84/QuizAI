@@ -10,6 +10,10 @@
 
 <body>
 <div class="main_cont">
+  <div class="coin-badge" aria-label="Баланс коинов">
+    <span>КОИНЫ</span>
+    <strong id="main-user-coins">...</strong>
+  </div>
   <div class="leftdiv">
     <div class="h1_div">
       <h1 class="h11">QUIZ AI</h1>
@@ -32,7 +36,7 @@
 <script src="/js/checkCurrentGame.js"></script>
 <script>
   // Проверяем авторизацию при загрузке главной страницы
-  document.addEventListener('DOMContentLoaded', function () {
+  document.addEventListener('DOMContentLoaded', async function () {
     if (!AuthService.requireAuth()) return;
     checkCurrentGame();
 
@@ -42,9 +46,10 @@
       checkAndAttachAchievements(session);
     }
     try {
-      const userData = AuthService.getUser();
+      const userData = await AuthService.loadUserProfile() || AuthService.getUser();
       if (userData) {
         console.log('Добро пожаловать, ' + userData.username);
+        document.getElementById('main-user-coins').textContent = userData.coinBalance ?? 0;
       }
     } catch (error) {
       console.error('Ошибка загрузки данных пользователя:', error);

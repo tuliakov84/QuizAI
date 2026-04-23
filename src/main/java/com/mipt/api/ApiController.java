@@ -83,6 +83,7 @@ public class ApiController {
         user.setDescription(dbService.getDescription(session));
         user.setGlobalPoints(dbService.getGlobalPoints(session));
         user.setCoinBalance(dbService.getCoinBalance(session));
+        applyPremiumState(user, session);
         return new ResponseEntity<>(user, HttpStatus.OK);
       } catch (DatabaseAccessException e) {
         if (utils.isSessionCollision(e)) {
@@ -152,6 +153,7 @@ public class ApiController {
   public ResponseEntity<Object> getProfile(@RequestBody User user) {
     try {
       String session = user.getSession();
+      dbService.expirePremiumBenefits(session);
       user.setUserId(dbService.getUserId(session));
 
       Integer currentGameId = dbService.getCurrentGame(session);
@@ -176,6 +178,7 @@ public class ApiController {
       user.setGlobalPoints(dbService.getGlobalPoints(session));
       user.setCoinBalance(dbService.getCoinBalance(session));
       user.setGamesPlayedNumber(dbService.getGamesPlayedNumber(session));
+      applyPremiumState(user, session);
       return new ResponseEntity<>(user, HttpStatus.OK);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to get information about account '" + user.getUsername() + "': " + e.getMessage(), HttpStatus.NOT_FOUND);
@@ -217,6 +220,7 @@ public class ApiController {
       response.setPicId(0);
       response.setCustomAvatarPath(avatarUrl);
       response.setAvatarUrl(avatarUrl);
+      applyPremiumState(response, session);
       return new ResponseEntity<>(response, HttpStatus.OK);
     } catch (IllegalArgumentException e) {
       return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
@@ -226,6 +230,34 @@ public class ApiController {
       return new ResponseEntity<>("Database error occurred while uploading avatar", HttpStatus.INTERNAL_SERVER_ERROR);
     } catch (DatabaseAccessException e) {
       return new ResponseEntity<>("Failed to upload avatar: " + e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
+  @PostMapping("/premium/purchase")
+  public ResponseEntity<Object> purchasePremium(@RequestBody PremiumPurchaseRequest request) {
+    try {
+      if (request.getSession() == null || request.getSession().isBlank()) {
+        return new ResponseEntity<>("Session is required", HttpStatus.BAD_REQUEST);
+      }
+      if (request.getDays() == null) {
+        return new ResponseEntity<>("Premium plan is required", HttpStatus.BAD_REQUEST);
+      }
+
+      dbService.purchasePremium(request.getSession(), request.getDays());
+      User response = new User();
+      response.setSession(request.getSession());
+      response.setUserId(dbService.getUserId(request.getSession()));
+      response.setUsername(dbService.getUsername(request.getSession()));
+      response.setCoinBalance(dbService.getCoinBalance(request.getSession()));
+      response.setPicId(dbService.getProfilePic(request.getSession()));
+      response.setCustomAvatarPath(dbService.getCustomAvatarPath(request.getSession()));
+      response.setAvatarUrl(resolveAvatarUrl(response.getCustomAvatarPath(), response.getPicId()));
+      applyPremiumState(response, request.getSession());
+      return new ResponseEntity<>(response, HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to buy QUIZ PREMIUM: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while buying QUIZ PREMIUM", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -518,6 +550,7 @@ public class ApiController {
         player.setUsername(participant.getUsername());
         player.setPicId(participant.getPicId());
         player.setAvatarUrl(resolveAvatarUrl(participant.getCustomAvatarPath(), participant.getPicId()));
+        player.setPremiumActive(dbService.isPremiumActiveForUser(participant));
         players.add(player);
       }
       lobby.setPlayersUsernames(usernames);
@@ -543,6 +576,12 @@ public class ApiController {
       return "/asserts/asserts/avatar" + picId + ".png";
     }
     return null;
+  }
+
+  private void applyPremiumState(User user, String session) throws SQLException, DatabaseAccessException {
+    Timestamp premiumUntil = dbService.getPremiumUntil(session);
+    user.setPremiumUntil(premiumUntil == null ? null : premiumUntil.toInstant());
+    user.setPremiumActive(dbService.isPremiumActive(session));
   }
 
   /**
@@ -635,10 +674,15 @@ public class ApiController {
       if (submittedAnswerNumber == rightAnswer) {
         int pointsForAnswer = utils.countPoints(levelDifficulty, timeTaken);
         System.out.println("pointsForAnswer=" + pointsForAnswer);
-        dbService.addCurrentGamePoints(session, pointsForAnswer);
-        dbService.addGlobalPoints(session, pointsForAnswer);
         Question question = dbService.getQuestion(gameId, questionNumber);
-        dbService.addCorrectAnswer(session, question.getQuestionId());
+        boolean firstCorrectAnswer = dbService.addCorrectAnswer(session, question.getQuestionId());
+        if (firstCorrectAnswer) {
+          dbService.addCurrentGamePoints(session, pointsForAnswer);
+          dbService.addGlobalPoints(session, pointsForAnswer);
+          if (GameMode.CASUAL.equals(GameModeCatalog.normalize(dbService.getGameMode(gameId)))) {
+            dbService.addCasualQuizReward(session, gameId);
+          }
+        }
       }
 
       int possiblePointsForAnswer = utils.countPossiblePoints(levelDifficulty);
@@ -797,6 +841,16 @@ public class ApiController {
       return new ResponseEntity<>(res.toString(), HttpStatus.OK);
     } catch (SQLException e) {
       return new ResponseEntity<>("Error reading global leaderboards", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/leaderboard/get/coins")
+  public ResponseEntity<Object> getCoinLeaderboards() {
+    try {
+      JSONArray res = dbService.getCoinLeaderboards();
+      return new ResponseEntity<>(res.toString(), HttpStatus.OK);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Error reading coin leaderboards", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
   

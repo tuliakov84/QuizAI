@@ -52,6 +52,9 @@ public class UserEntity {
   @Column(name = "coin_balance")
   private Integer coinBalance;
 
+  @Column(name = "premium_until")
+  private Timestamp premiumUntil;
+
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "current_game_id")
   private GameEntity currentGame;
@@ -162,6 +165,14 @@ public class UserEntity {
 
   public void setCoinBalance(Integer coinBalance) {
     this.coinBalance = coinBalance;
+  }
+
+  public Timestamp getPremiumUntil() {
+    return premiumUntil;
+  }
+
+  public void setPremiumUntil(Timestamp premiumUntil) {
+    this.premiumUntil = premiumUntil;
   }
 
   public GameEntity getCurrentGame() {

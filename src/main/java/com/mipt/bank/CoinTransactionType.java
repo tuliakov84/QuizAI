@@ -8,5 +8,6 @@ public enum CoinTransactionType {
   GAME_PAYOUT,
   BET_PLACED,
   BET_REFUND,
+  PREMIUM_PURCHASE,
   MANUAL_ADJUSTMENT
 }

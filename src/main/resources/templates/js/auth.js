@@ -127,7 +127,15 @@ class AuthService {
   static displayUserProfile(userData) {
     // Имя пользователя
     if (document.getElementById('user-username') && userData.username) {
-      document.getElementById('user-username').textContent = userData.username;
+      const usernameElement = document.getElementById('user-username');
+      usernameElement.textContent = userData.username;
+      if (userData.premiumActive) {
+        const premiumStar = document.createElement('span');
+        premiumStar.className = 'premium-star';
+        premiumStar.textContent = '★';
+        premiumStar.title = 'QUIZ PREMIUM';
+        usernameElement.appendChild(premiumStar);
+      }
     }
 
     // Статус
@@ -140,6 +148,11 @@ class AuthService {
     // Рейтинг
     if (document.getElementById('user-rating') && userData.globalPoints !== undefined) {
       document.getElementById('user-rating').textContent = userData.globalPoints;
+    }
+
+    // Игровая валюта
+    if (document.getElementById('user-coins')) {
+      document.getElementById('user-coins').textContent = userData.coinBalance ?? 0;
     }
 
     // Аватар

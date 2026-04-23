@@ -4,6 +4,7 @@ public class LobbyPlayer {
   private String username;
   private Integer picId;
   private String avatarUrl;
+  private Boolean premiumActive;
 
   public String getUsername() {
     return username;
@@ -27,5 +28,13 @@ public class LobbyPlayer {
 
   public void setAvatarUrl(String avatarUrl) {
     this.avatarUrl = avatarUrl;
+  }
+
+  public Boolean getPremiumActive() {
+    return premiumActive;
+  }
+
+  public void setPremiumActive(Boolean premiumActive) {
+    this.premiumActive = premiumActive;
   }
 }

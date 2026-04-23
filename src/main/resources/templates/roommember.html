@@ -330,7 +330,15 @@
         playerElement.className = 'player';
         playerElement.appendChild(createPlayerAvatar(player));
         const nameElement = document.createElement('span');
+        nameElement.className = 'player-name';
         nameElement.textContent = player.username;
+        if (player.premiumActive) {
+          const premiumStar = document.createElement('span');
+          premiumStar.className = 'premium-star';
+          premiumStar.textContent = '★';
+          premiumStar.title = 'QUIZ PREMIUM';
+          nameElement.appendChild(premiumStar);
+        }
         playerElement.appendChild(nameElement);
         container.appendChild(playerElement);
       });

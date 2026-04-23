@@ -44,10 +44,9 @@
         <div class="right">
             <div class="main_blockr">
                 <span>РЕЖИМ ИГРЫ</span>
-                <div id="game-mode-options" class="isprivate block_hor">
+                <div id="game-mode-options" class="isprivate block_hor mode-options">
                     <!-- Режимы будут загружены с бэкенда -->
                 </div>
-                <div id="selected-mode-description" class="message info"></div>
 
                 <span>ПРИВАТНОСТЬ КОМНАТЫ</span>
                 <div class="isprivate block_hor">
@@ -70,6 +69,14 @@
             <div id="message" class="message"></div>
         </div>
     </main>
+</div>
+
+<div id="rules-modal" class="rules-modal hidden" role="dialog" aria-modal="true" aria-labelledby="rules-modal-title">
+    <div class="rules-modal__panel">
+        <h2 id="rules-modal-title">Правила игры</h2>
+        <p id="rules-modal-text">Правила для этого режима скоро появятся.</p>
+        <button type="button" id="rules-modal-close" class="rules-modal__close">Понятно</button>
+    </div>
 </div>
 
 <script src="/js/auth.js"></script>
@@ -96,6 +103,12 @@
       loadGameModes().finally(() => {
         setupEventListeners();
       });
+      document.getElementById('rules-modal-close').addEventListener('click', hideRulesModal);
+      document.getElementById('rules-modal').addEventListener('click', function (event) {
+        if (event.target === this) {
+          hideRulesModal();
+        }
+      });
     });
 
     function getFallbackModes() {
@@ -103,7 +116,6 @@
         {
           mode: 'CASUAL',
           title: 'Казуал',
-          description: 'Стандартный AI Arena квиз с регулярными вопросами.',
           minParticipants: 2,
           maxParticipants: 12,
           minQuestions: 1,
@@ -113,7 +125,6 @@
         {
           mode: 'TRUE_FALSE',
           title: 'Правда или ложь',
-          description: 'Квиз с ответами Правда/Ложь.',
           minParticipants: 2,
           maxParticipants: 12,
           minQuestions: 1,
@@ -123,7 +134,6 @@
         {
           mode: 'DUEL',
           title: 'Дуэль',
-          description: 'Режим 1 на 1 со ставками и банком.',
           minParticipants: 2,
           maxParticipants: 2,
           minQuestions: 1,
@@ -133,7 +143,6 @@
         {
           mode: 'RANDOM',
           title: 'Рандом',
-          description: 'Одиночная игра со скрытым коэффициентом.',
           minParticipants: 1,
           maxParticipants: 1,
           minQuestions: 1,
@@ -143,7 +152,6 @@
         {
           mode: 'SVOYAK',
           title: 'Свояк',
-          description: 'Соревновательный режим для компании.',
           minParticipants: 2,
           maxParticipants: 12,
           minQuestions: 1,
@@ -175,6 +183,9 @@
       container.innerHTML = '';
 
       availableModes.forEach(mode => {
+        const modeRow = document.createElement('div');
+        modeRow.className = 'mode-option-row';
+
         const modeBtn = document.createElement('a');
         modeBtn.href = '#';
         modeBtn.className = 'btnprivate mode-btn';
@@ -194,7 +205,17 @@
           applyModeConstraints();
         });
 
-        container.appendChild(modeBtn);
+        const rulesBtn = document.createElement('button');
+        rulesBtn.type = 'button';
+        rulesBtn.className = 'rules-btn';
+        rulesBtn.textContent = 'Правила игры';
+        rulesBtn.addEventListener('click', function () {
+          showRulesModal(mode);
+        });
+
+        modeRow.appendChild(modeBtn);
+        modeRow.appendChild(rulesBtn);
+        container.appendChild(modeRow);
       });
     }
 
@@ -206,7 +227,6 @@
       const mode = getSelectedModeDefinition();
       const participantsInput = document.getElementById('participants-count');
       const questionsInput = document.getElementById('questions-count');
-      const descriptionElement = document.getElementById('selected-mode-description');
 
       participantsInput.min = mode.minParticipants;
       participantsInput.max = mode.maxParticipants;
@@ -219,12 +239,17 @@
       if (!questionsInput.value || questionsInput.value < mode.minQuestions || questionsInput.value > mode.maxQuestions) {
         questionsInput.value = mode.minQuestions;
       }
+    }
 
-      const standardFlowHint = mode.usesStandardQuizFlow
-        ? 'Текущий стандартный flow комнаты и вопросов уже поддерживается.'
-        : 'Режим уже хранится отдельно в архитектуре, но его отдельный gameplay flow будет подключён следующим шагом.';
-      descriptionElement.textContent =
-        `${mode.description} Игроки: ${mode.minParticipants}-${mode.maxParticipants}, вопросы: ${mode.minQuestions}-${mode.maxQuestions}. ${standardFlowHint}`;
+    function showRulesModal(mode) {
+      document.getElementById('rules-modal-title').textContent = `Правила: ${mode.title}`;
+      document.getElementById('rules-modal-text').textContent =
+        `Правила режима "${mode.title}" будут добавлены позже. Пока это заглушка.`;
+      document.getElementById('rules-modal').classList.remove('hidden');
+    }
+
+    function hideRulesModal() {
+      document.getElementById('rules-modal').classList.add('hidden');
     }
 
     // Загрузка выбранной темы

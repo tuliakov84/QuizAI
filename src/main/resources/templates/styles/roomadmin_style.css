@@ -175,15 +175,10 @@ header {
 .main_blockr::before {
   content: "";
   position: absolute;
-  inset: -1px;
+  inset: 0;
   border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(135deg, rgba(99,230,255,0.45), rgba(155,109,255,0.18), rgba(255,79,216,0.35));
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  border: 1px solid rgba(99, 230, 255, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(255, 79, 216, 0.08);
   pointer-events: none;
 }
 
@@ -685,4 +680,11 @@ span {
   span {
     font-size: 0.84rem;
   }
+}
+
+.premium-star {
+  display: inline-flex;
+  margin-left: 8px;
+  color: #ffd76a;
+  text-shadow: 0 0 14px rgba(255, 215, 106, 0.48);
 }

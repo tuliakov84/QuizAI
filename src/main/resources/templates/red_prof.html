@@ -17,22 +17,22 @@
     <div class="rightdiv">
         <div class="panel-card">
             <div class="panel-header">
-                <div class="panel-kicker">NEURAL PROFILE</div>
+                <div class="panel-kicker">QUIZ AI ARENA</div>
                 <h1 class="panel-title">РЕДАКТИРОВАНИЕ ПРОФИЛЯ</h1>
-                <p class="panel-subtitle">Обновите пароль, статус и персональную аватарку</p>
+                <p class="panel-subtitle">Тут вы можете обновить данные своего профиля</p>
             </div>
 
-            <div class="avatar-section">
+            <div class="avatar-section" id="avatar">
                 <div class="current-avatar">
                     <div class="pic" id="avatar-preview"></div>
                     <p>Текущий аватар</p>
+                    <label class="avatar-upload-button" for="custom-avatar-input">
+                        Изменить аватарку
+                    </label>
                 </div>
 
-                <label class="avatar-upload-card" for="custom-avatar-input">
-                    <span class="avatar-upload-card__title">Загрузить свою аватарку</span>
-                    <span class="avatar-upload-card__hint">PNG, JPG или WebP до 5 МБ</span>
-                </label>
-                <input type="file" id="custom-avatar-input" class="avatar-file-input" accept="image/png,image/jpeg,image/webp">
+                <p class="avatar-upload-hint">PNG, JPG, WebP до 5 МБ. GIF доступен с QUIZ PREMIUM</p>
+                <input type="file" id="custom-avatar-input" class="avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif">
 
                 <!-- <div class="avatar-selection">
                   <h3>ВЫБЕРИТЕ АВАТАР</h3>
@@ -42,25 +42,40 @@
             </div>
 
             <div class="input-group">
-                <label for="password-input">Новый пароль:</label>
-                <input type="password" id="password-input" class="text-input" placeholder="Введите новый пароль">
-            </div>
-
-            <div class="input-group">
-                <label for="confirm-password-input">Подтвердите пароль:</label>
-                <input type="password" id="confirm-password-input" class="text-input" placeholder="Подтвердите новый пароль">
-            </div>
-
-            <div class="input-group">
                 <label for="status-input">Статус:</label>
                 <input type="text" id="status-input" class="text-input" placeholder="Введите новый статус">
             </div>
 
+            <button type="button" class="btnr btnr-secondary" id="change-password-btn">ИЗМЕНИТЬ ПАРОЛЬ</button>
             <button class="btnr" onclick="saveProfile()">СОХРАНИТЬ</button>
         </div>
     </div>
 
     <div class="leftdiv"></div>
+</div>
+
+<div id="password-modal" class="password-modal hidden" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
+    <div class="password-modal__panel">
+        <button type="button" class="password-modal__close" id="password-modal-close">&times;</button>
+        <div class="password-modal__kicker">SECURITY</div>
+        <h2 id="password-modal-title">Изменение пароля</h2>
+        <p>Пароль должен содержать минимум 6 символов, заглавную и строчную букву, а также цифру.</p>
+
+        <div class="input-group">
+            <label for="password-input">Новый пароль:</label>
+            <input type="password" id="password-input" class="text-input" placeholder="Введите новый пароль">
+        </div>
+
+        <div class="input-group">
+            <label for="confirm-password-input">Подтвердите пароль:</label>
+            <input type="password" id="confirm-password-input" class="text-input" placeholder="Подтвердите новый пароль">
+        </div>
+
+        <div class="password-modal__actions">
+            <button type="button" class="btnr btnr-secondary" id="cancel-password-btn">ОТМЕНА</button>
+            <button type="button" class="btnr" id="save-password-btn">СОХРАНИТЬ ПАРОЛЬ</button>
+        </div>
+    </div>
 </div>
 
 <div id="app-notification" class="app-notification hidden">
@@ -94,6 +109,21 @@
       const avatarInput = document.getElementById('custom-avatar-input');
       avatarInput.addEventListener('change', handleAvatarFileChange);
 
+      document.getElementById('change-password-btn').addEventListener('click', openPasswordModal);
+      document.getElementById('password-modal-close').addEventListener('click', closePasswordModal);
+      document.getElementById('cancel-password-btn').addEventListener('click', closePasswordModal);
+      document.getElementById('save-password-btn').addEventListener('click', savePassword);
+      document.getElementById('password-modal').addEventListener('click', function (event) {
+        if (event.target === this) {
+          closePasswordModal();
+        }
+      });
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+          closePasswordModal();
+        }
+      });
+
       // loadAvailableAvatars();
     });
 
@@ -115,15 +145,24 @@
       AuthService.displayAvatarElement(avatarPreview, userData || {});
     }
 
-    function handleAvatarFileChange(event) {
+    async function handleAvatarFileChange(event) {
       const file = event.target.files[0];
       if (!file) return;
 
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
         event.target.value = '';
-        showMessage('Поддерживаются только PNG, JPG и WebP', 'error');
+        showMessage('Поддерживаются только PNG, JPG, WebP и GIF', 'error');
         return;
+      }
+
+      if (!currentUserData?.premiumActive) {
+        const animated = await isAnimatedAvatarFile(file);
+        if (animated) {
+          event.target.value = '';
+          showMessage('Анимированные аватарки доступны только с QUIZ PREMIUM', 'error');
+          return;
+        }
       }
 
       if (file.size > 5 * 1024 * 1024) {
@@ -144,6 +183,24 @@
         avatarUrl: selectedAvatarObjectUrl
       });
       showMessage('Аватарка выбрана. Нажмите «Сохранить», чтобы загрузить ее.', 'info');
+    }
+
+    async function isAnimatedAvatarFile(file) {
+      if (file.type === 'image/gif') {
+        return true;
+      }
+      if (file.type !== 'image/webp') {
+        return false;
+      }
+
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const marker = [65, 78, 77, 70]; // ANMF chunk marks animated WebP frames.
+      for (let i = 0; i <= bytes.length - marker.length; i++) {
+        if (marker.every((value, index) => bytes[i + index] === value)) {
+          return true;
+        }
+      }
+      return false;
     }
 
     // function loadAvailableAvatars() {
@@ -203,27 +260,8 @@
     // }
 
     async function saveProfile() {
-      const password = document.getElementById('password-input').value.trim();
-      const confirmPassword = document.getElementById('confirm-password-input').value.trim();
       const description = document.getElementById('status-input').value.trim();
       const existingDescription = currentUserData?.description || '';
-
-      if (password || confirmPassword) {
-        if (password !== confirmPassword) {
-          showMessage('Пароли не совпадают', 'error');
-          return;
-        }
-
-        if (password.length < 6) {
-          showMessage('Пароль должен быть не менее 6 символов', 'error');
-          return;
-        }
-
-        if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-          showMessage('Пароль должен содержать хотя бы одну заглавную букву, одну строчную букву и одну цифру', 'error');
-          return;
-        }
-      }
 
       if (description.length > 100) {
         showMessage('Статус не должен превышать 100 символов', 'error');
@@ -238,8 +276,7 @@
         let successCount = 0;
         const descriptionChanged = description !== existingDescription;
         const avatarChanged = Boolean(selectedAvatarFile);
-        const totalChanges = (password ? 1 : 0) +
-          (descriptionChanged ? 1 : 0) +
+        const totalChanges = (descriptionChanged ? 1 : 0) +
           (avatarChanged ? 1 : 0);
 
         if (avatarChanged) {
@@ -288,37 +325,6 @@
           }
         }
 
-        if (password) {
-          try {
-            const passwordResponse = await fetch('http://localhost:8080/api/users/set/password', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                session: session,
-                password: password
-              })
-            });
-
-            if (passwordResponse.ok) {
-              successCount++;
-              hasChanges = true;
-              showMessage('Пароль успешно обновлен', 'success');
-
-              document.getElementById('password-input').value = '';
-              document.getElementById('confirm-password-input').value = '';
-            } else {
-              const errorText = await passwordResponse.text();
-              throw new Error(errorText || `Ошибка обновления пароля: ${passwordResponse.status}`);
-            }
-          } catch (error) {
-            console.error('Ошибка обновления пароля:', error);
-            showMessage('Ошибка обновления пароля: ' + error.message, 'error');
-            return;
-          }
-        }
-
         if (hasChanges) {
           const updatedUserData = {
             ...(AuthService.getUser() || currentUserData || {}),
@@ -339,6 +345,71 @@
       } catch (error) {
         console.error('Ошибка сохранения профиля:', error);
         showMessage('Ошибка сохранения профиля: ' + error.message, 'error');
+      }
+    }
+
+    function openPasswordModal() {
+      document.getElementById('password-modal').classList.remove('hidden');
+      document.getElementById('password-input').focus();
+    }
+
+    function closePasswordModal() {
+      const modal = document.getElementById('password-modal');
+      if (modal.classList.contains('hidden')) return;
+
+      modal.classList.add('hidden');
+      document.getElementById('password-input').value = '';
+      document.getElementById('confirm-password-input').value = '';
+    }
+
+    async function savePassword() {
+      const password = document.getElementById('password-input').value.trim();
+      const confirmPassword = document.getElementById('confirm-password-input').value.trim();
+
+      if (password !== confirmPassword) {
+        showMessage('Пароли не совпадают', 'error');
+        return;
+      }
+
+      if (password.length < 6) {
+        showMessage('Пароль должен быть не менее 6 символов', 'error');
+        return;
+      }
+
+      if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+        showMessage('Пароль должен содержать хотя бы одну заглавную букву, одну строчную букву и одну цифру', 'error');
+        return;
+      }
+
+      const savePasswordBtn = document.getElementById('save-password-btn');
+      savePasswordBtn.disabled = true;
+      savePasswordBtn.textContent = 'СОХРАНЕНИЕ...';
+
+      try {
+        const passwordResponse = await fetch('http://localhost:8080/api/users/set/password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            session: AuthService.getsession(),
+            password: password
+          })
+        });
+
+        if (!passwordResponse.ok) {
+          const errorText = await passwordResponse.text();
+          throw new Error(errorText || `Ошибка обновления пароля: ${passwordResponse.status}`);
+        }
+
+        closePasswordModal();
+        showMessage('Пароль успешно обновлен', 'success');
+      } catch (error) {
+        console.error('Ошибка обновления пароля:', error);
+        showMessage('Ошибка обновления пароля: ' + error.message, 'error');
+      } finally {
+        savePasswordBtn.disabled = false;
+        savePasswordBtn.textContent = 'СОХРАНИТЬ ПАРОЛЬ';
       }
     }
 

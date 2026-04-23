@@ -10,6 +10,10 @@
 
 <body>
 <div class="main_cont">
+    <div class="coin-badge" aria-label="Баланс коинов">
+        <span>КОИНЫ</span>
+        <strong id="user-coins">...</strong>
+    </div>
     <div class="all_left">
         <a href="main.html" class="btn_back">НАЗАД</a>
         <div class="leftdiv">
@@ -17,7 +21,7 @@
                 <h1 class="h11">QUIZ AI</h1>
                 <h1 class="h12">ARENA</h1>
             </div>
-            <p class="btnl">
+            <p class="profile-stat-card">
                 <span class="default">ВАШИ ОЧКИ:</span>
                 <span class="hover-text" id="user-rating">1000</span>
             </p>
@@ -30,7 +34,68 @@
         </div>
         <p id="user-username">ИМЯ ПОЛЬЗОВАТЕЛЯ</p>
         <p id="user-status">СТАТУС</p>
+        <button type="button" class="btnr premium-button" id="premium-open-btn">КУПИТЬ QUIZ PREMIUM</button>
         <a href="red_prof.html" class="btnr">РЕДАКТИРОВАТЬ ПРОФИЛЬ</a>
+        <a href="exit.html" class="btnr btnr-secondary">ВЫЙТИ ИЗ ПРОФИЛЯ</a>
+    </div>
+</div>
+
+<div id="premium-modal" class="premium-modal hidden" role="dialog" aria-modal="true" aria-labelledby="premium-modal-title">
+    <div class="premium-modal__panel">
+        <button type="button" class="premium-modal__close" id="premium-close-btn">&times;</button>
+        <div class="premium-modal__kicker">QUIZ PREMIUM</div>
+        <h2 id="premium-modal-title">Премиум-привилегии</h2>
+        <p id="premium-until-note" class="premium-until-note hidden"></p>
+        <table class="premium-table">
+            <thead>
+            <tr>
+                <th>Привилегия</th>
+                <th>Без подписки</th>
+                <th>Premium</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td>Лимит коинов в день в казуале</td>
+                <td>300</td>
+                <td>600</td>
+            </tr>
+            <tr>
+                <td>GIF-аватарка</td>
+                <td>Нет</td>
+                <td>Да</td>
+            </tr>
+            <tr>
+                <td>Звездочка около ника</td>
+                <td>Нет</td>
+                <td>Да</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div id="premium-plan-step" class="premium-plan-step hidden">
+            <label class="premium-plan">
+                <input type="radio" name="premium-plan" value="1" checked>
+                <span>1 день</span>
+                <strong>1500 коинов</strong>
+            </label>
+            <label class="premium-plan">
+                <input type="radio" name="premium-plan" value="7">
+                <span>7 дней</span>
+                <strong>5000 коинов</strong>
+            </label>
+            <label class="premium-plan">
+                <input type="radio" name="premium-plan" value="30">
+                <span>30 дней</span>
+                <strong>15000 коинов</strong>
+            </label>
+        </div>
+
+        <div class="premium-actions">
+            <button type="button" class="premium-action premium-action-secondary" id="premium-later-btn">В ДРУГОЙ РАЗ</button>
+            <button type="button" class="premium-action premium-action-primary" id="premium-buy-btn">КУПИТЬ</button>
+            <button type="button" class="premium-action premium-action-primary hidden" id="premium-pay-btn">ОПЛАТИТЬ</button>
+        </div>
     </div>
 </div>
 </body>
@@ -55,16 +120,122 @@
       if (freshData) {
         // Отображаем данные профиля
         AuthService.displayUserProfile(freshData);
+        updatePremiumUi(freshData);
       } else {
         // Используем кэшированные данные
         const cachedUserData = AuthService.getUser();
         if (cachedUserData) {
           AuthService.displayUserProfile(cachedUserData);
+          updatePremiumUi(cachedUserData);
         } else {
           window.location.href = 'index.html';
         }
       }
+
+      document.getElementById('premium-open-btn').addEventListener('click', openPremiumModal);
+      document.getElementById('premium-close-btn').addEventListener('click', closePremiumModal);
+      document.getElementById('premium-later-btn').addEventListener('click', closePremiumModal);
+      document.getElementById('premium-buy-btn').addEventListener('click', showPremiumPlans);
+      document.getElementById('premium-pay-btn').addEventListener('click', buyPremium);
+      document.getElementById('premium-modal').addEventListener('click', function (event) {
+        if (event.target === this) {
+          closePremiumModal();
+        }
+      });
     });
+
+    function openPremiumModal() {
+      updatePremiumUi(AuthService.getUser());
+      document.getElementById('premium-modal').classList.remove('hidden');
+    }
+
+    function closePremiumModal() {
+      document.getElementById('premium-modal').classList.add('hidden');
+      document.getElementById('premium-plan-step').classList.add('hidden');
+      document.getElementById('premium-pay-btn').classList.add('hidden');
+      document.getElementById('premium-buy-btn').classList.remove('hidden');
+      updatePremiumUi(AuthService.getUser());
+    }
+
+    function showPremiumPlans() {
+      document.getElementById('premium-plan-step').classList.remove('hidden');
+      document.getElementById('premium-buy-btn').classList.add('hidden');
+      document.getElementById('premium-pay-btn').classList.remove('hidden');
+    }
+
+    function formatPremiumUntil(value) {
+      if (!value) {
+        return null;
+      }
+
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return null;
+      }
+
+      return new Intl.DateTimeFormat('ru-RU', {
+        dateStyle: 'long',
+        timeStyle: 'short'
+      }).format(date);
+    }
+
+    function updatePremiumUi(userData) {
+      const premiumButton = document.getElementById('premium-open-btn');
+      const premiumBuyButton = document.getElementById('premium-buy-btn');
+      const premiumUntilNote = document.getElementById('premium-until-note');
+      const hasPremium = Boolean(userData && userData.premiumActive && userData.premiumUntil);
+      const premiumUntilText = formatPremiumUntil(userData && userData.premiumUntil);
+
+      premiumButton.textContent = hasPremium ? 'ДОКУПИТЬ QUIZ PREMIUM' : 'КУПИТЬ QUIZ PREMIUM';
+      premiumBuyButton.textContent = hasPremium ? 'ДОКУПИТЬ' : 'КУПИТЬ';
+
+      if (hasPremium && premiumUntilText) {
+        premiumUntilNote.textContent = `Подписка активна до ${premiumUntilText}`;
+        premiumUntilNote.classList.remove('hidden');
+      } else {
+        premiumUntilNote.textContent = '';
+        premiumUntilNote.classList.add('hidden');
+      }
+    }
+
+    async function buyPremium() {
+      const selectedPlan = document.querySelector('input[name="premium-plan"]:checked');
+      const payButton = document.getElementById('premium-pay-btn');
+      payButton.disabled = true;
+      payButton.textContent = 'ОПЛАТА...';
+
+      try {
+        const response = await fetch('http://localhost:8080/api/premium/purchase', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            session: AuthService.getsession(),
+            days: Number(selectedPlan.value)
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `Ошибка оплаты: ${response.status}`);
+        }
+
+        const updatedUser = await response.json();
+        localStorage.setItem('user', JSON.stringify({
+          ...(AuthService.getUser() || {}),
+          ...updatedUser
+        }));
+        AuthService.displayUserProfile(AuthService.getUser());
+        updatePremiumUi(AuthService.getUser());
+        closePremiumModal();
+      } catch (error) {
+        alert('Не удалось купить QUIZ PREMIUM: ' + error.message);
+      } finally {
+        payButton.disabled = false;
+        payButton.textContent = 'ОПЛАТИТЬ';
+      }
+    }
 </script>
 
 </html>

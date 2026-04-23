@@ -126,6 +126,7 @@ class ApiControllerTest {
     when(dbService.getRightAnswer(10, 1)).thenReturn(2);
     when(dbService.getPreset(10)).thenReturn(new Integer[]{null, 1, null, null, null});
     when(dbService.getQuestion(10, 1)).thenReturn(question);
+    when(dbService.addCorrectAnswer("session-1", 99)).thenReturn(true);
 
     mockMvc.perform(post("/api/game/verify-answer")
             .contentType(MediaType.APPLICATION_JSON)
@@ -138,6 +139,7 @@ class ApiControllerTest {
     verify(dbService).addCurrentGamePoints(eq("session-1"), anyInt());
     verify(dbService).addGlobalPoints(eq("session-1"), anyInt());
     verify(dbService).addCorrectAnswer("session-1", 99);
+    verify(dbService).addCasualQuizReward("session-1", 10);
     verify(dbService).addGlobalPossiblePoints(eq("session-1"), anyInt());
   }
 

@@ -50,7 +50,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
@@ -67,6 +70,9 @@ public class DbService {
 
   private static final String DELETE_ALL_KEYWORD = "DELETE_ALL_RECORDS_IN_DATABASE";
   private static final int DEFAULT_STARTING_COIN_BALANCE = 100;
+  private static final int CASUAL_COIN_REWARD = 10;
+  private static final int CASUAL_DAILY_COIN_LIMIT = 300;
+  private static final int PREMIUM_CASUAL_DAILY_COIN_LIMIT = CASUAL_DAILY_COIN_LIMIT * 2;
   @Value("${app.auth.email-enabled:true}")
   private boolean emailAuthEnabled = true;
 
@@ -226,8 +232,64 @@ public class DbService {
     return value == null ? 0 : value;
   }
 
+  private static int getPremiumPlanPrice(int days) throws DatabaseAccessException {
+    return switch (days) {
+      case 1 -> 1500;
+      case 7 -> 5000;
+      case 30 -> 15000;
+      default -> throw new DatabaseAccessException("Unknown premium plan");
+    };
+  }
+
+  private static boolean isPremiumActive(UserEntity userEntity) {
+    Timestamp premiumUntil = userEntity.getPremiumUntil();
+    return premiumUntil != null && premiumUntil.toInstant().isAfter(Instant.now());
+  }
+
+  private static int getCasualDailyCoinLimit(UserEntity userEntity) {
+    return isPremiumActive(userEntity) ? PREMIUM_CASUAL_DAILY_COIN_LIMIT : CASUAL_DAILY_COIN_LIMIT;
+  }
+
   private static boolean boolOrFalse(Boolean value) {
     return Boolean.TRUE.equals(value);
+  }
+
+  private static boolean requiresPremiumAvatar(String customAvatarPath) {
+    if (customAvatarPath == null) {
+      return false;
+    }
+
+    String normalizedPath = customAvatarPath.toLowerCase(Locale.ROOT);
+    return normalizedPath.endsWith(".gif") || normalizedPath.endsWith(".webp");
+  }
+
+  private static String resolveAvatarUrl(UserEntity userEntity) {
+    String customAvatarPath = userEntity.getCustomAvatarPath();
+    if (customAvatarPath != null && !customAvatarPath.isBlank()) {
+      return customAvatarPath;
+    }
+
+    Integer picId = userEntity.getPicId();
+    if (picId != null && picId > 0) {
+      return "/asserts/asserts/avatar" + picId + ".png";
+    }
+
+    return null;
+  }
+
+  private void expirePremiumBenefitsIfNeeded(UserEntity userEntity) {
+    Timestamp premiumUntil = userEntity.getPremiumUntil();
+    if (premiumUntil == null || premiumUntil.toInstant().isAfter(Instant.now())) {
+      return;
+    }
+
+    String customAvatarPath = userEntity.getCustomAvatarPath();
+    if (requiresPremiumAvatar(customAvatarPath)) {
+      userEntity.setCustomAvatarPath(null);
+      userEntity.setPicId(0);
+    }
+    userEntity.setPremiumUntil(null);
+    userRepository.save(userEntity);
   }
 
   // Users TABLE REFERRED METHODS
@@ -435,6 +497,29 @@ public class DbService {
     return intOrZero(userEntity.getCoinBalance());
   }
 
+  public Timestamp getPremiumUntil(String session) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    expirePremiumBenefitsIfNeeded(userEntity);
+    return userEntity.getPremiumUntil();
+  }
+
+  public boolean isPremiumActive(String session) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    expirePremiumBenefitsIfNeeded(userEntity);
+    return isPremiumActive(userEntity);
+  }
+
+  public boolean isPremiumActiveForUser(UserEntity userEntity) {
+    expirePremiumBenefitsIfNeeded(userEntity);
+    return isPremiumActive(userEntity);
+  }
+
+  public int getCasualDailyCoinLimit(String session) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    expirePremiumBenefitsIfNeeded(userEntity);
+    return getCasualDailyCoinLimit(userEntity);
+  }
+
   public void changeCoinBalance(
       String session,
       int amountDelta,
@@ -457,6 +542,76 @@ public class DbService {
     userEntity.setCoinBalance(updatedBalance);
     userRepository.save(userEntity);
     recordCoinTransaction(userEntity, gameEntity, amountDelta, updatedBalance, transactionType, reason);
+  }
+
+  public int addCasualQuizReward(String session, int gameId) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    expirePremiumBenefitsIfNeeded(userEntity);
+    LocalDate today = LocalDate.now(ZoneId.systemDefault());
+    Timestamp dayStart = Timestamp.from(today.atStartOfDay(ZoneId.systemDefault()).toInstant());
+    Timestamp nextDayStart = Timestamp.from(today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant());
+    int dailyLimit = getCasualDailyCoinLimit(userEntity);
+    int earnedToday = intOrZero(coinTransactionRepository.sumAmountDeltaByUserAndTypeBetween(
+        userEntity.getId(),
+        CoinTransactionType.QUIZ_REWARD,
+        dayStart,
+        nextDayStart
+    ));
+    int reward = Math.min(CASUAL_COIN_REWARD, Math.max(0, dailyLimit - earnedToday));
+    if (reward <= 0) {
+      return 0;
+    }
+
+    changeCoinBalance(session, reward, CoinTransactionType.QUIZ_REWARD, "Casual quiz correct answer reward", gameId);
+    return reward;
+  }
+
+  public Timestamp purchasePremium(String session, int days) throws SQLException, DatabaseAccessException {
+    int price = getPremiumPlanPrice(days);
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    expirePremiumBenefitsIfNeeded(userEntity);
+
+    int currentBalance = intOrZero(userEntity.getCoinBalance());
+    int updatedBalance = currentBalance - price;
+    if (updatedBalance < 0) {
+      throw new DatabaseAccessException("Insufficient coin balance");
+    }
+
+    Instant now = Instant.now();
+    Instant startsAt = isPremiumActive(userEntity)
+        ? userEntity.getPremiumUntil().toInstant()
+        : now;
+    Timestamp premiumUntil = Timestamp.from(startsAt.plus(Duration.ofDays(days)));
+
+    userEntity.setCoinBalance(updatedBalance);
+    userEntity.setPremiumUntil(premiumUntil);
+    userRepository.save(userEntity);
+    recordCoinTransaction(
+        userEntity,
+        null,
+        -price,
+        updatedBalance,
+        CoinTransactionType.PREMIUM_PURCHASE,
+        "QUIZ PREMIUM " + days + " day plan"
+    );
+    return premiumUntil;
+  }
+
+  public void changePremiumUntil(String session, Timestamp premiumUntil) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    userEntity.setPremiumUntil(premiumUntil);
+    userRepository.save(userEntity);
+  }
+
+  public void expirePremiumBenefits(String session) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    expirePremiumBenefitsIfNeeded(userEntity);
+  }
+
+  public void expireExpiredPremiumBenefits() {
+    for (UserEntity userEntity : userRepository.findByPremiumUntilIsNotNull()) {
+      expirePremiumBenefitsIfNeeded(userEntity);
+    }
   }
 
   public void addGamePlayed(String session) throws SQLException, DatabaseAccessException {
@@ -485,14 +640,18 @@ public class DbService {
     return toIntegerArray(gameIds);
   }
 
-  public void addCorrectAnswer(String session, int questionId) throws SQLException, DatabaseAccessException {
+  public boolean addCorrectAnswer(String session, int questionId) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     QuestionEntity questionEntity = questionRepository.findById(questionId).orElseThrow(DatabaseAccessException::new);
+    if (answeredCorrectlyQuestionRepository.existsByUser_IdAndQuestion_Id(userEntity.getId(), questionId)) {
+      return false;
+    }
 
     AnsweredCorrectlyQuestionEntity answeredCorrectlyQuestionEntity = new AnsweredCorrectlyQuestionEntity();
     answeredCorrectlyQuestionEntity.setUser(userEntity);
     answeredCorrectlyQuestionEntity.setQuestion(questionEntity);
     answeredCorrectlyQuestionRepository.save(answeredCorrectlyQuestionEntity);
+    return true;
   }
 
   public Question[] getCorrectAnswers(String session) throws SQLException, DatabaseAccessException {
@@ -1056,11 +1215,34 @@ public class DbService {
     JSONArray result = new JSONArray();
 
     for (UserEntity userEntity : users) {
+      expirePremiumBenefitsIfNeeded(userEntity);
       JSONArray row = new JSONArray();
       row.put(userEntity.getId());
       row.put(userEntity.getUsername());
       row.put(userEntity.getGlobalPoints());
       row.put(userEntity.getGlobalPossiblePoints());
+      row.put(isPremiumActive(userEntity));
+      row.put(intOrZero(userEntity.getPicId()));
+      row.put(resolveAvatarUrl(userEntity));
+      result.put(row);
+    }
+
+    return result;
+  }
+
+  public JSONArray getCoinLeaderboards() throws SQLException {
+    List<UserEntity> users = userRepository.findTop50ByOrderByCoinBalanceDescUsernameAsc();
+    JSONArray result = new JSONArray();
+
+    for (UserEntity userEntity : users) {
+      expirePremiumBenefitsIfNeeded(userEntity);
+      JSONArray row = new JSONArray();
+      row.put(userEntity.getId());
+      row.put(userEntity.getUsername());
+      row.put(intOrZero(userEntity.getCoinBalance()));
+      row.put(isPremiumActive(userEntity));
+      row.put(intOrZero(userEntity.getPicId()));
+      row.put(resolveAvatarUrl(userEntity));
       result.put(row);
     }
 

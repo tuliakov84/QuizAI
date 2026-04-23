@@ -23,6 +23,8 @@ public class User {
   private Integer globalPossiblePoints;
   private Integer currentGamePoints;
   private Integer coinBalance;
+  private Instant premiumUntil;
+  private Boolean premiumActive;
 
   public User() {
 
@@ -165,6 +167,22 @@ public class User {
 
   public void setCoinBalance(Integer coinBalance) {
     this.coinBalance = coinBalance;
+  }
+
+  public Instant getPremiumUntil() {
+    return premiumUntil;
+  }
+
+  public void setPremiumUntil(Instant premiumUntil) {
+    this.premiumUntil = premiumUntil;
+  }
+
+  public Boolean getPremiumActive() {
+    return premiumActive;
+  }
+
+  public void setPremiumActive(Boolean premiumActive) {
+    this.premiumActive = premiumActive;
   }
 
   public Game getCurrentGame() {

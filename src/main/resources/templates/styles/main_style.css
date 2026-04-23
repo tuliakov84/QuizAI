@@ -57,6 +57,7 @@ body::after {
 }
 
 .main_cont {
+  position: relative;
   min-height: 100%;
   width: 100%;
   display: flex;
@@ -67,6 +68,35 @@ body::after {
   gap: 48px;
   padding: 40px 24px;
   position: relative;
+}
+
+.coin-badge {
+  position: fixed;
+  top: 22px;
+  right: 24px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 205, 96, 0.38);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 205, 96, 0.2), transparent 40%),
+    rgba(24, 18, 8, 0.82);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.32),
+    0 0 22px rgba(255, 205, 96, 0.12);
+  color: #fff4c2;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.coin-badge strong {
+  color: #ffd86b;
+  font-size: 1.15rem;
 }
 
 .leftdiv,
@@ -97,15 +127,10 @@ body::after {
 .rightdiv::before {
   content: "";
   position: absolute;
-  inset: -1px;
+  inset: 0;
   border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(135deg, rgba(99,230,255,0.45), rgba(155,109,255,0.18), rgba(255,79,216,0.35));
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  border: 1px solid rgba(99, 230, 255, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(255, 79, 216, 0.08);
   pointer-events: none;
 }
 
