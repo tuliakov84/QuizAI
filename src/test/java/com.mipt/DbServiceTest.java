@@ -710,16 +710,24 @@ public class DbServiceTest {
     JSONArray second = resultLeaderboard.getJSONArray(1);
 
     // checking first
+    assertEquals(7, first.length());
     assertEquals(dbService.getUserId("SESSION"), first.getInt(0));
     assertEquals(dbService.getUsername("SESSION"), first.getString(1));
     assertEquals(150, first.getInt(2));
     assertEquals(150, first.getInt(3));
+    assertFalse(first.getBoolean(4));
+    assertEquals(0, first.getInt(5));
+    assertTrue(first.isNull(6));
 
     // checking second
+    assertEquals(7, second.length());
     assertEquals(dbService.getUserId("SESSION2"), second.getInt(0));
     assertEquals(dbService.getUsername("SESSION2"), second.getString(1));
     assertEquals(100, second.getInt(2));
     assertEquals(170, second.getInt(3));
+    assertFalse(second.getBoolean(4));
+    assertEquals(0, second.getInt(5));
+    assertTrue(second.isNull(6));
 
     // deleting the game
     assertTrue(dbService.checkGameExists(gameId1));
