@@ -32,37 +32,19 @@
           <a href="#.html" class="btn">ОТВЕТЫ</a>
         </div>
       </div>
-      <div class="game">
-        <div class="text">
-          <p class="h13">ТЕМА</p>
-          <p class="h13">РЕЗУЛЬТАТ</p>
-          <a href="#.html" class="btn">ОТВЕТЫ</a>
-        </div>
-      </div>
-      <div class="game">
-        <div class="text">
-          <p class="h13">ТЕМА</p>
-          <p class="h13">РЕЗУЛЬТАТ</p>
-          <a href="#.html" class="btn">ОТВЕТЫ</a>
-        </div>
-      </div>
-      <div class="game">
-        <div class="text">
-          <p class="h13">ТЕМА</p>
-          <p class="h13">РЕЗУЛЬТАТ</p>
-          <a href="#.html" class="btn">ОТВЕТЫ</a>
-        </div>
-      </div>
-      <div class="game">
-        <div class="text">
-          <p class="h13">ТЕМА</p>
-          <p class="h13">РЕЗУЛЬТАТ</p>
-          <a href="#.html" class="btn">ОТВЕТЫ</a>
-        </div>
-      </div>
-    </div>
   </main>
 </div>
+
+<div id="questionsModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Вопросы и ответы</h2>
+    <div id="modal-questions-container">
+      <div class="loading">Загрузка...</div>
+    </div>
+  </div>
+</div>
+
 </body>
 
 <script src="/js/auth.js"></script>
@@ -73,6 +55,8 @@
     await checkCurrentGame();
 
     await loadQuizHistory();
+
+    initModalClose();
   });
 
   async function loadQuizHistory() {
@@ -80,6 +64,7 @@
     if (!session) {
       console.error('Сессия не найдена');
       showError('Сессия не найдена. Пожалуйста, войдите заново.');
+      window.location.href = 'index.html';
       return;
     }
 
@@ -97,7 +82,6 @@
       const topics = await topicsResponse.json();
       const topicMap = {};
       topics.forEach(topic => {
-        // ✅ Исправлено: topic.name вместо topic.topicName
         topicMap[topic.topicId] = topic.name || `Тема ${topic.topicId}`;
       });
 
@@ -125,6 +109,14 @@
   function displayQuizHistory(games, topicMap) {
     const gamesContainer = document.querySelector('.games');
     const template = document.querySelector('.game');
+
+    document.querySelector('.games').addEventListener('click', async (event) => {
+      const btn = event.target.closest('.btn');
+      if (!btn || !btn.hasAttribute('data-game-id')) return;
+      event.preventDefault();
+      const gameId = btn.getAttribute('data-game-id');
+      await openQuestionsModal(gameId);
+    });
 
     const existingGames = gamesContainer.querySelectorAll('.game');
     for (let i = 1; i < existingGames.length; i++) {
@@ -163,14 +155,113 @@
       if (resultElement) resultElement.textContent = `${game.numberOfQuestions} вопросов`;
 
       if (answersButton) {
-        answersButton.href = `answers.html?gameId=${game.gameId}`;
         answersButton.textContent = 'ОТВЕТЫ';
+        answersButton.removeAttribute('href');
+        answersButton.style.cursor = 'pointer';
+        answersButton.setAttribute('data-game-id', game.gameId);
       }
 
       gamesContainer.insertBefore(gameElement, template.nextSibling);
     });
 
     template.style.display = 'none';
+  }
+
+  async function openQuestionsModal(gameId) {
+    const modal = document.getElementById('questionsModal');
+    const container = document.getElementById('modal-questions-container');
+    const session = AuthService.getsession();
+
+    modal.style.display = 'flex';
+    container.innerHTML = '<div class="loading">Загрузка вопросов...</div>';
+
+    try {
+      const response = await fetch('http://localhost:8080/api/users/get-history-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session: session,
+          gameId: gameId
+        })
+      });
+
+      if (!response.ok) throw new Error(`Ошибка HTTP ${response.status}`);
+
+      const questions = await response.json();
+      renderQuestionsToModal(questions);
+    } catch (error) {
+      console.error('Ошибка загрузки вопросов:', error);
+      container.innerHTML = '<div class="error-message">Не удалось загрузить вопросы. Попробуйте позже.</div>';
+    }
+  }
+
+  function renderQuestionsToModal(questions) {
+    const container = document.getElementById('modal-questions-container');
+
+    if (!questions || questions.length === 0) {
+      container.innerHTML = '<div class="no-questions-message">Нет вопросов для этого квиза.</div>';
+      return;
+    }
+
+    let html = '';
+    for (const q of questions) {
+      let correctAnswerText = '';
+      switch (q.rightAnswerNumber) {
+        case 1: correctAnswerText = q.answer1; break;
+        case 2: correctAnswerText = q.answer2; break;
+        case 3: correctAnswerText = q.answer3; break;
+        case 4: correctAnswerText = q.answer4; break;
+        default: correctAnswerText = 'Не указан';
+      }
+
+      // пока не сохраняем ответ, потом можно добавить
+      let userAnswerHtml = '';
+      if (q.submittedAnswerNumber !== null && q.submittedAnswerNumber !== undefined) {
+        let userAnswerText = '';
+        switch (q.submittedAnswerNumber) {
+          case 1: userAnswerText = q.answer1; break;
+          case 2: userAnswerText = q.answer2; break;
+          case 3: userAnswerText = q.answer3; break;
+          case 4: userAnswerText = q.answer4; break;
+          default: userAnswerText = 'Не выбран';
+        }
+        userAnswerHtml = `<div class="user-answer">📝 Ваш ответ: ${escapeHtml(userAnswerText)}</div>`;
+      }
+
+      html += `
+      <div class="history-question">
+        <div class="question-text">${escapeHtml(q.questionText)}</div>
+        <div class="correct-answer">✅ Правильный ответ: ${escapeHtml(correctAnswerText)}</div>
+        ${userAnswerHtml}
+      </div>
+    `;
+    }
+    container.innerHTML = html;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function (m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    });
+  }
+
+  function initModalClose() {
+    const modal = document.getElementById('questionsModal');
+    const closeBtn = modal.querySelector('.close');
+
+    closeBtn.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
   }
 
   function showError(message) {
@@ -191,7 +282,7 @@
     setTimeout(() => errorElement.remove(), 5000);
   }
 
-  window.refreshHistory = async function() {
+  window.refreshHistory = async function () {
     const errorMsg = document.querySelector('.error-message');
     if (errorMsg) errorMsg.remove();
     const noGamesMsg = document.querySelector('.no-games-message');

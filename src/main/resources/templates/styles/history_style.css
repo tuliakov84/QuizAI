@@ -481,3 +481,12 @@ main {
     max-height: 70vh;
   }
 }
+
+.user-answer {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  color: #9fb3d9;
+  border-left: 2px solid #63e6ff;
+  padding-left: 12px;
+  font-style: italic;
+}

@@ -11,7 +11,7 @@
 <body>
 <div class="main_cont">
     <header>
-        <a href="connect1.html" class="btn_back">НАЗАД</a>
+        <a href="modesToThemes.html" class="btn_back">НАЗАД</a>
         <h1 class="h11">QUIZ AI ARENA</h1>
     </header>
 
@@ -34,8 +34,7 @@
     let availableTopics = [];
 
     document.addEventListener('DOMContentLoaded', function() {
-        if (!AuthService.requireAuth()) return;
-        checkCurrentGame();
+
         loadTopics();
     });
 

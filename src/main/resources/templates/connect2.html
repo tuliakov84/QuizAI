@@ -58,7 +58,7 @@
       refreshInterval = setInterval(loadOpenRooms, 10000);
     });
 
-    window.addEventListener('beforeunload', function() {
+    window.addEventListener('beforeunload', function () {
       if (refreshInterval) {
         clearInterval(refreshInterval);
       }
@@ -75,14 +75,27 @@
     async function loadOpenRooms() {
       try {
         const selectedTopic = JSON.parse(localStorage.getItem('selectedTopic'));
+        let selectedMode = JSON.parse(localStorage.getItem('selectedMode'));
+        switch (selectedMode) {
+          case "КАЗУАЛ": selectedMode = "CASUAL"; break;
+          case "ПРАВДА ИЛИ ЛОЖЬ": selectedMode = "TRUE_FALSE"; break;
+          case "ДУЭЛЬ": selectedMode = "DUEL"; break;
+          case "РАНДОМ": selectedMode = "RANDOM"; break;
+          case "СВОЯК": selectedMode = "SVOYAK"; break;
+          default: selectedMode = "CASUAL";
+        }
         if (!selectedTopic) {
           showErrorMessage('Тема не выбрана');
           return;
         }
+        if (!selectedMode) {
+          showErrorMessage('Тема не выбрана');
+          return;
+        }
 
-        console.log('Загружаем комнаты для темы:', selectedTopic);
+        console.log('Загружаем комнаты для темы:', selectedTopic, selectedMode);
 
-        availableRooms = await fetchOpenRooms(selectedTopic.topicId);
+        availableRooms = await fetchOpenRooms(selectedTopic.topicId, selectedMode);
         displayRooms(availableRooms);
 
       } catch (error) {
@@ -91,7 +104,7 @@
       }
     }
 
-    async function fetchOpenRooms(topicId) {
+    async function fetchOpenRooms(topicId, selectedMode) {
       const session = AuthService.getsession();
 
       const response = await fetch('http://localhost:8080/api/game/get-open', {
@@ -114,16 +127,17 @@
 
       // Обрабатываем формат данных: [[gameId, currentParticipantsNumber, participantsNumber, gameMode], ...]
       const roomsWithDetails = roomsData.map(roomArray => {
-        const [gameId, currentParticipants, maxParticipants, gameMode] = roomArray;
+        const [gameId, currentParticipants, maxParticipants, mode] = roomArray;
         return {
           gameId: gameId,
           currentParticipants: currentParticipants,
           maxParticipants: maxParticipants,
-          gameMode: gameMode || 'CASUAL'
+          mode: mode
         };
       });
 
-      return roomsWithDetails.filter(room => room.currentParticipants < room.maxParticipants);
+      // Фильтруем только незаполненные комнаты
+      return roomsWithDetails.filter(room => room.currentParticipants < room.maxParticipants && room.mode === selectedMode);
     }
 
     function displayRooms(rooms) {
@@ -150,7 +164,7 @@
         roomElement.innerHTML = `
           <div class="text">
             <p>${room.gameId}</p>
-            <p>${room.currentParticipants}/${room.maxParticipants} · ${room.gameMode}</p>
+            <p>${room.currentParticipants}/${room.maxParticipants} · ${room.mode}</p>
           </div>
         `;
 
@@ -248,7 +262,7 @@
           sessionStorage.setItem('gameInfo', JSON.stringify({
             totalQuestions: gameData.numberOfQuestions,
             levelDifficulty: gameData.levelDifficulty,
-            gameMode: gameData.gameMode || 'CASUAL'
+            mode: gameData.mode || 'CASUAL'
           }));
           return {
             success: true,
