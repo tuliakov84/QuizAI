@@ -401,6 +401,7 @@ public class DbServiceTest {
   void testExpireExpiredPremiumBenefitsClearsExpiredPremiumUntil() throws SQLException, DatabaseAccessException {
     Timestamp expiredAt = Timestamp.from(Instant.now().minusSeconds(5));
 
+    dbService.changeCoinBalance("SESSION", 2000, CoinTransactionType.GAME_PAYOUT, "Premium test top-up", null);
     dbService.purchasePremium("SESSION", 1);
     assertNotNull(dbService.getPremiumUntil("SESSION"));
     dbService.changeCustomAvatarPath("SESSION", "uploads/avatars/test-avatar.webp");
