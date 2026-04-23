@@ -177,6 +177,7 @@ public class ApiController {
       }
       user.setGlobalPoints(dbService.getGlobalPoints(session));
       user.setCoinBalance(dbService.getCoinBalance(session));
+      user.setGlobalPossiblePoints(dbService.getGlobalPossiblePoints(session));
       user.setGamesPlayedNumber(dbService.getGamesPlayedNumber(session));
       applyPremiumState(user, session);
       return new ResponseEntity<>(user, HttpStatus.OK);
