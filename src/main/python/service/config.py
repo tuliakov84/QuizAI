@@ -3,24 +3,41 @@ from jproperties import Properties
 from pathlib import Path
 from urllib.parse import urlparse
 
-configs = Properties()
+def _load_optional_properties() -> Properties | None:
+    custom_path = os.getenv("QUIZAI_PROPERTIES_PATH")
+    config_paths = [
+        Path(custom_path) if custom_path else None,
+        Path(__file__).resolve().parents[2] / "resources" / "application.properties",
+        Path(__file__).resolve().parents[4] / "target" / "classes" / "application.properties",
+    ]
+    for path in config_paths:
+        if path is None:
+            continue
+        if path.exists() and path.is_file():
+            props = Properties()
+            with path.open("rb") as config_file:
+                props.load(config_file)
+            return props
+    return None
 
-CONFIG_PATHS = [
-    Path(__file__).resolve().parents[2] / "resources" / "application.properties",
-    Path(__file__).resolve().parents[4] / "target" / "classes" / "application.properties",
-]
 
-config_path = next((path for path in CONFIG_PATHS if path.exists()), None)
-if config_path is None:
-    searched = ", ".join(str(path) for path in CONFIG_PATHS)
-    raise FileNotFoundError(f"application.properties not found. Looked in: {searched}")
+def _prop_or_default(configs: Properties | None, key: str, default: str) -> str:
+    if configs is None:
+        return default
+    value = configs.get(key)
+    if value is None or value.data is None:
+        return default
+    return value.data
 
-with config_path.open("rb") as config_file:
-    configs.load(config_file)
 
-DB_URL = configs.get("app.database.url").data.replace("jdbc:", "", 1)
-DEFAULT_DB_USER = configs.get("app.database.user").data
-DEFAULT_DB_PASSWORD = configs.get("app.database.password").data
+configs = _load_optional_properties()
+
+DB_URL = os.getenv(
+    "QUIZAI_DB_URL",
+    _prop_or_default(configs, "app.database.url", "jdbc:postgresql://localhost:5432/quizai"),
+).replace("jdbc:", "", 1)
+DEFAULT_DB_USER = _prop_or_default(configs, "app.database.user", "postgres")
+DEFAULT_DB_PASSWORD = _prop_or_default(configs, "app.database.password", "postgres")
 
 parsed = urlparse(DB_URL)
 DEFAULT_DB_HOST = parsed.hostname
@@ -35,9 +52,15 @@ DB_PASSWORD = os.getenv("QUIZAI_DB_PASSWORD", DEFAULT_DB_PASSWORD)
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv(
     "QUIZAI_KAFKA_BOOTSTRAP_SERVERS",
-    configs.get("spring.kafka.bootstrap-servers").data,
+    _prop_or_default(configs, "spring.kafka.bootstrap-servers", "localhost:9092"),
 )
-PYTHON_VALIDATION_REQUESTS_TOPIC = configs.get("app.kafka.topic.python-validation-requests").data
-PYTHON_VALIDATION_RESULTS_TOPIC = configs.get("app.kafka.topic.python-validation-results").data
+PYTHON_VALIDATION_REQUESTS_TOPIC = os.getenv(
+    "QUIZAI_PYTHON_VALIDATION_REQUESTS_TOPIC",
+    _prop_or_default(configs, "app.kafka.topic.python-validation-requests", "python-validation-requests"),
+)
+PYTHON_VALIDATION_RESULTS_TOPIC = os.getenv(
+    "QUIZAI_PYTHON_VALIDATION_RESULTS_TOPIC",
+    _prop_or_default(configs, "app.kafka.topic.python-validation-results", "python-validation-results"),
+)
 # earliest: do not skip messages if the worker starts after the backend sent the request (new consumer group).
 KAFKA_AUTO_OFFSET_RESET = os.getenv("QUIZAI_KAFKA_AUTO_OFFSET_RESET", "earliest")

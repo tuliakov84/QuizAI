@@ -23,6 +23,14 @@ docker compose up -d
 - Kafka UI на `http://localhost:8081`
 - Python validation worker для семантической проверки вопросов
 
+Для режима разнесенных репозиториев (backend/generator/python-worker как отдельные образы) используйте:
+
+```bash
+docker compose -f docker-compose.multi-repo.yml up -d
+```
+
+Подробный план миграции в разные репозитории: `documentation/repo-split.md`.
+
 ### 1.1. Локальные секреты и переопределения
 
 Приложение автоматически подключает файл `application-local.properties` из корня проекта:

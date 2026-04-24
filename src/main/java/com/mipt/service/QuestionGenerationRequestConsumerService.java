@@ -1,7 +1,6 @@
 package com.mipt.service;
 
 import com.mipt.QuestionGenerator;
-import com.mipt.dbAPI.DbService;
 import com.mipt.gameModes.GameMode;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -15,8 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 @ConditionalOnExpression(
@@ -27,7 +24,6 @@ public class QuestionGenerationRequestConsumerService {
   private static final Logger LOGGER = LoggerFactory.getLogger(QuestionGenerationRequestConsumerService.class);
   private static final String TRUE_FALSE_MOCK_QUESTIONS_RESOURCE = "true-false-mock-questions.json";
 
-  private final DbService dbService;
   private final KafkaTemplate<String, String> kafkaTemplate;
   @Value("${app.kafka.topic.question-generation-results}")
   private String generationResultsTopic;
@@ -36,8 +32,7 @@ public class QuestionGenerationRequestConsumerService {
   @Value("${app.question-generation.mock-resource:ml-answer-example.json}")
   private String mockQuestionsResource;
 
-  public QuestionGenerationRequestConsumerService(DbService dbService, KafkaTemplate<String, String> kafkaTemplate) {
-    this.dbService = dbService;
+  public QuestionGenerationRequestConsumerService(KafkaTemplate<String, String> kafkaTemplate) {
     this.kafkaTemplate = kafkaTemplate;
   }
 
@@ -55,20 +50,24 @@ public class QuestionGenerationRequestConsumerService {
           gameId, topicId, levelDifficulty, numberOfQuestions, gameMode, request.optString("requestId", ""), request.optInt("attempt", 0)
       );
       JSONArray questionNumbersToRegenerate = request.optJSONArray("questionNumbersToRegenerate");
-      JSONArray existingQuestions = new JSONArray();
+      JSONArray existingQuestions = request.optJSONArray("existingQuestions");
+      if (existingQuestions == null) {
+        existingQuestions = new JSONArray();
+      }
       boolean regenerationRequested = request.optBoolean("isRegeneration", false);
       if (questionNumbersToRegenerate != null && !questionNumbersToRegenerate.isEmpty()) {
         numberOfQuestions = questionNumbersToRegenerate.length();
         regenerationRequested = true;
-        List<Integer> targetNumbers = toIntList(questionNumbersToRegenerate);
-        existingQuestions = new JSONArray(dbService.getQuestionTextsByGameIdExceptNumbers(gameId, targetNumbers));
         LOGGER.info(
-            "Step A2: regeneration mode. gameId={}, numbersToRegenerate={}, effectiveCount={}",
-            gameId, questionNumbersToRegenerate, numberOfQuestions
+            "Step A2: regeneration mode. gameId={}, numbersToRegenerate={}, effectiveCount={}, existingQuestionsCount={}",
+            gameId, questionNumbersToRegenerate, numberOfQuestions, existingQuestions.length()
         );
       }
 
-      String topicName = dbService.getTopicById(topicId).getName();
+      String topicName = request.optString("topicName", "").trim();
+      if (topicName.isEmpty()) {
+        throw new IllegalArgumentException("Field 'topicName' is required in generation request payload");
+      }
       JSONArray generatedQuestions;
       if (mockGenerationEnabled) {
         String mockResource = resolveMockResource(gameMode);
@@ -144,13 +143,6 @@ public class QuestionGenerationRequestConsumerService {
     return new JSONArray().put(payloadObject).toString();
   }
 
-  private static List<Integer> toIntList(JSONArray jsonArray) {
-    List<Integer> result = new ArrayList<>();
-    for (int i = 0; i < jsonArray.length(); i++) {
-      result.add(jsonArray.getInt(i));
-    }
-    return result;
-  }
 
   private JSONArray loadMockQuestions(String resourceName, int numberOfQuestions) throws Exception {
     InputStream inputStream = QuestionGenerationRequestConsumerService.class.getClassLoader()

@@ -119,6 +119,9 @@ services:
       QUIZAI_DB_PASSWORD: postgres
       QUIZAI_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       QUIZAI_KAFKA_AUTO_OFFSET_RESET: earliest
+      HF_HOME: /root/.cache/huggingface
+    volumes:
+      - hf_cache:/root/.cache/huggingface
     networks:
       - kafka-network
 
@@ -141,6 +144,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  hf_cache:
 
 
 networks:

@@ -29,15 +29,15 @@ public class MlQuestionRequestProducerService {
    * Отправляет в Kafka сообщение с данными игры для генерации вопросов LLM.
    * Консьюмер использует эти данные для вызова ML-сервиса и сохранения результатов в БД.
    */
-  public void sendQuestionGenerationRequest(Game game) {
-    String payload = toJson(game, UUID.randomUUID().toString(), 0, null, null);
+  public void sendQuestionGenerationRequest(Game game, String topicTitle) {
+    String payload = toJson(game, topicTitle, UUID.randomUUID().toString(), 0, null, null, null);
     int gameId = game.getGameId();
     try {
       LOGGER.info(
           "Step P1: sending initial generation request. gameId={}, topicId={}, difficulty={}, numberOfQuestions={}",
           gameId, game.getTopicId(), game.getLevelDifficultyInt(), game.getNumberOfQuestions()
       );
-      kafkaTemplate.send(topicName, String.valueOf(gameId), payload);
+      kafkaTemplate.send(this.topicName, String.valueOf(gameId), payload);
       LOGGER.info("Sent question generation request for gameId={}, topicId={}", gameId, game.getTopicId());
     } catch (Exception e) {
       LOGGER.error("Failed to send question generation request for gameId={}", gameId, e);
@@ -50,18 +50,22 @@ public class MlQuestionRequestProducerService {
       int topicId,
       int levelDifficulty,
       int numberOfQuestions,
+      String topicTitle,
       GameMode gameMode,
       String requestId,
       int attempt,
       String questionNumbersToRegenerateJsonArray,
-      String questionIdsToReplaceJsonArray
+      String questionIdsToReplaceJsonArray,
+      String existingQuestionsJsonArray
   ) {
     String payload = toJson(
         buildGame(gameId, topicId, levelDifficulty, numberOfQuestions, gameMode),
+        topicTitle,
         requestId,
         attempt,
         questionNumbersToRegenerateJsonArray,
-        questionIdsToReplaceJsonArray
+        questionIdsToReplaceJsonArray,
+        existingQuestionsJsonArray
     );
     try {
       LOGGER.info(
@@ -88,16 +92,19 @@ public class MlQuestionRequestProducerService {
 
   private static String toJson(
       Game game,
+      String topicName,
       String requestId,
       int attempt,
       String questionNumbersToRegenerateJsonArray,
-      String questionIdsToReplaceJsonArray
+      String questionIdsToReplaceJsonArray,
+      String existingQuestionsJsonArray
   ) {
     JSONObject obj = new JSONObject();
     obj.put("requestId", requestId);
     obj.put("status", "REQUESTED");
     obj.put("gameId", game.getGameId());
     obj.put("topicId", game.getTopicId());
+    obj.put("topicName", topicName);
     obj.put("numberOfQuestions", game.getNumberOfQuestions());
     obj.put("levelDifficulty", game.getLevelDifficultyInt());
     obj.put("gameMode", game.getGameMode() == null ? GameMode.CASUAL.name() : game.getGameMode().name());
@@ -106,6 +113,9 @@ public class MlQuestionRequestProducerService {
       obj.put("questionNumbersToRegenerate", new org.json.JSONArray(questionNumbersToRegenerateJsonArray));
       if (questionIdsToReplaceJsonArray != null && !questionIdsToReplaceJsonArray.isBlank()) {
         obj.put("questionIdsToReplace", new org.json.JSONArray(questionIdsToReplaceJsonArray));
+      }
+      if (existingQuestionsJsonArray != null && !existingQuestionsJsonArray.isBlank()) {
+        obj.put("existingQuestions", new org.json.JSONArray(existingQuestionsJsonArray));
       }
       obj.put("isRegeneration", true);
     } else {

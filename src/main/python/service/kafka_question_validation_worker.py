@@ -13,11 +13,18 @@ import json
 import logging
 
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+import psycopg2
 
 import config
 from db_service import DbService
 from embedding_service import Embedder, generate_and_persist_embeddings_for_ids
 from question_personalization import QuestionPersonalizer
+
+
+async def heartbeat_logger(interval_seconds: int = 30) -> None:
+    while True:
+        await asyncio.sleep(interval_seconds)
+        logging.info("Python validation worker heartbeat: alive, waiting/processing Kafka messages")
 
 
 def process_validation_request(db_service: DbService, embedder: Embedder, payload: dict) -> dict:
@@ -110,6 +117,7 @@ async def consume_and_validate() -> None:
     )
     db_service = DbService()
     embedder = Embedder()
+    heartbeat_task = asyncio.create_task(heartbeat_logger())
     logging.info(
         "DB + embedder handles ready (SentenceTransformer loads on first message, not at startup)."
     )
@@ -122,19 +130,38 @@ async def consume_and_validate() -> None:
                 continue
 
             try:
-                response = process_validation_request(db_service, embedder, payload)
+                response = await asyncio.to_thread(process_validation_request, db_service, embedder, payload)
                 await producer.send_and_wait(
                     config.PYTHON_VALIDATION_RESULTS_TOPIC,
                     response,
                     key=str(response["gameId"]).encode("utf-8"),
                 )
                 logging.info("Kafka message sent to validation results topic: %s", response)
+            except (psycopg2.OperationalError, psycopg2.InterfaceError) as db_exc:
+                logging.warning("DB connection dropped, reconnecting and retrying once: %s", db_exc)
+                try:
+                    db_service.close()
+                except Exception:
+                    pass
+                db_service = DbService()
+                response = await asyncio.to_thread(process_validation_request, db_service, embedder, payload)
+                await producer.send_and_wait(
+                    config.PYTHON_VALIDATION_RESULTS_TOPIC,
+                    response,
+                    key=str(response["gameId"]).encode("utf-8"),
+                )
+                logging.info("Kafka message sent after DB reconnect: %s", response)
             except Exception as message_exc:
                 logging.exception("Failed to process message %s: %s", payload, message_exc)
     except Exception as exc:
         logging.exception("Validation worker failed: %s", exc)
         raise
     finally:
+        heartbeat_task.cancel()
+        try:
+            await heartbeat_task
+        except asyncio.CancelledError:
+            pass
         await consumer.stop()
         await producer.stop()
         db_service.close()

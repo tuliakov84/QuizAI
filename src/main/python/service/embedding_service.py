@@ -6,6 +6,7 @@ Creates embeddings for quizai questions
 
 from __future__ import annotations
 
+import os
 import logging
 
 from sentence_transformers import SentenceTransformer, util
@@ -23,6 +24,7 @@ class Embedder:
         model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
     ) -> None:
         self._model_name = model_name
+        self._cache_folder = os.getenv("HF_HOME") or os.getenv("TRANSFORMERS_CACHE") or os.getenv("HF_HUB_CACHE")
         self._model: SentenceTransformer | None = None
 
     @property
@@ -32,7 +34,10 @@ class Embedder:
                 "Loading SentenceTransformer model %r (first use; download/load can take several minutes)...",
                 self._model_name,
             )
-            self._model = SentenceTransformer(self._model_name)
+            if self._cache_folder:
+                self._model = SentenceTransformer(self._model_name, cache_folder=self._cache_folder)
+            else:
+                self._model = SentenceTransformer(self._model_name)
             logging.info("SentenceTransformer model ready.")
         return self._model
 

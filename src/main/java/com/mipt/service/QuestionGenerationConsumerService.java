@@ -191,9 +191,13 @@ public class QuestionGenerationConsumerService {
       }
       List<Integer> questionIds = toIntList(questionIdsToRegenerate);
       JSONArray questionNumbersToRegenerate = new JSONArray(dbService.getQuestionNumbersByIds(gameId, questionIds));
+      String topicName = dbService.getTopicById(topicId).getName();
+      JSONArray existingQuestions = new JSONArray(
+          dbService.getQuestionTextsByGameIdExceptNumbers(gameId, toIntList(questionNumbersToRegenerate))
+      );
       LOGGER.info(
-          "Step 7/8: regeneration needed. gameId={}, requestId={}, attempt={}, questionIds={}, questionNumbers={}",
-          gameId, requestId, attempt, questionIds, questionNumbersToRegenerate
+          "Step 7/8: regeneration needed. gameId={}, requestId={}, attempt={}, questionIds={}, questionNumbers={}, existingQuestionsCount={}",
+          gameId, requestId, attempt, questionIds, questionNumbersToRegenerate, existingQuestions.length()
       );
 
       producerService.sendRegenerationRequest(
@@ -201,11 +205,13 @@ public class QuestionGenerationConsumerService {
           topicId,
           levelDifficulty,
           numberOfQuestions,
+          topicName,
           dbService.getGameMode(gameId),
           requestId.isBlank() ? String.valueOf(gameId) : requestId,
           attempt + 1,
           questionNumbersToRegenerate.toString(),
-          questionIdsToRegenerate.toString()
+          questionIdsToRegenerate.toString(),
+          existingQuestions.toString()
       );
       LOGGER.info(
           "Step 8/8: sent regeneration request to generator. gameId={}, nextAttempt={}, questionCount={}",
