@@ -11,7 +11,7 @@
 <body>
 <div class="main_cont">
     <header>
-        <a href="themesToJoin.html" class="btn_back">НАЗАД</a>
+        <a href="connect1.html" class="btn_back">НАЗАД</a>
         <h1 class="h11">QUIZ AI ARENA</h1>
     </header>
 
@@ -76,20 +76,12 @@
       try {
         const selectedTopic = JSON.parse(localStorage.getItem('selectedTopic'));
         let selectedMode = JSON.parse(localStorage.getItem('selectedMode'));
-        switch (selectedMode) {
-          case "КАЗУАЛ": selectedMode = "CASUAL"; break;
-          case "ПРАВДА ИЛИ ЛОЖЬ": selectedMode = "TRUE_FALSE"; break;
-          case "ДУЭЛЬ": selectedMode = "DUEL"; break;
-          case "РАНДОМ": selectedMode = "RANDOM"; break;
-          case "СВОЯК": selectedMode = "SVOYAK"; break;
-          default: selectedMode = "CASUAL";
-        }
         if (!selectedTopic) {
           showErrorMessage('Тема не выбрана');
           return;
         }
         if (!selectedMode) {
-          showErrorMessage('Тема не выбрана');
+          showErrorMessage('Режим не выбран');
           return;
         }
 
@@ -137,7 +129,7 @@
       });
 
       // Фильтруем только незаполненные комнаты
-      return roomsWithDetails.filter(room => room.currentParticipants < room.maxParticipants && room.mode === selectedMode);
+      return roomsWithDetails.filter(room => room.currentParticipants < room.maxParticipants && room.mode === selectedMode.mode);
     }
 
     function displayRooms(rooms) {

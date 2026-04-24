@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles/modes_style.css">
+    <title>QUIZAI</title>
+</head>
+
+<body>
+<div class="main_cont">
+    <header>
+        <a href="main.html" class="btn_back">НАЗАД</a>
+        <h1 class="h11">QUIZ AI ARENA</h1>
+    </header>
+
+    <p class="h12">ВЫБЕРИТЕ РЕЖИМ КВИЗА</p>
+
+    <main>
+        <div class="modes">
+            <div class="panel-badge">MODES</div>
+            <span>ДОСТУПНЫЕ РЕЖИМЫ</span>
+            <div id="modes-container" class="modes-grid">
+                <!-- Темы будут загружены через JavaScript -->
+            </div>
+        </div>
+    </main>
+</div>
+
+<div id="rules-modal" class="rules-modal hidden" role="dialog" aria-modal="true" aria-labelledby="rules-modal-title">
+    <div class="rules-modal__panel">
+        <h2 id="rules-modal-title">Правила игры</h2>
+        <p id="rules-modal-text">Правила для этого режима скоро появятся.</p>
+        <button type="button" id="rules-modal-close" class="rules-modal__close">Понятно</button>
+    </div>
+</div>
+</body>
+
+<script src="/js/auth.js"></script>
+<script src="/js/checkCurrentGame.js"></script>
+<script>
+    let availablemodes = [];
+
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!AuthService.requireAuth()) return;
+      checkCurrentGame();
+
+      loadGameModes();
+      document.getElementById('rules-modal-close').addEventListener('click', hideRulesModal);
+      document.getElementById('rules-modal').addEventListener('click', function (event) {
+        if (event.target === this) {
+          hideRulesModal();
+        }
+      });
+    });
+
+    function showRulesModal(mode) {
+      document.getElementById('rules-modal-title').textContent = `Правила: ${mode.title}`;
+      document.getElementById('rules-modal-text').textContent =
+        `Правила режима "${mode.title}" будут добавлены позже. Пока это заглушка.`;
+      document.getElementById('rules-modal').classList.remove('hidden');
+    }
+
+    function hideRulesModal() {
+      document.getElementById('rules-modal').classList.add('hidden');
+    }
+
+    async function loadGameModes() {
+      try {
+        const response = await fetch('http://localhost:8080/api/game-mode/get-all');
+        if (!response.ok) {
+          throw new Error(`Ошибка HTTP: ${response.status}`);
+        }
+
+        availableModes = await response.json();
+      } catch (error) {
+        console.error('Ошибка загрузки режимов игры, используем fallback:', error);
+        availableModes = getFallbackModes();
+      }
+
+      displayModes(availableModes);
+    }
+
+    function getFallbackModes() {
+      return [
+        {
+          mode: 'CASUAL',
+          title: 'Казуал',
+          minParticipants: 2,
+          maxParticipants: 12,
+          minQuestions: 1,
+          maxQuestions: 50,
+          usesStandardQuizFlow: true
+        },
+        {
+          mode: 'TRUE_FALSE',
+          title: 'Правда или ложь',
+          minParticipants: 2,
+          maxParticipants: 12,
+          minQuestions: 1,
+          maxQuestions: 50,
+          usesStandardQuizFlow: false
+        },
+        {
+          mode: 'DUEL',
+          title: 'Дуэль',
+          minParticipants: 2,
+          maxParticipants: 2,
+          minQuestions: 1,
+          maxQuestions: 50,
+          usesStandardQuizFlow: false
+        },
+        {
+          mode: 'RANDOM',
+          title: 'Рандом',
+          minParticipants: 1,
+          maxParticipants: 1,
+          minQuestions: 1,
+          maxQuestions: 50,
+          usesStandardQuizFlow: false
+        },
+        {
+          mode: 'SVOYAK',
+          title: 'Свояк',
+          minParticipants: 2,
+          maxParticipants: 12,
+          minQuestions: 1,
+          maxQuestions: 100,
+          usesStandardQuizFlow: false
+        }
+      ];
+    }
+
+    function displayModes(modes) {
+      const container = document.getElementById('modes-container');
+      container.innerHTML = '';
+
+      modes.forEach(mode => {
+        const modeElement = document.createElement('div');
+        const modeRow = document.createElement('div');
+        modeRow.className = 'mode-option-row';
+        modeElement.className = 'mode-btn';
+        modeElement.innerHTML = `
+              <div class="mode-content btn">
+                  <div class="mode-chip">CHOOSE WISELY</div>
+                  <h3>${mode.title}</h3>
+              </div>
+          `;
+
+        modeElement.addEventListener('click', () => selectMode(mode));
+        const rulesBtn = document.createElement('button');
+        rulesBtn.type = 'button';
+        rulesBtn.className = 'rules-btn';
+        rulesBtn.textContent = 'Правила игры';
+        rulesBtn.addEventListener('click', function () {
+          showRulesModal(mode);
+        });
+
+        modeRow.appendChild(modeElement);
+        modeRow.appendChild(rulesBtn);
+        container.appendChild(modeRow);
+      });
+    }
+
+    function selectMode(mode) {
+      localStorage.setItem('selectedMode', JSON.stringify(mode));
+      console.log('Выбрана режим:', mode);
+      if (mode.mode === "CASUAL" | mode.mode === "TRUE_FALSE") {
+        window.location.href = 'themesToCreate.html';
+      } else {
+        window.location.href = 'createroom.html';
+      }
+    }
+
+    function showLoadingMessage(text) {
+      const container = document.getElementById('modes-container');
+      container.innerHTML = `<div class="loading-message">${text}</div>`;
+    }
+
+    function showErrorMessage(text) {
+      const container = document.getElementById('modes-container');
+      container.innerHTML = `<div class="error-message">${text}</div>`;
+    }
+</script>
+
+
+</html>

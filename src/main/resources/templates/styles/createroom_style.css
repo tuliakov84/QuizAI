@@ -253,7 +253,7 @@ main {
   transform: translateX(100%);
 }
 
-.topic-info {
+.topic-info, .mode-info {
   width: 100%;
   margin-top: 8px;
   position: relative;

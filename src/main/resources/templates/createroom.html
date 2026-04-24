@@ -10,7 +10,7 @@
 <body>
 <div class="main_cont">
     <header>
-        <a href="themesToCreate.html" class="btn_back">НАЗАД</a>
+        <a href="modesToThemesToCreate.html" class="btn_back">НАЗАД</a>
         <h1 class="h11">QUIZ AI ARENA</h1>
     </header>
 
@@ -39,14 +39,13 @@
             <div id="selected-topic-info" class="topic-info">
                 <!-- Тема будет загружена через JavaScript -->
             </div>
+            <div id="selected-mode-info" class="mode-info">
+                <!-- Тема будет загружена через JavaScript -->
+            </div>
         </div>
 
         <div class="right">
             <div class="main_blockr">
-                <span>РЕЖИМ ИГРЫ</span>
-                <div id="game-mode-options" class="isprivate block_hor mode-options">
-                    <!-- Режимы будут загружены с бэкенда -->
-                </div>
 
                 <span>ПРИВАТНОСТЬ КОМНАТЫ</span>
                 <div class="isprivate block_hor">
@@ -56,12 +55,14 @@
 
                 <span>КОЛИЧЕСТВО УЧАСТНИКОВ</span>
                 <div class="input-group">
-                    <input type="number" id="participants-count" name="link" placeholder="<50 ЧЕЛОВЕК" min="2" max="50" value="4" required>
+                    <input type="number" id="participants-count" name="link" placeholder="<50 ЧЕЛОВЕК" min="2" max="50"
+                           value="4" required>
                 </div>
 
                 <span>КОЛИЧЕСТВО ВОПРОСОВ</span>
                 <div class="input-group">
-                    <input type="number" id="questions-count" name="link" placeholder="ОТ 2 ДО 30" min="2" max="30" value="2" required>
+                    <input type="number" id="questions-count" name="link" placeholder="ОТ 2 ДО 30" min="2" max="30" value="2"
+                           required>
                 </div>
 
             </div>
@@ -78,6 +79,7 @@
         <button type="button" id="rules-modal-close" class="rules-modal__close">Понятно</button>
     </div>
 </div>
+</body>
 
 <script src="/js/auth.js"></script>
 <script src="/js/checkCurrentGame.js"></script>
@@ -85,30 +87,21 @@
     let selectedTopic = null;
     let selectedDifficulty = 2; // По умолчанию средняя сложность
     let isPrivate = false; // По умолчанию открытая комната
-    let selectedGameMode = 'CASUAL';
     let availableModes = [];
     let isCreatingRoom = false; // Флаг для отслеживания процесса создания
 
     // bfcache-fix.js
     window.addEventListener('pageshow', function (event) {
-        if (event.persisted) {
-            console.log('Страница восстановлена из bfcache, перезагрузка...');
-            window.location.reload();
-        }
+      if (event.persisted) {
+        console.log('Страница восстановлена из bfcache, перезагрузка...');
+        window.location.reload();
+      }
     });
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       if (!AuthService.requireAuth()) return;
       checkCurrentGame();
-      loadSelectedTopic();
-      loadGameModes().finally(() => {
-        setupEventListeners();
-      });
-      document.getElementById('rules-modal-close').addEventListener('click', hideRulesModal);
-      document.getElementById('rules-modal').addEventListener('click', function (event) {
-        if (event.target === this) {
-          hideRulesModal();
-        }
-      });
+      loadSelectedTopicAndMode();
+      setupEventListeners();
     });
 
     function getFallbackModes() {
@@ -161,70 +154,15 @@
       ];
     }
 
-    async function loadGameModes() {
-      try {
-        const response = await fetch('http://localhost:8080/api/game-mode/get-all');
-        if (!response.ok) {
-          throw new Error(`Ошибка HTTP: ${response.status}`);
-        }
-
-        availableModes = await response.json();
-      } catch (error) {
-        console.error('Ошибка загрузки режимов игры, используем fallback:', error);
-        availableModes = getFallbackModes();
-      }
-
-      renderGameModes();
-      applyModeConstraints();
-    }
-
-    function renderGameModes() {
-      const container = document.getElementById('game-mode-options');
-      container.innerHTML = '';
-
-      availableModes.forEach(mode => {
-        const modeRow = document.createElement('div');
-        modeRow.className = 'mode-option-row';
-
-        const modeBtn = document.createElement('a');
-        modeBtn.href = '#';
-        modeBtn.className = 'btnprivate mode-btn';
-        modeBtn.dataset.mode = mode.mode;
-        modeBtn.textContent = mode.title;
-        if (mode.mode === selectedGameMode) {
-          modeBtn.classList.add('active');
-        }
-
-        modeBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          if (isCreatingRoom) return;
-
-          document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-          this.classList.add('active');
-          selectedGameMode = mode.mode;
-          applyModeConstraints();
-        });
-
-        const rulesBtn = document.createElement('button');
-        rulesBtn.type = 'button';
-        rulesBtn.className = 'rules-btn';
-        rulesBtn.textContent = 'Правила игры';
-        rulesBtn.addEventListener('click', function () {
-          showRulesModal(mode);
-        });
-
-        modeRow.appendChild(modeBtn);
-        modeRow.appendChild(rulesBtn);
-        container.appendChild(modeRow);
-      });
-    }
-
-    function getSelectedModeDefinition() {
-      return availableModes.find(mode => mode.mode === selectedGameMode) || getFallbackModes()[0];
-    }
-
     function applyModeConstraints() {
-      const mode = getSelectedModeDefinition();
+      const mode = localStorage.getItem('selectedMode');
+      if (!mode) {
+        showMessage('Режим не выбран. Возврат к выбору режима...', 'error');
+        setTimeout(() => {
+          window.location.href = 'modesToCreate.html';
+        }, 2000);
+        return;
+      }
       const participantsInput = document.getElementById('participants-count');
       const questionsInput = document.getElementById('questions-count');
 
@@ -241,20 +179,17 @@
       }
     }
 
-    function showRulesModal(mode) {
-      document.getElementById('rules-modal-title').textContent = `Правила: ${mode.title}`;
-      document.getElementById('rules-modal-text').textContent =
-        `Правила режима "${mode.title}" будут добавлены позже. Пока это заглушка.`;
-      document.getElementById('rules-modal').classList.remove('hidden');
-    }
-
-    function hideRulesModal() {
-      document.getElementById('rules-modal').classList.add('hidden');
-    }
-
     // Загрузка выбранной темы
-    function loadSelectedTopic() {
+    function loadSelectedTopicAndMode() {
       try {
+        const modeData = localStorage.getItem('selectedMode');
+        if (!modeData) {
+          showMessage('Режим не выбран. Возврат к выбору режима...', 'error');
+          setTimeout(() => {
+            window.location.href = 'modesToCreate.html';
+          }, 2000);
+          return;
+        }
         const topicData = localStorage.getItem('selectedTopic');
         if (!topicData) {
           showMessage('Тема не выбрана. Возврат к выбору тем...', 'error');
@@ -264,8 +199,11 @@
           return;
         }
 
+        selectedMode = JSON.parse(modeData);
         selectedTopic = JSON.parse(topicData);
-        displaySelectedTopic(selectedTopic);
+        displaySelectedTopic(selectedTopic, selectedMode);
+        displaySelectedMode(selectedMode);
+        applyModeConstraints();
 
       } catch (error) {
         console.error('Ошибка загрузки темы:', error);
@@ -274,21 +212,34 @@
     }
 
     // Отображение выбранной темы
-    function displaySelectedTopic(topic) {
-      const topicInfo = document.getElementById('selected-topic-info');
-      topicInfo.innerHTML = `
-        <div class="topic-card">
-          <h4>ВЫБРАННАЯ ТЕМА:</h4>
-          <h3>${topic.name}</h3>
-        </div>
-      `;
+    function displaySelectedTopic(topic, mode) {
+      if (mode.mode === "CASUAL" | mode.mode === "TRUE_FALSE") {
+        const topicInfo = document.getElementById('selected-topic-info');
+        topicInfo.innerHTML = `
+            <div class="topic-card">
+              <h4>ВЫБРАННАЯ ТЕМА:</h4>
+              <h3>${topic.name}</h3>
+            </div>
+          `;
+      }
+    }
+
+    // Отображение выбраного режима
+    function displaySelectedMode(mode) {
+      const modeInfo = document.getElementById('selected-mode-info');
+      modeInfo.innerHTML = `
+          <div class="topic-card">
+            <h4>ВЫБРАННЫЙ РЕЖИМ:</h4>
+            <h3>${mode.title}</h3>
+          </div>
+        `;
     }
 
     // Настройка обработчиков событий
     function setupEventListeners() {
       // Обработчики для кнопок сложности
       document.querySelectorAll('.difficulty-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
+        btn.addEventListener('click', function (e) {
           e.preventDefault();
           if (isCreatingRoom) return; // Блокируем при создании
 
@@ -308,7 +259,7 @@
 
       // Обработчики для кнопок приватности
       document.querySelectorAll('.privacy-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
+        btn.addEventListener('click', function (e) {
           e.preventDefault();
           if (isCreatingRoom) return; // Блокируем при создании
 
@@ -328,7 +279,7 @@
 
       // Обработчик для создания комнаты
       const createBtn = document.getElementById('create-room-btn');
-      createBtn.addEventListener('click', function(e) {
+      createBtn.addEventListener('click', function (e) {
         e.preventDefault();
         if (isCreatingRoom) return; // Блокируем повторные нажатия
         createQuiz();
@@ -339,7 +290,7 @@
       const questionsInput = document.getElementById('questions-count');
 
       [participantsInput, questionsInput].forEach(input => {
-        input.addEventListener('input', function() {
+        input.addEventListener('input', function () {
           if (isCreatingRoom) {
             this.value = this.defaultValue; // Не даем менять значения во время создания
           }
@@ -400,7 +351,17 @@
 
       const participantsCount = document.getElementById('participants-count').value;
       const questionsCount = document.getElementById('questions-count').value;
-      const selectedMode = getSelectedModeDefinition();
+      const selectedModeRaw = localStorage.getItem('selectedMode');
+
+      if (!selectedModeRaw) {
+        showMessage('Режим не выбран. Возврат к выбору режима...', 'error');
+        setTimeout(() => {
+          window.location.href = 'modesToCreate.html';
+        }, 2000);
+        return;
+      }
+
+      const selectedMode = JSON.parse(selectedModeRaw);
 
       // Валидация
       if (!participantsCount || participantsCount < selectedMode.minParticipants || participantsCount > selectedMode.maxParticipants) {
@@ -425,6 +386,9 @@
 
         const session = AuthService.getsession();
 
+        console.log('session:', session);
+        console.log('selectedTopic:', selectedTopic);
+        console.log('selectedMode:', selectedMode.mode);
         // Создание квиза
         const response = await fetch('http://localhost:8080/api/game/create', {
           method: 'POST',
@@ -433,7 +397,7 @@
           },
           body: JSON.stringify({
             session: session,
-            gameMode: selectedGameMode,
+            gameMode: selectedMode.mode,
             levelDifficulty: selectedDifficulty,
             numberOfQuestions: parseInt(questionsCount),
             participantsNumber: parseInt(participantsCount),
@@ -444,12 +408,12 @@
 
         if (!response.ok) {
           let errorMessage = `Ошибка HTTP: ${response.status}`;
+
           try {
-            const errorData = await response.json();
-            errorMessage = errorData.message || errorMessage;
-          } catch (e) {
-            // Не удалось распарсить JSON
-          }
+            const text = await response.text();
+            if (text) errorMessage = text;
+          } catch (e) { }
+
           throw new Error(errorMessage);
         }
 
@@ -488,6 +452,6 @@
       }
     }
 </script>
-</body>
+
 
 </html>
