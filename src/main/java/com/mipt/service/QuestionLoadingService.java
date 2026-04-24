@@ -96,7 +96,7 @@ public class QuestionLoadingService {
     game.setLevelDifficulty(levelDifficulty);
     game.setNumberOfQuestions(numberOfQuestions);
     game.setGameMode(dbService.getGameMode(gameId));
-    mlQuestionRequestProducer.sendQuestionGenerationRequest(game);
+    mlQuestionRequestProducer.sendQuestionGenerationRequest(game, topic.getName());
   }
 
   private JSONArray buildPersonalizedQuestionSet(
