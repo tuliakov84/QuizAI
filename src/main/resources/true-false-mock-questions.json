@@ -1,0 +1,57 @@
+[
+  {
+    "question_number": 1,
+    "question_text": "Молния видна раньше, чем слышен гром, потому что свет распространяется быстрее звука.",
+    "available_answers": [
+      { "index": 1, "answer": "Правда" },
+      { "index": 2, "answer": "Ложь" },
+      { "index": 3, "answer": "" },
+      { "index": 4, "answer": "" }
+    ],
+    "right_answer_number": 1
+  },
+  {
+    "question_number": 2,
+    "question_text": "Столица Австралии — Сидней.",
+    "available_answers": [
+      { "index": 1, "answer": "Правда" },
+      { "index": 2, "answer": "Ложь" },
+      { "index": 3, "answer": "" },
+      { "index": 4, "answer": "" }
+    ],
+    "right_answer_number": 2
+  },
+  {
+    "question_number": 3,
+    "question_text": "У человека четыре камеры сердца.",
+    "available_answers": [
+      { "index": 1, "answer": "Правда" },
+      { "index": 2, "answer": "Ложь" },
+      { "index": 3, "answer": "" },
+      { "index": 4, "answer": "" }
+    ],
+    "right_answer_number": 1
+  },
+  {
+    "question_number": 4,
+    "question_text": "Водород — самый тяжелый химический элемент в периодической таблице.",
+    "available_answers": [
+      { "index": 1, "answer": "Правда" },
+      { "index": 2, "answer": "Ложь" },
+      { "index": 3, "answer": "" },
+      { "index": 4, "answer": "" }
+    ],
+    "right_answer_number": 2
+  },
+  {
+    "question_number": 5,
+    "question_text": "Пингвины не умеют летать.",
+    "available_answers": [
+      { "index": 1, "answer": "Правда" },
+      { "index": 2, "answer": "Ложь" },
+      { "index": 3, "answer": "" },
+      { "index": 4, "answer": "" }
+    ],
+    "right_answer_number": 1
+  }
+]

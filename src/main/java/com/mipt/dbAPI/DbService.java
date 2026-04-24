@@ -73,6 +73,9 @@ public class DbService {
   private static final int CASUAL_COIN_REWARD = 10;
   private static final int CASUAL_DAILY_COIN_LIMIT = 300;
   private static final int PREMIUM_CASUAL_DAILY_COIN_LIMIT = CASUAL_DAILY_COIN_LIMIT * 2;
+  private static final int TRUE_FALSE_COIN_REWARD = 5;
+  private static final int TRUE_FALSE_DAILY_COIN_LIMIT = 150;
+  private static final int PREMIUM_TRUE_FALSE_DAILY_COIN_LIMIT = TRUE_FALSE_DAILY_COIN_LIMIT * 2;
   @Value("${app.auth.email-enabled:true}")
   private boolean emailAuthEnabled = true;
 
@@ -248,6 +251,10 @@ public class DbService {
 
   private static int getCasualDailyCoinLimit(UserEntity userEntity) {
     return isPremiumActive(userEntity) ? PREMIUM_CASUAL_DAILY_COIN_LIMIT : CASUAL_DAILY_COIN_LIMIT;
+  }
+
+  private static int getTrueFalseDailyCoinLimit(UserEntity userEntity) {
+    return isPremiumActive(userEntity) ? PREMIUM_TRUE_FALSE_DAILY_COIN_LIMIT : TRUE_FALSE_DAILY_COIN_LIMIT;
   }
 
   private static boolean boolOrFalse(Boolean value) {
@@ -547,22 +554,55 @@ public class DbService {
   public int addCasualQuizReward(String session, int gameId) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     expirePremiumBenefitsIfNeeded(userEntity);
+    return addQuizRewardWithinDailyLimit(
+        session,
+        gameId,
+        userEntity,
+        CASUAL_COIN_REWARD,
+        getCasualDailyCoinLimit(userEntity),
+        CoinTransactionType.QUIZ_REWARD,
+        "Casual quiz correct answer reward"
+    );
+  }
+
+  public int addTrueFalseQuizReward(String session, int gameId) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserBySessionOrThrow(session);
+    expirePremiumBenefitsIfNeeded(userEntity);
+    return addQuizRewardWithinDailyLimit(
+        session,
+        gameId,
+        userEntity,
+        TRUE_FALSE_COIN_REWARD,
+        getTrueFalseDailyCoinLimit(userEntity),
+        CoinTransactionType.TRUE_FALSE_REWARD,
+        "True/False quiz correct answer reward"
+    );
+  }
+
+  private int addQuizRewardWithinDailyLimit(
+      String session,
+      int gameId,
+      UserEntity userEntity,
+      int rewardPerAnswer,
+      int dailyLimit,
+      CoinTransactionType transactionType,
+      String reason
+  ) throws SQLException, DatabaseAccessException {
     LocalDate today = LocalDate.now(ZoneId.systemDefault());
     Timestamp dayStart = Timestamp.from(today.atStartOfDay(ZoneId.systemDefault()).toInstant());
     Timestamp nextDayStart = Timestamp.from(today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant());
-    int dailyLimit = getCasualDailyCoinLimit(userEntity);
     int earnedToday = intOrZero(coinTransactionRepository.sumAmountDeltaByUserAndTypeBetween(
         userEntity.getId(),
-        CoinTransactionType.QUIZ_REWARD,
+        transactionType,
         dayStart,
         nextDayStart
     ));
-    int reward = Math.min(CASUAL_COIN_REWARD, Math.max(0, dailyLimit - earnedToday));
+    int reward = Math.min(rewardPerAnswer, Math.max(0, dailyLimit - earnedToday));
     if (reward <= 0) {
       return 0;
     }
 
-    changeCoinBalance(session, reward, CoinTransactionType.QUIZ_REWARD, "Casual quiz correct answer reward", gameId);
+    changeCoinBalance(session, reward, transactionType, reason, gameId);
     return reward;
   }
 

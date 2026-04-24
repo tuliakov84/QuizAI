@@ -4,6 +4,7 @@ public class GameModeDefinition {
   private final GameMode mode;
   private final String title;
   private final String description;
+  private final String rules;
   private final int minParticipants;
   private final int maxParticipants;
   private final int minQuestions;
@@ -15,6 +16,7 @@ public class GameModeDefinition {
       GameMode mode,
       String title,
       String description,
+      String rules,
       int minParticipants,
       int maxParticipants,
       int minQuestions,
@@ -25,6 +27,7 @@ public class GameModeDefinition {
     this.mode = mode;
     this.title = title;
     this.description = description;
+    this.rules = rules;
     this.minParticipants = minParticipants;
     this.maxParticipants = maxParticipants;
     this.minQuestions = minQuestions;
@@ -43,6 +46,10 @@ public class GameModeDefinition {
 
   public String getDescription() {
     return description;
+  }
+
+  public String getRules() {
+    return rules;
   }
 
   public int getMinParticipants() {

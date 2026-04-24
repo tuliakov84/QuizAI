@@ -214,7 +214,7 @@
     }
 
     function isStandardQuizMode() {
-        return currentGameMode === 'CASUAL';
+        return currentGameMode === 'CASUAL' || currentGameMode === 'TRUE_FALSE';
     }
 
     async function updateLobby() {
@@ -311,11 +311,15 @@
         if (questionsReady) {
             statusElement.className = 'questions-status-value ready';
             statusIcon.textContent = '✅';
-            statusText.textContent = 'Вопросы готовы';
+            statusText.textContent = currentGameMode === 'TRUE_FALSE'
+                ? 'Вопросы Правда/Ложь готовы'
+                : 'Вопросы готовы';
         } else {
             statusElement.className = 'questions-status-value loading';
             statusIcon.textContent = '⏳';
-            statusText.textContent = 'Персонализация при старте';
+            statusText.textContent = currentGameMode === 'TRUE_FALSE'
+                ? 'Подготавливаем вопросы Правда/Ложь'
+                : 'Персонализация при старте';
         }
     }
 
@@ -378,7 +382,7 @@
         const startBtn = document.getElementById('start-quiz-btn');
         const messageElement = document.getElementById('start-quiz-message');
         if (!isStandardQuizMode()) {
-            const message = `Режим ${currentGameMode} сохранен, но отдельный игровой flow еще не подключен.`;
+            const message = `Режим ${currentGameMode} пока недоступен для запуска из этой комнаты.`;
             disableStartButton(message);
             if (messageElement) {
                 messageElement.textContent = message;
@@ -488,7 +492,7 @@
     async function startQuiz() {
         if (isQuizStarting) return;
         if (!isStandardQuizMode()) {
-            alert(`Режим ${currentGameMode} уже сохранен, но его отдельный игровой экран еще не подключен.`);
+            alert(`Режим ${currentGameMode} пока недоступен для запуска из этой комнаты.`);
             return;
         }
         if (currentPlayers.length < 2) {

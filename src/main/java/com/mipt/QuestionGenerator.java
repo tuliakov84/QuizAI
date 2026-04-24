@@ -17,6 +17,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 public class QuestionGenerator {
+  private static final String GAME_MODE_CASUAL = "CASUAL";
+  private static final String GAME_MODE_TRUE_FALSE = "TRUE_FALSE";
 
   private static final String DEFAULT_LLM_URL = "http://localhost:11434/api/chat";
   private static final String DEFAULT_LLM_MODEL = "qwen2.5";
@@ -34,6 +36,7 @@ public class QuestionGenerator {
       String topic,
       int numberOfQuestions,
       int difficult,
+      String gameMode,
       List<Integer> targetQuestionNumbers,
       List<String> existingQuestionTexts
   ) {
@@ -42,6 +45,7 @@ public class QuestionGenerator {
   private record GenerationContext(
       String topic,
       int difficult,
+      String gameMode,
       List<Integer> targetQuestionNumbers,
       int maxRetriesPerQuestion,
       Set<String> usedQuestionKeys,
@@ -70,6 +74,7 @@ public class QuestionGenerator {
     GenerationContext context = new GenerationContext(
         input.topic,
         input.difficult,
+        input.gameMode,
         input.targetQuestionNumbers,
         readIntConfig("app.llm.max-retries-per-question", "APP_LLM_MAX_RETRIES_PER_QUESTION", DEFAULT_MAX_RETRIES_PER_QUESTION),
         usedQuestionKeys,
@@ -161,7 +166,7 @@ public class QuestionGenerator {
             }
 
             JSONObject questionObj = new JSONObject(jsonContent);
-            JSONObject fixedQuestion = fixQuestionStructure(questionObj, questionNumber);
+            JSONObject fixedQuestion = fixQuestionStructure(questionObj, questionNumber, context.gameMode);
 
             String questionText = fixedQuestion.optString("question_text", "");
             String normalized = normalizeQuestionText(questionText);
@@ -192,6 +197,7 @@ public class QuestionGenerator {
       String topic = obj.getString("topic").trim();
       int numberOfQuestions = obj.getInt("numberOfQuestions");
       int difficult = obj.getInt("difficult");
+      String gameMode = normalizeGameMode(obj.optString("gameMode", GAME_MODE_CASUAL));
 
       if (topic.isEmpty()) {
         throw new IllegalArgumentException("Topic must not be empty");
@@ -222,7 +228,7 @@ public class QuestionGenerator {
         }
       }
 
-      return new GenerationInput(topic, numberOfQuestions, difficult, targetNumbers, existingQuestionTexts);
+      return new GenerationInput(topic, numberOfQuestions, difficult, gameMode, targetNumbers, existingQuestionTexts);
     } catch (Exception e) {
       throw new CompletionException("Invalid generator payload: " + e.getMessage(), e);
     }
@@ -235,18 +241,22 @@ public class QuestionGenerator {
     String modeHint = context.targetQuestionNumbers.isEmpty()
         ? "Режим: первичная генерация"
         : "Режим: перегенерация отдельных вопросов";
+    boolean trueFalseMode = isTrueFalseMode(context.gameMode);
 
-    return String.format(
-        "Ты генерируешь вопрос для онлайн-квиза.\n" +
-            "%s\n" +
-            "%s\n" +
-            "Тема: %s\n" +
-            "Сложность: %d (1 = легко, 2 = средне, 3 = сложно).\n" +
-            "Номер вопроса: %d\n\n" +
-            "Верни строго один JSON-объект БЕЗ markdown и без дополнительных пояснений.\n" +
-            "Формат строго такой:\n" +
-            "{\n" +
-            "  \"question_number\": %d,\n" +
+    String formatExample = trueFalseMode
+        ? "{\n" +
+            "  \"question_number\": " + questionNumber + ",\n" +
+            "  \"question_text\": \"...\",\n" +
+            "  \"available_answers\": [\n" +
+            "    {\"index\": 1, \"answer\": \"Правда\"},\n" +
+            "    {\"index\": 2, \"answer\": \"Ложь\"},\n" +
+            "    {\"index\": 3, \"answer\": \"\"},\n" +
+            "    {\"index\": 4, \"answer\": \"\"}\n" +
+            "  ],\n" +
+            "  \"right_answer_number\": 1..2\n" +
+            "}"
+        : "{\n" +
+            "  \"question_number\": " + questionNumber + ",\n" +
             "  \"question_text\": \"...\",\n" +
             "  \"available_answers\": [\n" +
             "    {\"index\": 1, \"answer\": \"...\"},\n" +
@@ -255,19 +265,43 @@ public class QuestionGenerator {
             "    {\"index\": 4, \"answer\": \"...\"}\n" +
             "  ],\n" +
             "  \"right_answer_number\": 1..4\n" +
-            "}\n\n" +
+            "}";
+    String answerConstraints = trueFalseMode
+        ? "3) Это режим Правда/Ложь: варианты ответов должны быть только «Правда» и «Ложь» в таком порядке.\n" +
+            "4) Для index 3 и 4 верни пустые строки.\n" +
+            "5) Правильный ответ может быть только 1 или 2.\n" +
+            "6) Не используй вопросы из списка запрета.\n" +
+            "7) Не добавляй текст вне JSON."
+        : "3) Варианты ответов правдоподобные и различающиеся по смыслу.\n" +
+            "4) Не используй вопросы из списка запрета.\n" +
+            "5) Не добавляй текст вне JSON.";
+    String gameModeHint = trueFalseMode
+        ? "Игровой режим: Правда/Ложь."
+        : "Игровой режим: стандартный тест с 4 вариантами ответа.";
+
+    return String.format(
+        "Ты генерируешь вопрос для онлайн-квиза.\n" +
+            "%s\n" +
+            "%s\n" +
+            "%s\n" +
+            "Тема: %s\n" +
+            "Сложность: %d (1 = легко, 2 = средне, 3 = сложно).\n" +
+            "Номер вопроса: %d\n\n" +
+            "Верни строго один JSON-объект БЕЗ markdown и без дополнительных пояснений.\n" +
+            "Формат строго такой:\n" +
+            "%s\n\n" +
             "Ограничения:\n" +
             "1) Только русский язык.\n" +
             "2) Только один правильный ответ.\n" +
-            "3) Варианты ответов правдоподобные и различающиеся по смыслу.\n" +
-            "4) Не используй вопросы из списка запрета.\n" +
-            "5) Не добавляй текст вне JSON.",
+            "%s",
         modeHint,
         uniquenessContext,
+        gameModeHint,
         context.topic,
         context.difficult,
         questionNumber,
-        questionNumber
+        formatExample,
+        answerConstraints
     );
   }
 
@@ -363,10 +397,11 @@ public class QuestionGenerator {
     }
   }
 
-  private static JSONObject fixQuestionStructure(JSONObject question, int expectedNumber) {
+  private static JSONObject fixQuestionStructure(JSONObject question, int expectedNumber, String gameMode) {
     try {
       JSONObject fixed = new JSONObject();
       fixed.put("question_number", expectedNumber);
+      boolean trueFalseMode = isTrueFalseMode(gameMode);
 
       if (question.has("question_text")) {
         fixed.put("question_text", question.getString("question_text"));
@@ -377,7 +412,12 @@ public class QuestionGenerator {
       }
 
       JSONArray answers = new JSONArray();
-      if (question.has("available_answers")) {
+      if (trueFalseMode) {
+        answers.put(new JSONObject().put("index", 1).put("answer", "Правда"));
+        answers.put(new JSONObject().put("index", 2).put("answer", "Ложь"));
+        answers.put(new JSONObject().put("index", 3).put("answer", ""));
+        answers.put(new JSONObject().put("index", 4).put("answer", ""));
+      } else if (question.has("available_answers")) {
         JSONArray originalAnswers = question.getJSONArray("available_answers");
         for (int i = 0; i < Math.min(4, originalAnswers.length()); i++) {
           JSONObject answerObj = originalAnswers.getJSONObject(i);
@@ -411,14 +451,16 @@ public class QuestionGenerator {
 
       if (question.has("right_answer_number")) {
         int rightAnswer = question.getInt("right_answer_number");
-        if (rightAnswer >= 1 && rightAnswer <= 4) {
+        int maxAllowedAnswer = trueFalseMode ? 2 : 4;
+        if (rightAnswer >= 1 && rightAnswer <= maxAllowedAnswer) {
           fixed.put("right_answer_number", rightAnswer);
         } else {
           fixed.put("right_answer_number", 1);
         }
       } else if (question.has("right_ans_index")) {
         int rightAnswer = question.getInt("right_ans_index");
-        if (rightAnswer >= 1 && rightAnswer <= 4) {
+        int maxAllowedAnswer = trueFalseMode ? 2 : 4;
+        if (rightAnswer >= 1 && rightAnswer <= maxAllowedAnswer) {
           fixed.put("right_answer_number", rightAnswer);
         } else {
           fixed.put("right_answer_number", 1);
@@ -437,16 +479,35 @@ public class QuestionGenerator {
       minimalQuestion.put("question_text", "Вопрос на тему " + expectedNumber);
 
       JSONArray answers = new JSONArray();
-      for (int i = 1; i <= 4; i++) {
-        JSONObject answer = new JSONObject();
-        answer.put("index", i);
-        answer.put("answer", "Вариант " + i);
-        answers.put(answer);
+      if (isTrueFalseMode(gameMode)) {
+        answers.put(new JSONObject().put("index", 1).put("answer", "Правда"));
+        answers.put(new JSONObject().put("index", 2).put("answer", "Ложь"));
+        answers.put(new JSONObject().put("index", 3).put("answer", ""));
+        answers.put(new JSONObject().put("index", 4).put("answer", ""));
+      } else {
+        for (int i = 1; i <= 4; i++) {
+          JSONObject answer = new JSONObject();
+          answer.put("index", i);
+          answer.put("answer", "Вариант " + i);
+          answers.put(answer);
+        }
       }
       minimalQuestion.put("available_answers", answers);
       minimalQuestion.put("right_answer_number", 1);
 
       return minimalQuestion;
     }
+  }
+
+  private static String normalizeGameMode(String rawGameMode) {
+    if (rawGameMode == null || rawGameMode.isBlank()) {
+      return GAME_MODE_CASUAL;
+    }
+    String normalized = rawGameMode.trim().toUpperCase();
+    return GAME_MODE_TRUE_FALSE.equals(normalized) ? GAME_MODE_TRUE_FALSE : GAME_MODE_CASUAL;
+  }
+
+  private static boolean isTrueFalseMode(String gameMode) {
+    return GAME_MODE_TRUE_FALSE.equals(normalizeGameMode(gameMode));
   }
 }

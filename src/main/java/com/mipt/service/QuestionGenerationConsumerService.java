@@ -2,6 +2,7 @@ package com.mipt.service;
 
 import com.mipt.dbAPI.DatabaseAccessException;
 import com.mipt.dbAPI.DbService;
+import com.mipt.gameModes.GameMode;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -200,6 +201,7 @@ public class QuestionGenerationConsumerService {
           topicId,
           levelDifficulty,
           numberOfQuestions,
+          dbService.getGameMode(gameId),
           requestId.isBlank() ? String.valueOf(gameId) : requestId,
           attempt + 1,
           questionNumbersToRegenerate.toString(),

@@ -1,6 +1,7 @@
 package com.mipt.service;
 
 import com.mipt.domainModel.Game;
+import com.mipt.gameModes.GameMode;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,13 +50,14 @@ public class MlQuestionRequestProducerService {
       int topicId,
       int levelDifficulty,
       int numberOfQuestions,
+      GameMode gameMode,
       String requestId,
       int attempt,
       String questionNumbersToRegenerateJsonArray,
       String questionIdsToReplaceJsonArray
   ) {
     String payload = toJson(
-        buildGame(gameId, topicId, levelDifficulty, numberOfQuestions),
+        buildGame(gameId, topicId, levelDifficulty, numberOfQuestions, gameMode),
         requestId,
         attempt,
         questionNumbersToRegenerateJsonArray,
@@ -74,12 +76,13 @@ public class MlQuestionRequestProducerService {
     }
   }
 
-  private static Game buildGame(int gameId, int topicId, int levelDifficulty, int numberOfQuestions) {
+  private static Game buildGame(int gameId, int topicId, int levelDifficulty, int numberOfQuestions, GameMode gameMode) {
     Game game = new Game();
     game.setGameId(gameId);
     game.setTopicId(topicId);
     game.setLevelDifficulty(levelDifficulty);
     game.setNumberOfQuestions(numberOfQuestions);
+    game.setGameMode(gameMode);
     return game;
   }
 
@@ -97,6 +100,7 @@ public class MlQuestionRequestProducerService {
     obj.put("topicId", game.getTopicId());
     obj.put("numberOfQuestions", game.getNumberOfQuestions());
     obj.put("levelDifficulty", game.getLevelDifficultyInt());
+    obj.put("gameMode", game.getGameMode() == null ? GameMode.CASUAL.name() : game.getGameMode().name());
     obj.put("attempt", attempt);
     if (questionNumbersToRegenerateJsonArray != null && !questionNumbersToRegenerateJsonArray.isBlank()) {
       obj.put("questionNumbersToRegenerate", new org.json.JSONArray(questionNumbersToRegenerateJsonArray));

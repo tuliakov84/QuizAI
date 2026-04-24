@@ -380,8 +380,8 @@
 
       const statusElement = document.getElementById('room-status');
       if (statusElement) {
-        if (currentGameMode !== 'CASUAL') {
-          statusElement.textContent = `Режим ${currentGameMode} сохранен, отдельный игровой flow будет подключен позже.`;
+        if (currentGameMode !== 'CASUAL' && currentGameMode !== 'TRUE_FALSE') {
+          statusElement.textContent = `Режим ${currentGameMode} пока недоступен для запуска из этой комнаты.`;
           statusElement.className = 'room-status waiting';
           return;
         }

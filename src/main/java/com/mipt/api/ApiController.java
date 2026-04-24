@@ -680,8 +680,11 @@ public class ApiController {
         if (firstCorrectAnswer) {
           dbService.addCurrentGamePoints(session, pointsForAnswer);
           dbService.addGlobalPoints(session, pointsForAnswer);
-          if (GameMode.CASUAL.equals(GameModeCatalog.normalize(dbService.getGameMode(gameId)))) {
+          GameMode gameMode = GameModeCatalog.normalize(dbService.getGameMode(gameId));
+          if (GameMode.CASUAL.equals(gameMode)) {
             dbService.addCasualQuizReward(session, gameId);
+          } else if (GameMode.TRUE_FALSE.equals(gameMode)) {
+            dbService.addTrueFalseQuizReward(session, gameId);
           }
         }
       }

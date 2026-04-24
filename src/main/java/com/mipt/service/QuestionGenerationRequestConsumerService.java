@@ -2,6 +2,7 @@ package com.mipt.service;
 
 import com.mipt.QuestionGenerator;
 import com.mipt.dbAPI.DbService;
+import com.mipt.gameModes.GameMode;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -24,6 +25,7 @@ import java.util.List;
 public class QuestionGenerationRequestConsumerService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(QuestionGenerationRequestConsumerService.class);
+  private static final String TRUE_FALSE_MOCK_QUESTIONS_RESOURCE = "true-false-mock-questions.json";
 
   private final DbService dbService;
   private final KafkaTemplate<String, String> kafkaTemplate;
@@ -47,9 +49,10 @@ public class QuestionGenerationRequestConsumerService {
       int topicId = request.getInt("topicId");
       int levelDifficulty = request.getInt("levelDifficulty");
       int numberOfQuestions = request.getInt("numberOfQuestions");
+      GameMode gameMode = parseGameMode(request.optString("gameMode", GameMode.CASUAL.name()));
       LOGGER.info(
-          "Step A1: generator received request. gameId={}, topicId={}, difficulty={}, requestedCount={}, requestId={}, attempt={}",
-          gameId, topicId, levelDifficulty, numberOfQuestions, request.optString("requestId", ""), request.optInt("attempt", 0)
+          "Step A1: generator received request. gameId={}, topicId={}, difficulty={}, requestedCount={}, gameMode={}, requestId={}, attempt={}",
+          gameId, topicId, levelDifficulty, numberOfQuestions, gameMode, request.optString("requestId", ""), request.optInt("attempt", 0)
       );
       JSONArray questionNumbersToRegenerate = request.optJSONArray("questionNumbersToRegenerate");
       JSONArray existingQuestions = new JSONArray();
@@ -68,21 +71,29 @@ public class QuestionGenerationRequestConsumerService {
       String topicName = dbService.getTopicById(topicId).getName();
       JSONArray generatedQuestions;
       if (mockGenerationEnabled) {
+        String mockResource = resolveMockResource(gameMode);
         LOGGER.info(
-            "Step A3: mock question generation enabled. gameId={}, topicName={}, payloadCount={}, resource={}",
-            gameId, topicName, numberOfQuestions, mockQuestionsResource
+            "Step A3: mock question generation enabled. gameId={}, topicName={}, payloadCount={}, gameMode={}, resource={}",
+            gameId, topicName, numberOfQuestions, gameMode, mockResource
         );
-        generatedQuestions = loadMockQuestions(numberOfQuestions);
+        generatedQuestions = loadMockQuestions(mockResource, numberOfQuestions);
       } else {
         String generatorPayload = buildGeneratorPayload(
             topicName,
             numberOfQuestions,
             levelDifficulty,
+            gameMode,
             regenerationRequested,
             questionNumbersToRegenerate,
             existingQuestions
         );
-        LOGGER.info("Step A3: calling QuestionGenerator. gameId={}, topicName={}, payloadCount={}", gameId, topicName, numberOfQuestions);
+        LOGGER.info(
+            "Step A3: calling QuestionGenerator. gameId={}, topicName={}, payloadCount={}, gameMode={}",
+            gameId,
+            topicName,
+            numberOfQuestions,
+            gameMode
+        );
         generatedQuestions = new JSONArray(QuestionGenerator.generate(generatorPayload).join());
       }
       LOGGER.info("Step A4: generator returned {} questions for gameId={}", generatedQuestions.length(), gameId);
@@ -113,6 +124,7 @@ public class QuestionGenerationRequestConsumerService {
       String topicName,
       int numberOfQuestions,
       int levelDifficulty,
+      GameMode gameMode,
       boolean isRegeneration,
       JSONArray questionNumbersToRegenerate,
       JSONArray existingQuestions
@@ -121,6 +133,7 @@ public class QuestionGenerationRequestConsumerService {
     payloadObject.put("topic", topicName);
     payloadObject.put("numberOfQuestions", numberOfQuestions);
     payloadObject.put("difficult", levelDifficulty);
+    payloadObject.put("gameMode", gameMode.name());
     payloadObject.put("isRegeneration", isRegeneration);
     if (questionNumbersToRegenerate != null && !questionNumbersToRegenerate.isEmpty()) {
       payloadObject.put("questionNumbersToRegenerate", questionNumbersToRegenerate);
@@ -139,16 +152,16 @@ public class QuestionGenerationRequestConsumerService {
     return result;
   }
 
-  private JSONArray loadMockQuestions(int numberOfQuestions) throws Exception {
+  private JSONArray loadMockQuestions(String resourceName, int numberOfQuestions) throws Exception {
     InputStream inputStream = QuestionGenerationRequestConsumerService.class.getClassLoader()
-        .getResourceAsStream(mockQuestionsResource);
+        .getResourceAsStream(resourceName);
     if (inputStream == null) {
-      throw new IllegalStateException("Mock questions resource not found: " + mockQuestionsResource);
+      throw new IllegalStateException("Mock questions resource not found: " + resourceName);
     }
 
     JSONArray sourceQuestions = new JSONArray(new String(inputStream.readAllBytes(), StandardCharsets.UTF_8));
     if (sourceQuestions.isEmpty()) {
-      throw new IllegalStateException("Mock questions resource is empty: " + mockQuestionsResource);
+      throw new IllegalStateException("Mock questions resource is empty: " + resourceName);
     }
 
     JSONArray result = new JSONArray();
@@ -161,6 +174,20 @@ public class QuestionGenerationRequestConsumerService {
       result.put(question);
     }
     return result;
+  }
+
+  private static GameMode parseGameMode(String rawGameMode) {
+    try {
+      return GameMode.valueOf(rawGameMode == null ? GameMode.CASUAL.name() : rawGameMode.trim().toUpperCase());
+    } catch (IllegalArgumentException e) {
+      return GameMode.CASUAL;
+    }
+  }
+
+  private String resolveMockResource(GameMode gameMode) {
+    return GameMode.TRUE_FALSE.equals(gameMode)
+        ? TRUE_FALSE_MOCK_QUESTIONS_RESOURCE
+        : mockQuestionsResource;
   }
 
   private static void alignQuestionNumbers(JSONArray questions, JSONArray targetQuestionNumbers) {

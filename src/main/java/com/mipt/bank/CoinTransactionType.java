@@ -4,6 +4,7 @@ public enum CoinTransactionType {
   INITIAL_GRANT,
   DAILY_REWARD,
   QUIZ_REWARD,
+  TRUE_FALSE_REWARD,
   GAME_ENTRY,
   GAME_PAYOUT,
   BET_PLACED,
