@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/styles/duel_style.css">
+  <title>Дуэль | QUIZAI</title>
+</head>
+<body>
+<div class="main_cont">
+  <header>
+    <a class="btn_back" href="main.html">В МЕНЮ</a>
+    <h2>ДУЭЛЬ</h2>
+  </header>
+
+  <div class="panel meta">
+    <span id="pot">Банк: 0</span>
+    <span id="bet">Текущая ставка: 0</span>
+    <span id="stage" class="badge">...</span>
+  </div>
+
+  <div class="panel players" id="players"></div>
+
+  <div class="panel" id="rounds-panel">
+    <h3>Результаты раундов</h3>
+    <div id="rounds-history" class="rounds-history"></div>
+  </div>
+
+  <div class="panel" id="betting-panel" style="display:none;">
+    <h3>Ставки</h3>
+    <div id="deadline"></div>
+    <div class="controls">
+      <button class="action-btn" id="call-btn">Колл</button>
+      <input type="number" id="raise-input" min="1" placeholder="Размер рейза">
+      <button class="action-btn" id="raise-btn">Рейз</button>
+      <button class="action-btn" id="fold-btn">Фолд</button>
+    </div>
+  </div>
+
+  <div class="panel" id="question-panel" style="display:none;">
+    <div class="question" id="question-text">Загрузка вопроса...</div>
+    <div class="answers" id="answers"></div>
+    <div class="controls" style="margin-top:10px;">
+      <input type="text" id="text-answer" placeholder="Или введите текстовый ответ">
+      <button class="submit-btn" id="submit-answer-btn">Отправить ответ</button>
+    </div>
+  </div>
+
+  <div class="panel" id="waiting-panel" style="display:none;">
+    <h3>Ожидание генерации новых вопросов...</h3>
+    <p>Если вопросы не появятся за 2 минуты, будет объявлена ничья.</p>
+    <p id="waiting-timer"></p>
+  </div>
+
+  <div class="panel" id="finished-panel" style="display:none;">
+    <h3>Матч завершен</h3>
+    <p id="finished-text"></p>
+    <a class="action-btn" href="#" id="to-result">Перейти к результату</a>
+  </div>
+
+  <div id="message"></div>
+</div>
+
+<script src="/js/auth.js"></script>
+<script>
+  const session = AuthService.getsession();
+  const params = new URLSearchParams(window.location.search);
+  const gameId = parseInt(params.get('gameId'), 10);
+  let state = null;
+  let selectedAnswer = null;
+  let refreshHandle = null;
+
+  if (!AuthService.requireAuth()) {
+    throw new Error('Unauthorized');
+  }
+
+  document.getElementById('call-btn').addEventListener('click', () => doAction('CALL'));
+  document.getElementById('raise-btn').addEventListener('click', () => {
+    const amount = parseInt(document.getElementById('raise-input').value, 10);
+    doAction('RAISE', Number.isFinite(amount) ? amount : null);
+  });
+  document.getElementById('fold-btn').addEventListener('click', () => doAction('FOLD'));
+  document.getElementById('submit-answer-btn').addEventListener('click', submitAnswer);
+  document.getElementById('to-result').addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = `duel-result.html?gameId=${gameId}`;
+  });
+
+  startPolling();
+
+  function startPolling() {
+    loadState();
+    refreshHandle = setInterval(loadState, 1500);
+  }
+
+  async function loadState() {
+    try {
+      const response = await fetch('http://localhost:8080/api/duel/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session, gameId })
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        showMessage(text || `Ошибка ${response.status}`);
+        return;
+      }
+      state = await response.json();
+      renderState(state);
+    } catch (error) {
+      showMessage('Ошибка загрузки состояния дуэли');
+    }
+  }
+
+  function renderState(s) {
+    document.getElementById('pot').textContent = `Банк: ${s.pot ?? 0}`;
+    document.getElementById('bet').textContent = `Текущая ставка: ${s.currentBet ?? 0}`;
+    document.getElementById('stage').textContent = s.stage;
+
+    const playersEl = document.getElementById('players');
+    playersEl.innerHTML = '';
+    (s.players || []).forEach(player => {
+      const div = document.createElement('div');
+      div.className = 'player';
+      div.innerHTML = `<strong>${player.username}</strong><br>Коины: ${player.coinBalance}<br>Поставлено: ${player.committedBet || 0}`;
+      playersEl.appendChild(div);
+    });
+
+    togglePanel('betting-panel', s.stage === 'BETTING');
+    togglePanel('question-panel', s.stage === 'ANSWERING');
+    togglePanel('waiting-panel', s.stage === 'WAITING_QUESTIONS');
+    togglePanel('finished-panel', s.stage === 'FINISHED');
+
+    setBettingControlsEnabled(s.stage === 'BETTING' && s.myTurn);
+    renderRoundHistory(s.roundResults || []);
+
+    if (s.stage === 'BETTING') {
+      const deadlineEl = document.getElementById('deadline');
+      if (s.actionDeadlineEpochMs) {
+        const left = Math.max(0, Math.ceil((s.actionDeadlineEpochMs - Date.now()) / 1000));
+        deadlineEl.textContent = s.myTurn ? `Ваш ход. Осталось: ${left} сек` : `Ход оппонента. Осталось: ${left} сек`;
+      } else {
+        deadlineEl.textContent = s.myTurn ? 'Ваш ход' : 'Ход оппонента';
+      }
+    }
+
+    if (s.stage === 'ANSWERING' && s.question) {
+      selectedAnswer = null;
+      renderQuestion(s.question);
+    }
+
+    if (s.stage === 'WAITING_QUESTIONS' && s.waitingDeadlineEpochMs) {
+      const left = Math.max(0, Math.ceil((s.waitingDeadlineEpochMs - Date.now()) / 1000));
+      document.getElementById('waiting-timer').textContent = `Осталось ожидать: ${left} сек`;
+      if (left > 0) {
+        localStorage.setItem('duelWaitingUntil', s.waitingDeadlineEpochMs.toString());
+      }
+    }
+
+    if (s.stage === 'FINISHED') {
+      document.getElementById('finished-text').textContent = s.result?.text || s.message || 'Матч завершен';
+      localStorage.removeItem('currentGameId');
+    }
+
+    if (s.stage === 'WAITING_QUESTIONS') {
+      window.location.href = `duel-waiting.html?gameId=${gameId}`;
+    }
+  }
+
+  function renderQuestion(question) {
+    document.getElementById('question-text').textContent = question.questionText || 'Вопрос не найден';
+    const answersEl = document.getElementById('answers');
+    answersEl.innerHTML = '';
+
+    const options = [
+      { n: 1, text: question.answer1 },
+      { n: 2, text: question.answer2 },
+      { n: 3, text: question.answer3 },
+      { n: 4, text: question.answer4 }
+    ];
+
+    options.forEach(option => {
+      if (!option.text) return;
+      const button = document.createElement('button');
+      button.className = 'answer-btn';
+      button.textContent = `${option.n}. ${option.text}`;
+      if (selectedAnswer === option.n) {
+        button.classList.add('selected');
+      }
+      button.addEventListener('click', () => {
+        selectedAnswer = option.n;
+        renderQuestion(question);
+      });
+      answersEl.appendChild(button);
+    });
+  }
+
+  async function doAction(action, amount = null) {
+    try {
+      const response = await fetch('http://localhost:8080/api/duel/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session, gameId, action, amount })
+      });
+      if (!response.ok) {
+        showMessage(await response.text());
+        return;
+      }
+      state = await response.json();
+      renderState(state);
+    } catch (error) {
+      showMessage('Ошибка отправки действия');
+    }
+  }
+
+  async function submitAnswer() {
+    try {
+      const text = document.getElementById('text-answer').value.trim();
+      const payload = { session, gameId, submittedAnswerNumber: selectedAnswer, submittedAnswerText: text };
+      const response = await fetch('http://localhost:8080/api/duel/answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        showMessage(await response.text());
+        return;
+      }
+      document.getElementById('text-answer').value = '';
+      selectedAnswer = null;
+      state = await response.json();
+      renderState(state);
+    } catch (error) {
+      showMessage('Ошибка отправки ответа');
+    }
+  }
+
+  function togglePanel(id, visible) {
+    document.getElementById(id).style.display = visible ? 'block' : 'none';
+  }
+
+  function setBettingControlsEnabled(enabled) {
+    document.getElementById('call-btn').disabled = !enabled;
+    document.getElementById('raise-btn').disabled = !enabled;
+    document.getElementById('fold-btn').disabled = !enabled;
+    document.getElementById('raise-input').disabled = !enabled;
+  }
+
+  function renderRoundHistory(roundResults) {
+    const historyEl = document.getElementById('rounds-history');
+    historyEl.innerHTML = '';
+
+    if (!roundResults.length) {
+      historyEl.innerHTML = '<div class="rounds-empty">Пока что ни один раунд не завершён</div>';
+      return;
+    }
+
+    roundResults.forEach(round => {
+      const item = document.createElement('div');
+      item.className = 'round-item';
+      item.innerHTML = `
+        <div class="round-item__header">
+          <strong>Раунд ${round.roundNumber}</strong>
+          <span>${round.outcome || 'Результат недоступен'}</span>
+        </div>
+        <div class="round-item__question">${round.questionText || `Вопрос ${round.questionNumber}`}</div>
+        <div class="round-item__players">
+          <div>${round.firstPlayerName}: ${round.firstPlayerCorrect ? 'верно' : 'неверно'}</div>
+          <div>${round.secondPlayerName}: ${round.secondPlayerCorrect ? 'верно' : 'неверно'}</div>
+        </div>
+        <div class="round-item__meta">Банк: ${round.pot ?? 0} · Выигрыш: ${round.payout ?? 0}</div>
+      `;
+      historyEl.appendChild(item);
+    });
+  }
+
+  function showMessage(text) {
+    document.getElementById('message').textContent = text;
+  }
+
+  window.addEventListener('beforeunload', () => {
+    if (refreshHandle) {
+      clearInterval(refreshHandle);
+    }
+  });
+</script>
+</body>
+</html>
+
+
+

@@ -167,6 +167,10 @@
     function loadThemeFromLocalStorage() {
       try {
         const themeElement = document.getElementById('quiz-theme');
+        if (currentGameMode === 'DUEL') {
+          themeElement.textContent = 'Случайные темы';
+          return;
+        }
         const selectedTopicData = localStorage.getItem('selectedTopic');
 
         if (selectedTopicData) {
@@ -380,7 +384,7 @@
 
       const statusElement = document.getElementById('room-status');
       if (statusElement) {
-        if (currentGameMode !== 'CASUAL' && currentGameMode !== 'TRUE_FALSE') {
+        if (currentGameMode !== 'CASUAL' && currentGameMode !== 'TRUE_FALSE' && currentGameMode !== 'DUEL') {
           statusElement.textContent = `Режим ${currentGameMode} пока недоступен для запуска из этой комнаты.`;
           statusElement.className = 'room-status waiting';
           return;
@@ -391,7 +395,11 @@
         } else if (status === 'IN_PROGRESS' || status === 'STARTED') {
           statusElement.textContent = 'КВИЗ НАЧАЛСЯ! ПЕРЕХОДИМ К ВОПРОСАМ...';
           statusElement.className = 'room-status started';
-          redirectToQuiz();
+          if (currentGameMode === 'DUEL') {
+            redirectToDuel();
+          } else {
+            redirectToQuiz();
+          }
         } else if (status === 'ENDED') {
           statusElement.textContent = 'КВИЗ ЗАВЕРШЕН';
           statusElement.className = 'room-status ended';
@@ -410,6 +418,17 @@
 
       console.log('Квиз начался! Переходим к вопросам...');
       window.location.href = `question.html?gameId=${gameId}`;
+    }
+
+    function redirectToDuel() {
+      if (isNavigating) return;
+      isNavigating = true;
+
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+
+      window.location.href = `duel.html?gameId=${gameId}`;
     }
 
     function updateRoomInfo(lobbyData) {

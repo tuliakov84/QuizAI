@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/styles/duel_waiting_style.css">
+  <title>Ожидание вопросов | QUIZAI</title>
+</head>
+<body>
+<div class="main_cont">
+  <a class="btn_back" href="main.html">В меню</a>
+  <div class="card">
+    <h2>Ищем новые вопросы для дуэли</h2>
+    <p>Если за 2 минуты вопросы не появятся, матч завершится ничьей.</p>
+    <div class="timer" id="timer">120</div>
+    <p id="state-message"></p>
+  </div>
+</div>
+
+<script src="/js/auth.js"></script>
+<script>
+  if (!AuthService.requireAuth()) {
+    throw new Error('Unauthorized');
+  }
+
+  const session = AuthService.getsession();
+  const params = new URLSearchParams(window.location.search);
+  const gameId = parseInt(params.get('gameId'), 10);
+
+  const savedDeadline = parseInt(localStorage.getItem('duelWaitingUntil') || '0', 10);
+  let deadline = Number.isFinite(savedDeadline) && savedDeadline > Date.now() ? savedDeadline : Date.now() + 120000;
+
+  setInterval(() => {
+    const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    document.getElementById('timer').textContent = left.toString();
+  }, 250);
+
+  setInterval(loadState, 1500);
+  loadState();
+
+  async function loadState() {
+    try {
+      const response = await fetch('http://localhost:8080/api/duel/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session, gameId })
+      });
+      if (!response.ok) return;
+      const state = await response.json();
+
+      if (state.waitingDeadlineEpochMs) {
+        deadline = state.waitingDeadlineEpochMs;
+        localStorage.setItem('duelWaitingUntil', deadline.toString());
+      }
+
+      if (state.message) {
+        document.getElementById('state-message').textContent = state.message;
+      }
+
+      if (state.stage === 'BETTING' || state.stage === 'ANSWERING') {
+        window.location.href = `duel.html?gameId=${gameId}`;
+      } else if (state.stage === 'FINISHED') {
+        window.location.href = `duel-result.html?gameId=${gameId}`;
+      }
+    } catch (error) {
+      // Ignore transient errors while polling
+    }
+  }
+</script>
+</body>
+</html>
+

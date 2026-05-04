@@ -111,6 +111,10 @@
     async function checkAndRedirectIfGameStarted() {
         const currentGame = await getCurrentGameFromServer();
         if (currentGame.gameId && currentGame.gameStartTime) {
+            if (currentGame.gameMode === 'DUEL') {
+                window.location.replace(`duel.html?gameId=${currentGame.gameId}`);
+                return true;
+            }
             const startTime = new Date(currentGame.gameStartTime).getTime();
             const timePerQuestion = 30000;
             const diff = Date.now() - startTime;
@@ -200,6 +204,10 @@
     function loadTheme() {
         try {
             const themeElement = document.getElementById('quiz-theme');
+        if (currentGameMode === 'DUEL') {
+          themeElement.textContent = 'Случайные темы';
+          return;
+        }
             const selectedTopicData = localStorage.getItem('selectedTopic');
             if (selectedTopicData) {
                 const selectedTopic = JSON.parse(selectedTopicData);
@@ -215,6 +223,10 @@
 
     function isStandardQuizMode() {
         return currentGameMode === 'CASUAL' || currentGameMode === 'TRUE_FALSE';
+    }
+
+    function isDuelMode() {
+        return currentGameMode === 'DUEL';
     }
 
     async function updateLobby() {
@@ -303,6 +315,18 @@
         const statusText = statusElement.querySelector('.status-text');
         const statusIcon = statusElement.querySelector('.status-icon');
         if (!isStandardQuizMode()) {
+            if (isDuelMode()) {
+                if (questionsReady) {
+                    statusElement.className = 'questions-status-value ready';
+                    statusIcon.textContent = '⚔️';
+                    statusText.textContent = 'Вопросы для дуэли готовы';
+                } else {
+                    statusElement.className = 'questions-status-value loading';
+                    statusIcon.textContent = '⏳';
+                    statusText.textContent = 'Генерируем случайные вопросы для дуэли';
+                }
+                return;
+            }
             statusElement.className = 'questions-status-value loading';
             statusIcon.textContent = '🧩';
             statusText.textContent = `Режим ${currentGameMode}: отдельный flow позже`;
@@ -381,7 +405,7 @@
     function updateStartButtonState() {
         const startBtn = document.getElementById('start-quiz-btn');
         const messageElement = document.getElementById('start-quiz-message');
-        if (!isStandardQuizMode()) {
+        if (!isStandardQuizMode() && !isDuelMode()) {
             const message = `Режим ${currentGameMode} пока недоступен для запуска из этой комнаты.`;
             disableStartButton(message);
             if (messageElement) {
@@ -413,7 +437,7 @@
         if (messageElement) messageElement.style.display = 'none';
 
         if (maxPlayers > 0 && currentPlayers.length >= maxPlayers && questionsReady && !isQuizStarting) {
-            setTimeout(() => startQuiz(), 1000);
+            startQuiz();
         }
     }
 
@@ -491,7 +515,7 @@
 
     async function startQuiz() {
         if (isQuizStarting) return;
-        if (!isStandardQuizMode()) {
+        if (!isStandardQuizMode() && !isDuelMode()) {
             alert(`Режим ${currentGameMode} пока недоступен для запуска из этой комнаты.`);
             return;
         }
@@ -521,7 +545,11 @@
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             if (refreshInterval) clearInterval(refreshInterval);
-            window.location.replace(`question.html?gameId=${gameId}&question=1`);
+            if (isDuelMode()) {
+                window.location.replace(`duel.html?gameId=${gameId}`);
+            } else {
+                window.location.replace(`question.html?gameId=${gameId}&question=1`);
+            }
         } catch (error) {
             console.error('Ошибка начала квиза:', error);
             alert('Ошибка начала квиза: ' + error.message);

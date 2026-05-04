@@ -186,8 +186,10 @@
     function selectMode(mode) {
         localStorage.setItem('selectedMode', JSON.stringify(mode));
         console.log('Выбрана режим:', mode);
-        if (mode.mode === "CASUAL" | mode.mode === "TRUE_FALSE") {
+        if (mode.mode === 'CASUAL' || mode.mode === 'TRUE_FALSE') {
             window.location.href = 'themesToJoin.html';
+        } else if (mode.mode === 'DUEL') {
+            window.location.href = 'connect2.html';
         } else {
             window.location.href = 'connect2.html';
         }

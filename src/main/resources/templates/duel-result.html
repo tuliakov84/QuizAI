@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/styles/duel_result_style.css">
+  <title>Результат дуэли | QUIZAI</title>
+</head>
+<body>
+<div class="main_cont">
+  <div class="card">
+    <h2>Результат дуэли</h2>
+    <div id="draw-block" style="display:none;">
+      <div class="value">Ничья</div>
+      <p id="draw-text">Вопросы закончились и не успели обновиться.</p>
+    </div>
+
+    <div id="win-block" style="display:none;">
+      <div>Победитель</div>
+      <div class="value" id="winner-name">—</div>
+      <div>Проигравший</div>
+      <div class="value" id="loser-name">—</div>
+      <div>Выигрыш победителя</div>
+      <div class="value" id="payout">0</div>
+    </div>
+
+    <p id="result-text"></p>
+
+    <div class="actions">
+      <a href="main.html">В главное меню</a>
+      <a href="connect1.html">Играть снова</a>
+    </div>
+  </div>
+</div>
+
+<script src="/js/auth.js"></script>
+<script>
+  if (!AuthService.requireAuth()) {
+    throw new Error('Unauthorized');
+  }
+
+  const session = AuthService.getsession();
+  const params = new URLSearchParams(window.location.search);
+  const gameId = parseInt(params.get('gameId'), 10);
+
+  loadResult();
+
+  async function loadResult() {
+    try {
+      const response = await fetch('http://localhost:8080/api/duel/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session, gameId })
+      });
+      if (!response.ok) {
+        document.getElementById('result-text').textContent = 'Не удалось загрузить результат';
+        return;
+      }
+      const state = await response.json();
+      const result = state.result;
+
+      if (!result) {
+        document.getElementById('result-text').textContent = 'Матч еще не завершен';
+        return;
+      }
+
+      document.getElementById('result-text').textContent = result.text || '';
+      if (result.draw) {
+        document.getElementById('draw-block').style.display = 'block';
+      } else {
+        document.getElementById('win-block').style.display = 'block';
+        document.getElementById('winner-name').textContent = result.winnerUsername || '—';
+        document.getElementById('loser-name').textContent = result.loserUsername || '—';
+        document.getElementById('payout').textContent = `${result.payout || 0} коинов`;
+      }
+
+      localStorage.removeItem('duelWaitingUntil');
+      localStorage.removeItem('currentGameId');
+    } catch (error) {
+      document.getElementById('result-text').textContent = 'Ошибка загрузки результата';
+    }
+  }
+</script>
+</body>
+</html>
+

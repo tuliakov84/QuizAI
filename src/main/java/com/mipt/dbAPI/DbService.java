@@ -196,6 +196,10 @@ public class DbService {
     return findBySessionExact(session).orElseThrow(DatabaseAccessException::new);
   }
 
+  private UserEntity getUserByIdOrThrow(int userId) throws DatabaseAccessException {
+    return userRepository.findById(userId).orElseThrow(DatabaseAccessException::new);
+  }
+
   private GameEntity getGameOrThrow(int gameId) throws DatabaseAccessException {
     return gameRepository.findById(gameId).orElseThrow(DatabaseAccessException::new);
   }
@@ -504,6 +508,11 @@ public class DbService {
     return intOrZero(userEntity.getCoinBalance());
   }
 
+  public Integer getCoinBalanceByUserId(int userId) throws SQLException, DatabaseAccessException {
+    UserEntity userEntity = getUserByIdOrThrow(userId);
+    return intOrZero(userEntity.getCoinBalance());
+  }
+
   public Timestamp getPremiumUntil(String session) throws SQLException, DatabaseAccessException {
     UserEntity userEntity = getUserBySessionOrThrow(session);
     expirePremiumBenefitsIfNeeded(userEntity);
@@ -539,6 +548,30 @@ public class DbService {
     }
 
     UserEntity userEntity = getUserBySessionOrThrow(session);
+    int currentBalance = intOrZero(userEntity.getCoinBalance());
+    int updatedBalance = currentBalance + amountDelta;
+    if (updatedBalance < 0) {
+      throw new DatabaseAccessException("Insufficient coin balance");
+    }
+
+    GameEntity gameEntity = gameId == null ? null : getGameOrThrow(gameId);
+    userEntity.setCoinBalance(updatedBalance);
+    userRepository.save(userEntity);
+    recordCoinTransaction(userEntity, gameEntity, amountDelta, updatedBalance, transactionType, reason);
+  }
+
+  public void changeCoinBalanceByUserId(
+      int userId,
+      int amountDelta,
+      CoinTransactionType transactionType,
+      String reason,
+      Integer gameId
+  ) throws SQLException, DatabaseAccessException {
+    if (amountDelta == 0) {
+      return;
+    }
+
+    UserEntity userEntity = getUserByIdOrThrow(userId);
     int currentBalance = intOrZero(userEntity.getCoinBalance());
     int updatedBalance = currentBalance + amountDelta;
     if (updatedBalance < 0) {
@@ -768,6 +801,7 @@ public class DbService {
 
     GameEntity game = getGameOrThrow(gameEntity.getId());
     currentGameObject.setGameId(game.getId());
+    currentGameObject.setGameMode(GameModeCatalog.normalize(game.getGameMode()));
     if (game.getGameStartTime() != null) {
       currentGameObject.setGameStartTime(game.getGameStartTime().toInstant());
     }
@@ -1040,6 +1074,27 @@ public class DbService {
     return question;
   }
 
+  public Question getQuestionForAnyMode(int gameId, int questionNumber) throws SQLException, DatabaseAccessException {
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException();
+    }
+
+    QuestionEntity questionEntity = questionRepository.findByGame_IdAndQuestionNumber(gameId, questionNumber)
+        .orElseThrow(() -> new DatabaseAccessException("Question not exists"));
+
+    Question question = new Question();
+    question.setQuestionId(questionEntity.getId());
+    question.setGameId(gameId);
+    question.setQuestionNumber(questionEntity.getQuestionNumber());
+    question.setQuestionText(questionEntity.getQuestionText());
+    question.setAnswer1(questionEntity.getAnswer1());
+    question.setAnswer2(questionEntity.getAnswer2());
+    question.setAnswer3(questionEntity.getAnswer3());
+    question.setAnswer4(questionEntity.getAnswer4());
+    question.setRightAnswerNumber(questionEntity.getRightAnswerNumber());
+    return question;
+  }
+
   public Integer getRightAnswer(int gameId, int questionNumber) throws SQLException, DatabaseAccessException {
     if (!checkGameExists(gameId)) {
       throw new DatabaseAccessException();
@@ -1052,6 +1107,16 @@ public class DbService {
     Integer gameStatus = getStatus(gameId);
     if (gameStatus != 2) {
       throw new DatabaseAccessException("Game is not active");
+    }
+
+    QuestionEntity questionEntity = questionRepository.findByGame_IdAndQuestionNumber(gameId, questionNumber)
+        .orElseThrow(DatabaseAccessException::new);
+    return questionEntity.getRightAnswerNumber();
+  }
+
+  public Integer getStoredRightAnswer(int gameId, int questionNumber) throws SQLException, DatabaseAccessException {
+    if (!checkGameExists(gameId)) {
+      throw new DatabaseAccessException();
     }
 
     QuestionEntity questionEntity = questionRepository.findByGame_IdAndQuestionNumber(gameId, questionNumber)

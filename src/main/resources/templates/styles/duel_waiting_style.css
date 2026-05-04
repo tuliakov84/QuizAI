@@ -1,0 +1,31 @@
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  background: radial-gradient(circle at top, #1e1b3a 0%, #0f0c22 55%, #06040f 100%);
+  color: #f0eeff;
+}
+
+.main_cont {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 28px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(145, 138, 220, 0.45);
+  border-radius: 18px;
+  padding: 22px;
+}
+
+.timer {
+  font-size: 34px;
+  font-weight: 800;
+  margin: 16px 0;
+}
+
+.btn_back {
+  text-decoration: none;
+  color: #c9c4ff;
+}
+

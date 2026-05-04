@@ -85,6 +85,7 @@
 <script src="/js/checkCurrentGame.js"></script>
 <script>
     let selectedTopic = null;
+    let selectedMode = null;
     let selectedDifficulty = 2; // По умолчанию средняя сложность
     let isPrivate = false; // По умолчанию открытая комната
     let availableModes = [];
@@ -155,8 +156,7 @@
     }
 
     function applyModeConstraints() {
-      const mode = localStorage.getItem('selectedMode');
-      if (!mode) {
+      if (!selectedMode) {
         showMessage('Режим не выбран. Возврат к выбору режима...', 'error');
         setTimeout(() => {
           window.location.href = 'modesToCreate.html';
@@ -166,16 +166,26 @@
       const participantsInput = document.getElementById('participants-count');
       const questionsInput = document.getElementById('questions-count');
 
-      participantsInput.min = mode.minParticipants;
-      participantsInput.max = mode.maxParticipants;
-      if (!participantsInput.value || participantsInput.value < mode.minParticipants || participantsInput.value > mode.maxParticipants) {
-        participantsInput.value = mode.minParticipants;
+      participantsInput.min = selectedMode.minParticipants;
+      participantsInput.max = selectedMode.maxParticipants;
+      if (!participantsInput.value || participantsInput.value < selectedMode.minParticipants || participantsInput.value > selectedMode.maxParticipants) {
+        participantsInput.value = selectedMode.minParticipants;
       }
 
-      questionsInput.min = mode.minQuestions;
-      questionsInput.max = mode.maxQuestions;
-      if (!questionsInput.value || questionsInput.value < mode.minQuestions || questionsInput.value > mode.maxQuestions) {
-        questionsInput.value = mode.minQuestions;
+      questionsInput.min = selectedMode.minQuestions;
+      questionsInput.max = selectedMode.maxQuestions;
+      if (!questionsInput.value || questionsInput.value < selectedMode.minQuestions || questionsInput.value > selectedMode.maxQuestions) {
+        questionsInput.value = selectedMode.minQuestions;
+      }
+
+      if (selectedMode.mode === 'DUEL') {
+        participantsInput.value = '2';
+        participantsInput.setAttribute('readonly', 'readonly');
+        questionsInput.value = '10';
+        questionsInput.setAttribute('readonly', 'readonly');
+      } else {
+        participantsInput.removeAttribute('readonly');
+        questionsInput.removeAttribute('readonly');
       }
     }
 
@@ -191,7 +201,7 @@
           return;
         }
         const topicData = localStorage.getItem('selectedTopic');
-        if (!topicData) {
+        if (!topicData && JSON.parse(modeData).mode !== 'DUEL') {
           showMessage('Тема не выбрана. Возврат к выбору тем...', 'error');
           setTimeout(() => {
             window.location.href = 'themesToCreate.html';
@@ -200,7 +210,7 @@
         }
 
         selectedMode = JSON.parse(modeData);
-        selectedTopic = JSON.parse(topicData);
+        selectedTopic = topicData ? JSON.parse(topicData) : null;
         displaySelectedTopic(selectedTopic, selectedMode);
         displaySelectedMode(selectedMode);
         applyModeConstraints();
@@ -213,7 +223,18 @@
 
     // Отображение выбранной темы
     function displaySelectedTopic(topic, mode) {
-      if (mode.mode === "CASUAL" | mode.mode === "TRUE_FALSE") {
+      if (mode.mode === 'DUEL') {
+        const topicInfo = document.getElementById('selected-topic-info');
+        topicInfo.innerHTML = `
+            <div class="topic-card">
+              <h4>ТЕМЫ ДУЭЛИ:</h4>
+              <h3>Случайные темы</h3>
+              <p>Каждый вопрос подбирается автоматически без выбора темы игроком.</p>
+            </div>
+          `;
+        return;
+      }
+      if (mode.mode === 'CASUAL' || mode.mode === 'TRUE_FALSE') {
         const topicInfo = document.getElementById('selected-topic-info');
         topicInfo.innerHTML = `
             <div class="topic-card">
@@ -344,7 +365,7 @@
 
     // Создание квиза
     async function createQuiz() {
-      if (!selectedTopic) {
+      if (!selectedTopic && selectedMode?.mode !== 'DUEL') {
         showMessage('Тема не выбрана', 'error');
         return;
       }
@@ -401,7 +422,7 @@
             levelDifficulty: selectedDifficulty,
             numberOfQuestions: parseInt(questionsCount),
             participantsNumber: parseInt(participantsCount),
-            topicId: selectedTopic.topicId,
+            topicId: selectedTopic ? selectedTopic.topicId : null,
             isPrivate: isPrivate
           })
         });
@@ -424,10 +445,15 @@
         // Сохраняем данные игры для использования в лобби
         localStorage.setItem('roomData', JSON.stringify(createdGame));
 
-        // Перенаправление на страницу лобби
-        setTimeout(() => {
+        const redirectToLobby = () => {
           window.location.href = `roomadmin.html?gameId=${createdGame.gameId}`;
-        }, 2000);
+        };
+
+        if (selectedMode.mode === 'DUEL') {
+          redirectToLobby();
+        } else {
+          setTimeout(redirectToLobby, 2000);
+        }
 
       } catch (error) {
         console.error('Ошибка создания комнаты:', error);

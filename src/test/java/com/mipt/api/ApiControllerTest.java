@@ -8,6 +8,7 @@ import com.mipt.domainModel.AnswerObject;
 import com.mipt.domainModel.Question;
 import com.mipt.domainModel.Topic;
 import com.mipt.service.AvatarStorageService;
+import com.mipt.service.DuelService;
 import com.mipt.service.QuestionLoadingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,17 +46,18 @@ class ApiControllerTest {
   void setUp() throws Exception {
     dbService = mock(DbService.class);
     QuestionLoadingService questionLoadingService = mock(QuestionLoadingService.class);
+    DuelService duelService = mock(DuelService.class);
     AvatarStorageService avatarStorageService = mock(AvatarStorageService.class);
 
     when(dbService.getAllTopics()).thenReturn(new Topic[0]);
     when(dbService.getAllAchievements()).thenReturn(new Achievement[0]);
 
-    ApiController controller = new ApiController(dbService, questionLoadingService, avatarStorageService);
+    ApiController controller = new ApiController(dbService, questionLoadingService, duelService, avatarStorageService);
     mockMvc = MockMvcBuilders.standaloneSetup(controller)
         .setMessageConverters(new MappingJackson2HttpMessageConverter())
         .build();
 
-    clearInvocations(dbService, questionLoadingService);
+    clearInvocations(dbService, questionLoadingService, duelService);
   }
 
   @Test

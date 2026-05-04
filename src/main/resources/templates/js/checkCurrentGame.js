@@ -26,6 +26,7 @@ async function checkCurrentGame() {
         const gameData = await response.json();
         const gameId = gameData.gameId;
         const gameStartTime = gameData.gameStartTime;
+        const gameMode = gameData.gameMode;
 
         if (!gameId) {
             return;
@@ -34,6 +35,10 @@ async function checkCurrentGame() {
         if (!gameStartTime) {
             window.location.href = `roommember.html?gameId=${gameId}`;
         } else {
+            if (gameMode === 'DUEL') {
+                window.location.href = `duel.html?gameId=${gameId}`;
+                return;
+            }
             // игра началась – вычисляем номер текущего вопроса
             const startTime = new Date(gameStartTime).getTime();
             const timePerQuestion = 30000; // в мс

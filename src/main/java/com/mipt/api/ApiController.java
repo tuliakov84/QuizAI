@@ -9,6 +9,7 @@ import com.mipt.initialization.AchievementsInit;
 import com.mipt.initialization.TopicsInit;
 import com.mipt.dbAPI.jpa.entity.UserEntity;
 import com.mipt.service.AvatarStorageService;
+import com.mipt.service.DuelService;
 import com.mipt.utils.BackendUtils;
 import com.mipt.utils.ValidationUtils;
 import com.mipt.service.QuestionLoadingService;
@@ -36,6 +37,7 @@ public class ApiController {
   private final BackendUtils utils;
   private final DbService dbService;
   private final QuestionLoadingService questionLoadingService;
+  private final DuelService duelService;
   private final AvatarStorageService avatarStorageService;
   @Value("${app.auth.email-enabled:true}")
   private boolean emailAuthEnabled = true;
@@ -47,10 +49,12 @@ public class ApiController {
   public ApiController(
       DbService dbService,
       QuestionLoadingService questionLoadingService,
+      DuelService duelService,
       AvatarStorageService avatarStorageService
   ) {
     this.dbService = dbService;
     this.questionLoadingService = questionLoadingService;
+    this.duelService = duelService;
     this.avatarStorageService = avatarStorageService;
     this.utils = new BackendUtils();
 
@@ -446,29 +450,62 @@ public class ApiController {
     }
   }
 
+  @PostMapping("/game/get-open-all")
+  public ResponseEntity<Object> getOpenGamesAll() {
+    try {
+      return new ResponseEntity<>(dbService.getOpenGames().toString(), HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get open games", HttpStatus.NOT_FOUND);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error occurred while getting open games", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   /**
    * Creates a new lobby owned by the author session and reuses join logic to
    * return the hydrated room payload.
    */
-  @PostMapping("/game/create")
-  public ResponseEntity<Object> createGame(@RequestBody RoomJoinObject data) {
-    try {
-      String sessionOfAuthor = data.getSession();
-      GameMode gameMode = GameModeCatalog.normalize(data.getGameMode());
-      data.setGameMode(gameMode);
+   @PostMapping("/game/create")
+   public ResponseEntity<Object> createGame(@RequestBody RoomJoinObject data) {
+     try {
+       String sessionOfAuthor = data.getSession();
+       GameMode gameMode = GameModeCatalog.normalize(data.getGameMode());
+       data.setGameMode(gameMode);
 
-      int levelDifficulty;
-      switch (data.getLevelDifficulty()) {
-        case EASY -> levelDifficulty = 1;
-        case MEDIUM -> levelDifficulty = 2;
-        case HARD -> levelDifficulty = 3;
-        default -> levelDifficulty = 0;
-      }
+       int levelDifficulty;
+       switch (data.getLevelDifficulty()) {
+         case EASY -> levelDifficulty = 1;
+         case MEDIUM -> levelDifficulty = 2;
+         case HARD -> levelDifficulty = 3;
+         default -> levelDifficulty = 0;
+       }
 
-      int numberOfQuestions = data.getNumberOfQuestions();
-      int participantsNumber = data.getParticipantsNumber();
-      int topicId = data.getTopicId();
-      boolean isPrivate = data.getIsPrivate();
+       int numberOfQuestions = data.getNumberOfQuestions();
+       int participantsNumber = data.getParticipantsNumber();
+       Integer topicIdObj = data.getTopicId();
+       int topicId = 0;
+       
+       if (topicIdObj != null) {
+         topicId = topicIdObj;
+       }
+       
+       boolean isPrivate = data.getIsPrivate();
+
+       if (GameMode.DUEL.equals(gameMode)) {
+         Topic[] topics = dbService.getAllTopics();
+         if (topics.length == 0) {
+           return new ResponseEntity<>("No topics available for duel generation", HttpStatus.BAD_REQUEST);
+         }
+         int randomTopicIndex = java.util.concurrent.ThreadLocalRandom.current().nextInt(topics.length);
+         topicId = topics[randomTopicIndex].getTopicId();
+         numberOfQuestions = 10;
+         data.setTopicId(topicId);
+         data.setNumberOfQuestions(10);
+         System.out.println("[DUEL] Creating duel room with random seed topicId=" + topicId);
+       } else if (topicIdObj == null) {
+         return new ResponseEntity<>("Topic ID is required for non-duel game modes", HttpStatus.BAD_REQUEST);
+       }
+
       int gameId = dbService.createGame(sessionOfAuthor, levelDifficulty,
           numberOfQuestions, participantsNumber, topicId, isPrivate, gameMode);
       data.setGameId(gameId);
@@ -476,12 +513,12 @@ public class ApiController {
       Integer[] preset = dbService.getPreset(gameId);
       data.setAuthorId(preset[0]);
 
-      System.out.println("create");
-
-      // Здесь должен вызываться loadQuestions() для AI
-      System.out.println("Sent request");
       if (GameModeCatalog.usesStandardQuizFlow(gameMode)) {
+        System.out.println("[QUIZ] Queuing async generation for gameId=" + gameId + ", topicId=" + topicId);
         questionLoadingService.loadQuestionsAsync(gameId, levelDifficulty, numberOfQuestions, topicId);
+      } else if (GameMode.DUEL.equals(gameMode)) {
+        System.out.println("[DUEL] Queuing async generation for gameId=" + gameId);
+        duelService.ensureInitialBatchAsync(gameId, levelDifficulty, topicId);
       }
 
       return joinRoom(data);
@@ -593,11 +630,18 @@ public class ApiController {
     try {
       int gameId = game.getGameId();
       GameMode gameMode = dbService.getGameMode(gameId);
+      if (GameMode.DUEL.equals(gameMode)) {
+        if (!dbService.isGameReady(gameId)) {
+          return new ResponseEntity<>("Duel questions are still generating", HttpStatus.CONFLICT);
+        }
+        System.out.println("[DUEL] Starting duel gameId=" + gameId);
+        duelService.startDuel(gameId);
+        dbService.setStatus(gameId, 2);
+        dbService.setGameStartTime(gameId, Instant.now());
+        return new ResponseEntity<>(HttpStatus.OK);
+      }
       if (!GameModeCatalog.usesStandardQuizFlow(gameMode)) {
-        return new ResponseEntity<>(
-            "Game mode " + gameMode + " is stored and isolated, but its gameplay flow is not wired yet",
-            HttpStatus.CONFLICT
-        );
+        return new ResponseEntity<>("Game mode " + gameMode + " is not wired yet", HttpStatus.CONFLICT);
       }
       if (!dbService.isGameReady(gameId)) {
         Integer[] preset = dbService.getPreset(gameId);
@@ -658,7 +702,7 @@ public class ApiController {
       int questionNumber = requireAnswerField(answerObject.getQuestionNumber(), "questionNumber");
       int submittedAnswerNumber = requireAnswerField(answerObject.getSubmittedAnswerNumber(), "submittedAnswerNumber");
       int timeTaken = requireAnswerField(answerObject.getTimeTakenToAnswerInSeconds(), "timeTakenToAnswerInSeconds");
-      String session = requireAnswerField(answerObject.getSession(), "session");
+      String session = requireSessionField(answerObject.getSession());
       if (session.isBlank()) {
         return new ResponseEntity<>("Field 'session' must not be blank", HttpStatus.BAD_REQUEST);
       }
@@ -698,17 +742,51 @@ public class ApiController {
       if ("Game is not active".equals(e.getMessage())) {
         return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT);
       }
-      e.printStackTrace();
+      System.err.println("Failed to verify answer: " + e.getMessage());
       return new ResponseEntity<>("Failed to verify ...", HttpStatus.NOT_FOUND);
     } catch (SQLException e) {
-      e.printStackTrace();
+      System.err.println("Database error while verifying answer: " + e.getMessage());
       return new ResponseEntity<>("Database error ...", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   @ExceptionHandler(HttpMessageNotReadableException.class)
-  public ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+  public ResponseEntity<Object> handleHttpMessageNotReadable() {
+    System.err.println("Malformed request body");
     return new ResponseEntity<>("Malformed request body", HttpStatus.BAD_REQUEST);
+  }
+
+  @PostMapping("/duel/state")
+  public ResponseEntity<Object> getDuelState(@RequestBody DuelActionRequest request) {
+    try {
+      return new ResponseEntity<>(duelService.getState(request), HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to get duel state: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error while reading duel state", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/duel/action")
+  public ResponseEntity<Object> applyDuelAction(@RequestBody DuelActionRequest request) {
+    try {
+      return new ResponseEntity<>(duelService.applyBetAction(request), HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to apply duel action: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error while applying duel action", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @PostMapping("/duel/answer")
+  public ResponseEntity<Object> submitDuelAnswer(@RequestBody DuelActionRequest request) {
+    try {
+      return new ResponseEntity<>(duelService.submitAnswer(request), HttpStatus.OK);
+    } catch (DatabaseAccessException e) {
+      return new ResponseEntity<>("Failed to submit duel answer: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+    } catch (SQLException e) {
+      return new ResponseEntity<>("Database error while submitting duel answer", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   private int requireAnswerField(Integer value, String fieldName) {
@@ -718,9 +796,9 @@ public class ApiController {
     return value;
   }
 
-  private String requireAnswerField(String value, String fieldName) {
+  private String requireSessionField(String value) {
     if (value == null) {
-      throw new IllegalArgumentException("Field '" + fieldName + "' must not be null");
+      throw new IllegalArgumentException("Field 'session' must not be null");
     }
     return value;
   }

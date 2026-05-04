@@ -46,6 +46,7 @@
 <script>
     let selectedGameId = null;
     let availableRooms = [];
+    let currentSelectedMode = null;
     let refreshInterval;
     let notificationTimeout;
 
@@ -74,20 +75,24 @@
 
     async function loadOpenRooms() {
       try {
-        const selectedTopic = JSON.parse(localStorage.getItem('selectedTopic'));
         let selectedMode = JSON.parse(localStorage.getItem('selectedMode'));
-        if (!selectedTopic) {
-          showErrorMessage('Тема не выбрана');
-          return;
-        }
         if (!selectedMode) {
           showErrorMessage('Режим не выбран');
           return;
         }
-
-        console.log('Загружаем комнаты для темы:', selectedTopic, selectedMode);
-
-        availableRooms = await fetchOpenRooms(selectedTopic.topicId, selectedMode);
+        currentSelectedMode = selectedMode;
+        if (selectedMode.mode !== 'DUEL') {
+          const selectedTopic = JSON.parse(localStorage.getItem('selectedTopic'));
+          if (!selectedTopic) {
+          showErrorMessage('Тема не выбрана');
+          return;
+          }
+          console.log('Загружаем комнаты для темы:', selectedTopic, selectedMode);
+          availableRooms = await fetchOpenRooms(selectedTopic.topicId, selectedMode);
+        } else {
+          console.log('Загружаем комнаты для дуэли без выбора темы:', selectedMode);
+          availableRooms = await fetchOpenRoomsAll(selectedMode);
+        }
         displayRooms(availableRooms);
 
       } catch (error) {
@@ -132,6 +137,30 @@
       return roomsWithDetails.filter(room => room.currentParticipants < room.maxParticipants && room.mode === selectedMode.mode);
     }
 
+    async function fetchOpenRoomsAll(selectedMode) {
+      const session = AuthService.getsession();
+
+      const response = await fetch('http://localhost:8080/api/game/get-open-all', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ошибка HTTP: ${response.status}`);
+      }
+
+      const roomsData = await response.json();
+      const roomsWithDetails = roomsData.map(roomArray => {
+        const [gameId, topicId, currentParticipants, maxParticipants, mode] = roomArray;
+        return { gameId, topicId, currentParticipants, maxParticipants, mode };
+      });
+
+      return roomsWithDetails.filter(room => room.currentParticipants < room.maxParticipants && room.mode === selectedMode.mode);
+    }
+
     function displayRooms(rooms) {
       const container = document.getElementById('rooms-container');
       const previouslySelected = selectedGameId;
@@ -139,7 +168,10 @@
       container.innerHTML = '';
 
       if (rooms.length === 0) {
-        container.innerHTML = '<div class="no-rooms">Нет открытых комнат для выбранной темы</div>';
+        const emptyMessage = currentSelectedMode && currentSelectedMode.mode === 'DUEL'
+          ? 'Нет открытых комнат для дуэли'
+          : 'Нет открытых комнат для выбранной темы';
+        container.innerHTML = `<div class="no-rooms">${emptyMessage}</div>`;
         document.getElementById('selected-room-id').textContent = 'ВЫБЕРИТЕ КОМНАТУ';
         document.getElementById('join-btn').style.display = 'none';
         selectedGameId = null;

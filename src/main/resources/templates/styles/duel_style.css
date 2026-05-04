@@ -1,0 +1,151 @@
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  background: radial-gradient(circle at top, #1e1b3a 0%, #0f0c22 55%, #06040f 100%);
+  color: #f0eeff;
+}
+
+.main_cont {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.btn_back {
+  text-decoration: none;
+  color: #c9c4ff;
+  border: 1px solid #5b56a8;
+  border-radius: 10px;
+  padding: 10px 16px;
+}
+
+.panel {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(145, 138, 220, 0.4);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.players {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.player {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.rounds-history {
+  display: grid;
+  gap: 10px;
+}
+
+.rounds-empty {
+  opacity: 0.75;
+}
+
+.round-item {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(145, 138, 220, 0.25);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.round-item__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.round-item__question {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.round-item__players,
+.round-item__meta {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.round-item__players {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.meta {
+  display: flex;
+  gap: 16px;
+  font-weight: 700;
+}
+
+.question {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.answers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.answer-btn,
+.action-btn,
+.submit-btn {
+  background: linear-gradient(90deg, #6b63d2, #8b6bf3);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.answer-btn.selected {
+  outline: 2px solid #63e6ff;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+input[type='number'],
+input[type='text'] {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(145, 138, 220, 0.5);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(99, 230, 255, 0.2);
+  color: #b8f4ff;
+}
+
+#message {
+  margin-top: 10px;
+  color: #ffd6a6;
+}
+
+
